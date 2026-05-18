@@ -1,0 +1,146 @@
+{{ define "title" }}{{ if .Mock.Name }}{{ .Mock.Name }}{{ else }}/m/{{ .Mock.Slug }}{{ end }} — {{ t "app.name" }}{{ end }}
+
+{{ define "content" }}
+<section class="container mock-detail" x-data="mockDetail()">
+  <header class="mock-header">
+    <h1>{{ if .Mock.Name }}{{ .Mock.Name }}{{ else }}{{ t "mock.detail.title" }}{{ end }}</h1>
+    <div class="mock-meta">
+      <span class="badge badge-method badge-{{ .Mock.Method }}">{{ .Mock.Method }}</span>
+      <span class="badge">{{ t "mock.detail.status" }}: {{ .Mock.ResponseStatus }}</span>
+      {{ if .Mock.ExpiresAt }}<span class="muted">{{ t "mock.detail.expires" }}: {{ fmtTime .Mock.ExpiresAt }}</span>{{ end }}
+    </div>
+  </header>
+
+  <div class="card url-card">
+    <label class="label-text">{{ t "mock.detail.url" }}</label>
+    <div class="url-row">
+      <input type="text" readonly value="{{ .URL }}" x-ref="urlInput" class="url-input">
+      <button type="button" class="btn btn-primary"
+              @click="copy($refs.urlInput.value, 'url')">
+        <span x-show="copied !== 'url'">{{ t "mock.detail.copy" }}</span>
+        <span x-show="copied === 'url'" x-cloak>{{ t "mock.detail.copied" }}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>{{ t "mock.detail.response" }}</h2>
+      <span class="badge">{{ .Mock.ContentType }}</span>
+    </div>
+    {{ if eq .Mock.ResponseBody "" }}
+      <p class="empty">{{ t "mock.detail.response_empty" }}</p>
+    {{ else if isJSONContentType .Mock.ContentType }}
+      <pre class="codeblock json-pretty"><code>{{ highlightJSON .Mock.ResponseBody }}</code></pre>
+    {{ else }}
+      <pre class="codeblock"><code>{{ .Mock.ResponseBody }}</code></pre>
+    {{ end }}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>{{ t "mock.detail.curl" }}</h2>
+      <button type="button" class="btn btn-ghost"
+              @click="copy($refs.curlBox.textContent, 'curl')">
+        <span x-show="copied !== 'curl'">📋</span>
+        <span x-show="copied === 'curl'" x-cloak>✓</span>
+      </button>
+    </div>
+    <pre class="codeblock" x-ref="curlBox"><code>{{ .Curl }}</code></pre>
+  </div>
+
+  <div class="card"
+       hx-get="/mock/{{ .Mock.Slug }}/summary"
+       hx-trigger="every 5s"
+       hx-swap="outerHTML">
+    {{ template "summary_inner" . }}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>{{ t "mock.detail.code" }}</h2>
+    </div>
+    <div class="tabs" x-data="{ tab: 'js' }">
+      <div class="tab-buttons" role="tablist">
+        {{ range .Snippets }}
+        <button type="button" role="tab" @click="tab = '{{ .Lang }}'"
+                :class="tab === '{{ .Lang }}' && 'is-active'"
+                :aria-selected="tab === '{{ .Lang }}'">{{ .Label }}</button>
+        {{ end }}
+      </div>
+      {{ range .Snippets }}
+      <div class="tab-panel" role="tabpanel" x-show="tab === '{{ .Lang }}'" x-cloak>
+        <pre class="codeblock"><code>{{ .Code }}</code></pre>
+      </div>
+      {{ end }}
+    </div>
+  </div>
+
+  <div class="card logs-card">
+    <div class="card-header">
+      <h2>{{ t "mock.logs.title" }}</h2>
+      <button type="button" class="btn btn-ghost btn-danger"
+              @click="clearLogs('{{ .Mock.Slug }}')">
+        {{ t "mock.logs.clear" }}
+      </button>
+    </div>
+    <div hx-get="/mock/{{ .Mock.Slug }}/logs"
+         hx-trigger="load, every 2s"
+         hx-swap="innerHTML">
+      {{ template "logs_inner" . }}
+    </div>
+  </div>
+
+  <div class="card danger-zone">
+    <h2>{{ t "mock.detail.delete" }}</h2>
+    <button type="button" class="btn btn-danger"
+            @click="del('{{ .Mock.Slug }}')">
+      {{ t "mock.detail.delete" }}
+    </button>
+  </div>
+</section>
+
+<script>
+  function mockDetail() {
+    return {
+      copied: '',
+      async copy(text, label) {
+        try { await navigator.clipboard.writeText(text); }
+        catch (e) {
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta);
+          ta.select(); document.execCommand('copy'); ta.remove();
+        }
+        this.copied = label;
+        setTimeout(() => { this.copied = ''; }, 1500);
+      },
+      async del(slug) {
+        if (!confirm('{{ t "mock.detail.delete_confirm" }}')) return;
+        const r = await fetch('/api/mocks/' + slug, { method: 'DELETE' });
+        if (r.ok) {
+          try {
+            const stored = JSON.parse(localStorage.getItem('mocks') || '[]');
+            localStorage.setItem('mocks', JSON.stringify(stored.filter(s => s.slug !== slug)));
+          } catch (e) {}
+          window.location.href = '/';
+        }
+      },
+      async clearLogs(slug) {
+        if (!confirm('{{ t "mock.logs.clear_confirm" }}')) return;
+        await fetch('/api/mocks/' + slug + '/logs', { method: 'DELETE' });
+        document.querySelector('.logs-card [hx-get]').dispatchEvent(new Event('htmx:trigger'));
+      },
+      init() {
+        try {
+          const stored = JSON.parse(localStorage.getItem('mocks') || '[]');
+          if (!stored.find(s => s.slug === '{{ .Mock.Slug }}')) {
+            stored.push({ slug: '{{ .Mock.Slug }}', name: '{{ .Mock.Name }}', created_at: new Date().toISOString() });
+            localStorage.setItem('mocks', JSON.stringify(stored));
+          }
+        } catch (e) {}
+      },
+    };
+  }
+</script>
+{{ end }}
+

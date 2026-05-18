@@ -1,0 +1,45 @@
+# Don't ship history / IDE / local state into the image
+.git
+.github
+.gitignore
+.dockerignore
+.idea
+.vscode
+.DS_Store
+.claude
+
+# Don't ship secrets
+.env
+.env.*
+
+# Build artifacts (we rebuild inside the container)
+bin/
+*.exe
+*.test
+coverage.*
+
+# Local data
+data/
+pgdata/
+redis-data/
+*.sqlite
+
+# Docs (the image doesn't need them; reduces context size and rebuild churn)
+README.md
+README.ru.md
+ARCHITECTURE.md
+API.md
+I18N.md
+BACKLOG.md
+DEPLOY.md
+LICENSE
+docs/
+
+# Internal spec
+mock-api-tz.md
+
+# Logs / backups
+logs/
+*.log
+*.dump
+backups/

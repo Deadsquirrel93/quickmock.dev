@@ -1,0 +1,66 @@
+{{ define "title" }}{{ t "mocks.list.title" }} — {{ t "app.name" }}{{ end }}
+
+{{ define "content" }}
+<section class="container">
+  <div class="list-header">
+    <h1>{{ t "mocks.list.title" }}</h1>
+    <a href="/" class="btn btn-primary">+ {{ t "mocks.list.new" }}</a>
+  </div>
+
+  <div x-data="myMocks()" x-init="load()">
+    <template x-if="loading">
+      <p class="muted">{{ t "common.loading" }}</p>
+    </template>
+
+    <template x-if="!loading && mocks.length === 0">
+      <div class="empty-state card">
+        <h2>{{ t "mocks.list.empty.title" }}</h2>
+        <p>{{ t "mocks.list.empty.body" }}</p>
+        <a class="btn btn-primary" href="/">{{ t "mocks.list.empty.cta" }}</a>
+      </div>
+    </template>
+
+    <ul class="mocks-grid" x-show="!loading && mocks.length > 0" x-cloak>
+      <template x-for="m in mocks" :key="m.slug">
+        <li class="card mock-card">
+          <a :href="'/mock/' + m.slug" class="mock-card-link">
+            <div class="mock-card-row">
+              <span class="badge badge-method" :class="'badge-' + m.method" x-text="m.method"></span>
+              <span class="mock-card-name" x-text="m.name || ('/m/' + m.slug)"></span>
+            </div>
+            <div class="muted mock-card-url" x-text="m.url"></div>
+            <div class="mock-card-stats">
+              <span x-text="`${m.request_count} requests`"></span>
+              <span class="muted" x-show="m.expires_at" x-text="`expires ${new Date(m.expires_at).toLocaleString()}`"></span>
+            </div>
+          </a>
+        </li>
+      </template>
+    </ul>
+  </div>
+</section>
+
+<script>
+  function myMocks() {
+    return {
+      loading: true,
+      mocks: [],
+      async load() {
+        let stored = [];
+        try { stored = JSON.parse(localStorage.getItem('mocks') || '[]'); } catch (e) {}
+        const slugs = stored.map(s => s.slug).filter(Boolean);
+        if (slugs.length === 0) { this.loading = false; return; }
+        try {
+          const r = await fetch('/api/mocks/by-slugs?slugs=' + encodeURIComponent(slugs.join(',')));
+          const data = await r.json();
+          this.mocks = data.mocks || [];
+          // Prune slugs that no longer exist server-side.
+          const alive = new Set(this.mocks.map(m => m.slug));
+          localStorage.setItem('mocks', JSON.stringify(stored.filter(s => alive.has(s.slug))));
+        } catch (e) {}
+        this.loading = false;
+      },
+    };
+  }
+</script>
+{{ end }}

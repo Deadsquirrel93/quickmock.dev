@@ -1,0 +1,75 @@
+# Mock API — production-ish docker compose.
+#
+# Brings up: postgres, redis, a one-shot migration container, and the app.
+# Nginx + TLS termination stay on the host (see DEPLOY.md). The app port is
+# bound to 127.0.0.1 only — Nginx proxies into it.
+#
+# Usage:
+#   cp .env.example .env       # then edit POSTGRES_PASSWORD etc.
+#   docker compose up -d --build
+#   docker compose logs -f app
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     quickmock
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB:       quickmock
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test:     ["CMD-SHELL", "pg_isready -U quickmock -d quickmock"]
+      interval: 5s
+      timeout:  5s
+      retries:  10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]  # ephemeral by design
+    healthcheck:
+      test:     ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout:  5s
+      retries:  10
+
+  migrate:
+    build: .
+    command: ["migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      QUICKMOCK_PG_DSN:     postgres://quickmock:${POSTGRES_PASSWORD}@postgres:5432/quickmock?sslmode=disable
+      QUICKMOCK_REDIS_ADDR: redis:6379
+    restart: "no"
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      QUICKMOCK_PG_DSN:     postgres://quickmock:${POSTGRES_PASSWORD}@postgres:5432/quickmock?sslmode=disable
+      QUICKMOCK_REDIS_ADDR: redis:6379
+      QUICKMOCK_ADDR:       :8080
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test:     ["CMD", "/app/quickmock", "healthcheck"]
+      interval: 10s
+      timeout:  3s
+      retries:  5
+      start_period: 10s
+
+volumes:
+  pg-data:

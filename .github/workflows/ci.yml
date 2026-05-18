@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER:     quickmock
+          POSTGRES_PASSWORD: quickmock
+          POSTGRES_DB:       quickmock
+        options: >-
+          --health-cmd "pg_isready -U quickmock"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Tidy
+        run: go mod tidy && git diff --exit-code go.mod go.sum
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: i18n + privacy check
+        run: ./scripts/check_i18n.sh
+
+      - name: Vendor JS
+        run: ./scripts/vendor-js.sh
+
+      - name: Test
+        env:
+          QUICKMOCK_PG_DSN:    postgres://quickmock:quickmock@127.0.0.1:5432/quickmock?sslmode=disable
+          QUICKMOCK_REDIS_ADDR: 127.0.0.1:6379
+        run: go test ./... -race -count=1
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vendor JS (image needs them embedded)
+        run: ./scripts/vendor-js.sh
+      - name: Build image
+        run: docker build -t quickmock:ci .

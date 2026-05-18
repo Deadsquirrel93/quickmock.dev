@@ -1,0 +1,47 @@
+{{ define "base" }}<!doctype html>
+<html lang="{{ .Lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ block "title" . }}{{ t "app.name" }} — {{ t "app.tagline" }}{{ end }}</title>
+  <meta name="description" content="{{ t "app.tagline" }}">
+  {{ block "head" . }}{{ end }}
+  <script>
+    // FOUC guard: pick the theme BEFORE the stylesheet loads so the page
+    // never flashes light → dark. Order: explicit user choice > system pref.
+    (function () {
+      try {
+        var t = localStorage.getItem("theme");
+        if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+  <script src="/static/js/alpine.min.js" defer></script>
+</head>
+<body>
+  {{ template "header" . }}
+  <main>
+    {{ block "content" . }}{{ end }}
+  </main>
+  {{ template "footer" . }}
+  <script>
+    // Alpine component for the header theme button.
+    function themeToggle() {
+      return {
+        theme: "light",
+        init() {
+          this.theme = document.documentElement.getAttribute("data-theme") || "light";
+        },
+        toggle() {
+          this.theme = this.theme === "dark" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", this.theme);
+          try { localStorage.setItem("theme", this.theme); } catch (e) {}
+        },
+      };
+    }
+  </script>
+</body>
+</html>{{ end }}

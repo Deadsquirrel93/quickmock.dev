@@ -1,0 +1,251 @@
+{{ define "title" }}{{ t "app.name" }} — {{ t "home.hero.title" }}{{ end }}
+
+{{ define "content" }}
+<section class="hero container">
+  <h1>{{ t "home.hero.title" }}</h1>
+  <p class="hero-sub">{{ t "home.hero.subtitle" }}</p>
+  <p class="privacy-badge">🔒 {{ t "home.privacy.badge" }}</p>
+</section>
+
+<section class="banner banner-warning container" role="alert">
+  <span class="banner-icon" aria-hidden="true">⚠️</span>
+  <div>
+    <strong>{{ t "home.security.title" }}</strong>
+    <p>{{ t "home.security.body" }}</p>
+  </div>
+</section>
+
+<section class="howto container">
+  <h2>{{ t "home.howto.title" }}</h2>
+  <ol class="howto-steps">
+    <li><span class="step-num">1</span>{{ t "home.howto.step1" }}</li>
+    <li><span class="step-num">2</span>{{ t "home.howto.step2" }}</li>
+    <li><span class="step-num">3</span>{{ t "home.howto.step3" }}</li>
+  </ol>
+</section>
+
+<section class="container">
+  {{ if .Error }}
+    <div class="banner banner-error" role="alert">
+      {{ t (printf "errors.%s" .Error) $.MaxBodyKB $.MaxMocks }}
+    </div>
+  {{ end }}
+
+  <form class="create-form card" method="post" action="/" x-data="createForm()">
+    <h2>{{ t "mock.create.title" }}</h2>
+
+    <div class="form-row">
+      <label>
+        <span class="label-text">{{ t "mock.create.name" }}</span>
+        <input type="text" name="name" maxlength="100"
+               placeholder="{{ t "mock.create.name_placeholder" }}">
+      </label>
+    </div>
+
+    <div class="form-grid">
+      <label>
+        <span class="label-text">{{ t "mock.create.method" }}</span>
+        <select name="method">
+          {{ range .Methods }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+        </select>
+      </label>
+      <label>
+        <span class="label-text">{{ t "mock.create.status" }}</span>
+        <input type="number" name="response_status" value="200" min="100" max="599"
+               placeholder="{{ t "mock.create.status_placeholder" }}">
+      </label>
+      <label>
+        <span class="label-text">{{ t "mock.create.content_type" }}</span>
+        <select name="content_type">
+          <option value="application/json">application/json</option>
+          <option value="application/xml">application/xml</option>
+          <option value="text/plain; charset=utf-8">text/plain</option>
+          <option value="text/html; charset=utf-8">text/html</option>
+        </select>
+      </label>
+    </div>
+
+    <label class="path-suffix-field">
+      <span class="label-text">{{ t "mock.create.path_suffix" }}</span>
+      <div class="path-suffix-input">
+        <span class="path-prefix">/m/&lt;slug&gt;/</span>
+        <input type="text" name="path_suffix" maxlength="255"
+               x-model="pathSuffix" @input="onPathInput"
+               placeholder='{{ t "mock.create.path_suffix_placeholder" }}'>
+      </div>
+      <span class="form-hint" x-show="!pathError">{{ t "mock.create.path_suffix_hint" }}</span>
+      <span class="form-hint form-error" x-show="pathError" x-text="pathError" x-cloak></span>
+    </label>
+
+    <label class="body-field">
+      <span class="label-text body-label">
+        <span>{{ t "mock.create.body" }}</span>
+        <span class="body-actions">
+          <button type="button" class="btn btn-ghost btn-tight" @click="beautify()">{{ t "mock.create.beautify" }}</button>
+          <button type="button" class="btn btn-ghost btn-tight" @click="minify()">{{ t "mock.create.minify" }}</button>
+          <span class="body-counter">
+            <span x-text="bodySize"></span> / {{ .MaxBodyKB }} KB
+          </span>
+        </span>
+      </span>
+      <textarea name="response_body" rows="10" spellcheck="false"
+                x-model="body" @input="onBodyInput"
+                placeholder='{{ t "mock.create.body_placeholder" }}'>{ "hello": "world" }</textarea>
+      <span class="form-hint form-error" x-show="jsonError" x-text="jsonError" x-cloak></span>
+    </label>
+
+    <div class="form-grid">
+      <label>
+        <span class="label-text">{{ t "mock.create.delay" }}</span>
+        <input type="number" name="response_delay_ms" value="0" min="0" max="30000">
+        <span class="form-hint">{{ t "mock.create.delay_hint" }}</span>
+      </label>
+      <label>
+        <span class="label-text">{{ t "mock.create.ttl" }}</span>
+        <select name="ttl">
+          <option value="1h">{{ t "mock.create.ttl.1h" }}</option>
+          <option value="24h">{{ t "mock.create.ttl.24h" }}</option>
+          <option value="168h" selected>{{ t "mock.create.ttl.7d" }}</option>
+          <option value="720h">{{ t "mock.create.ttl.30d" }}</option>
+        </select>
+      </label>
+    </div>
+
+    <details class="advanced">
+      <summary>{{ t "mock.create.headers" }}</summary>
+      <template x-for="(h, i) in headers" :key="i">
+        <div class="kv-row">
+          <input type="text" name="header_name[]" :value="h.name"
+                 @input="h.name = $event.target.value"
+                 placeholder='{{ t "mock.create.headers_name" }}'>
+          <input type="text" name="header_value[]" :value="h.value"
+                 @input="h.value = $event.target.value"
+                 placeholder='{{ t "mock.create.headers_value" }}'>
+          <button type="button" class="btn btn-ghost" @click="headers.splice(i, 1)">−</button>
+        </div>
+      </template>
+      <button type="button" class="btn btn-ghost"
+              @click="headers.push({name:'', value:''})">+ {{ t "mock.create.headers_add" }}</button>
+    </details>
+
+    <details class="advanced">
+      <summary>{{ t "mock.curl_import.title" }}</summary>
+      <p class="form-hint">{{ t "mock.curl_import.hint" }}</p>
+      <textarea x-model="curlInput" rows="3"
+                placeholder="curl -X POST https://api.example.com/users -d '{...}'"></textarea>
+      <button type="button" class="btn btn-secondary" @click="parseCurl()">
+        {{ t "mock.curl_import.button" }}
+      </button>
+      <span class="form-hint" x-show="curlError" x-text="curlError" x-cloak></span>
+    </details>
+
+    <button type="submit" class="btn btn-primary btn-large">{{ t "mock.create.submit" }}</button>
+  </form>
+</section>
+
+<section class="stats-line container" aria-label="{{ t "home.stats.aria" }}">
+  <span class="stat-chip">
+    <span class="stat-num">{{ humanCount (statValue .Stats "mocks_created") }}</span>
+    <span class="stat-label-inline">{{ t "home.stats.mocks" }}</span>
+  </span>
+  <span class="stat-sep" aria-hidden="true">·</span>
+  <span class="stat-chip">
+    <span class="stat-num">{{ humanCount (statValue .Stats "requests_served") }}</span>
+    <span class="stat-label-inline">{{ t "home.stats.requests" }}</span>
+  </span>
+</section>
+
+<section class="privacy-block container">
+  <h2>{{ t "home.privacy.title" }}</h2>
+  <p>{{ t "home.privacy.body" }}</p>
+  <h3>{{ t "home.privacy.what_we_log.title" }}</h3>
+  <ul class="privacy-list">
+    <li>{{ t "home.privacy.what_we_log.item1" }}</li>
+    <li>{{ t "home.privacy.what_we_log.item2" }}</li>
+    <li>{{ t "home.privacy.what_we_log.item3" }}</li>
+    <li>{{ t "home.privacy.what_we_log.item4" }}</li>
+  </ul>
+</section>
+
+<script>
+  function createForm() {
+    return {
+      body: '{ "hello": "world" }',
+      bodySize: 0,
+      jsonError: '',
+      headers: [],
+      curlInput: '',
+      curlError: '',
+      pathSuffix: '',
+      pathError: '',
+      init() { this.onBodyInput(); },
+      onPathInput() {
+        const v = this.pathSuffix.trim();
+        if (v === '') { this.pathError = ''; return; }
+        if (v.length > 255) {
+          this.pathError = 'Max 255 characters.';
+          return;
+        }
+        // Same rule as the server: RFC 3986 unreserved + '/', no leading/
+        // trailing slash, no empty segments.
+        if (!/^[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*$/.test(v)) {
+          this.pathError = '{{ t "mock.create.path_suffix_invalid" }}';
+          return;
+        }
+        this.pathError = '';
+      },
+      onBodyInput() {
+        this.bodySize = Math.ceil(new Blob([this.body]).size / 1024);
+        this.jsonError = '';
+        const ct = document.querySelector('select[name=content_type]');
+        if (ct && ct.value === 'application/json' && this.body.trim() !== '') {
+          try { JSON.parse(this.body); } catch (e) {
+            this.jsonError = '{{ t "errors.invalid_json" }}: ' + e.message;
+          }
+        }
+      },
+      beautify() {
+        const v = this.body.trim();
+        if (v === '') return;
+        try {
+          this.body = JSON.stringify(JSON.parse(v), null, 2);
+          this.onBodyInput();
+        } catch (e) {
+          this.jsonError = '{{ t "mock.create.beautify_error" }}';
+        }
+      },
+      minify() {
+        const v = this.body.trim();
+        if (v === '') return;
+        try {
+          this.body = JSON.stringify(JSON.parse(v));
+          this.onBodyInput();
+        } catch (e) {
+          this.jsonError = '{{ t "mock.create.beautify_error" }}';
+        }
+      },
+      async parseCurl() {
+        this.curlError = '';
+        try {
+          const r = await fetch('/api/parse-curl', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ curl: this.curlInput })
+          });
+          if (!r.ok) throw new Error('parse failed');
+          const data = await r.json();
+          if (data.method) document.querySelector('select[name=method]').value = data.method;
+          if (data.content_type) document.querySelector('select[name=content_type]').value = data.content_type;
+          if (data.response_body) { this.body = data.response_body; }
+          if (data.response_headers) {
+            this.headers = Object.entries(data.response_headers).map(([name, value]) => ({name, value}));
+          }
+          this.onBodyInput();
+        } catch (e) {
+          this.curlError = '{{ t "mock.curl_import.error" }}';
+        }
+      },
+    };
+  }
+</script>
+{{ end }}

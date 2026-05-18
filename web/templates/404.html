@@ -1,0 +1,9 @@
+{{ define "title" }}404 — {{ t "app.name" }}{{ end }}
+
+{{ define "content" }}
+<section class="container empty-state-page">
+  <h1>404</h1>
+  <p>{{ t "errors.not_found" }}</p>
+  <a class="btn btn-primary" href="/">{{ t "nav.home" }}</a>
+</section>
+{{ end }}

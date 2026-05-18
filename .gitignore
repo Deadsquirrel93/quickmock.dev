@@ -1,0 +1,48 @@
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+bin/
+*.exe
+*.test
+*.out
+coverage.*
+
+# Local databases / runtime data
+*.sqlite
+*.sqlite-journal
+data/
+pgdata/
+redis-data/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Claude Code project-local state
+.claude/
+
+# Internal spec / brief — not for public repo
+mock-api-tz.md
+
+# Internal docs — kept locally, not shipped to the public repo
+/API.md
+/ARCHITECTURE.md
+/BACKLOG.md
+/CHANGELOG.md
+/DEPLOY.md
+/I18N.md
+
+# Backups
+*.dump
+*.bak
+backups/
+
+# Logs
+logs/
+*.log

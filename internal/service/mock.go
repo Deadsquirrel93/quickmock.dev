@@ -1,0 +1,255 @@
+// Package service holds the business logic between handlers and storage.
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
+)
+
+// Errors returned by the service layer. Handlers map these to HTTP status
+// codes + i18n message keys; nothing else should switch on them.
+var (
+	ErrValidation       = errors.New("validation failed")
+	ErrBodyTooLarge     = errors.New("body too large")
+	ErrMockLimitReached = errors.New("mock limit reached")
+	ErrNotFound         = errors.New("not found")
+)
+
+// ValidationError carries the offending field name. Handlers translate the
+// field into a localized message.
+type ValidationError struct {
+	Field   string
+	Message string // human-readable English fallback; not shown to users
+}
+
+func (e *ValidationError) Error() string { return e.Message }
+
+// MockService is the only object handlers should call to manipulate mocks.
+type MockService struct {
+	repo       *repository.MockRepo
+	logs       *repository.LogRepo
+	stats      *StatsCache
+	maxBody    int
+	maxMocks   int
+	defaultTTL time.Duration
+}
+
+func NewMockService(repo *repository.MockRepo, logs *repository.LogRepo, stats *StatsCache, maxBody, maxMocks int, defaultTTL time.Duration) *MockService {
+	return &MockService{
+		repo:       repo,
+		logs:       logs,
+		stats:      stats,
+		maxBody:    maxBody,
+		maxMocks:   maxMocks,
+		defaultTTL: defaultTTL,
+	}
+}
+
+// Reserved response headers we will silently drop. Setting them confuses
+// the HTTP transport and gains nothing for the user.
+var reservedHeaders = map[string]struct{}{
+	"content-length":    {},
+	"transfer-encoding": {},
+	"connection":        {},
+}
+
+var headerNameRegexp = regexp.MustCompile(`^[!#$%&'*+\-.^_` + "`" + `|~0-9A-Za-z]+$`)
+
+// pathSuffixRegexp validates the user-supplied URL label. Allowed chars are
+// RFC 3986 unreserved (letters, digits, `-`, `.`, `_`, `~`) split by `/`.
+// We reject leading/trailing slashes and empty segments before applying it
+// — those are normalized away by normalizePathSuffix.
+var pathSuffixRegexp = regexp.MustCompile(`^[A-Za-z0-9._~-]+(/[A-Za-z0-9._~-]+)*$`)
+
+// PathSuffixMaxLen is the documented hard limit. 255 fits practical REST
+// paths with plenty of headroom (a real `/api/v2/orgs/.../users/...` is
+// usually < 100 chars).
+const PathSuffixMaxLen = 255
+
+// normalizePathSuffix strips leading/trailing slashes and collapses runs.
+// Returns the cleaned value plus whether anything was left.
+func normalizePathSuffix(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, "/")
+	for strings.Contains(s, "//") {
+		s = strings.ReplaceAll(s, "//", "/")
+	}
+	return s
+}
+
+// Create validates input, applies defaults, generates a slug, and inserts.
+//
+// creatorIP is required so we can enforce per-IP limits and rate-limit
+// future requests. It is never shown in the UI.
+func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP string) (*model.Mock, error) {
+	if err := s.validate(&in); err != nil {
+		return nil, err
+	}
+
+	if creatorIP != "" {
+		n, err := s.repo.CountActiveByCreatorIP(ctx, creatorIP)
+		if err != nil {
+			return nil, fmt.Errorf("count mocks per IP: %w", err)
+		}
+		if n >= s.maxMocks {
+			return nil, ErrMockLimitReached
+		}
+	}
+
+	slug, err := GenerateSlug(ctx, s.repo)
+	if err != nil {
+		return nil, err
+	}
+
+	ttl := in.TTL
+	if ttl <= 0 {
+		ttl = s.defaultTTL
+	}
+	expires := time.Now().Add(ttl)
+
+	m := &model.Mock{
+		Slug:            slug,
+		Name:            strings.TrimSpace(in.Name),
+		Method:          in.Method,
+		ResponseBody:    in.ResponseBody,
+		ResponseStatus:  in.ResponseStatus,
+		ResponseHeaders: cleanHeaders(in.ResponseHeaders),
+		ResponseDelayMS: in.ResponseDelayMS,
+		ContentType:     in.ContentType,
+		PathSuffix:      in.PathSuffix,
+		ExpiresAt:       &expires,
+		CreatorIP:       creatorIP,
+	}
+	if err := s.repo.Create(ctx, m); err != nil {
+		return nil, fmt.Errorf("insert mock: %w", err)
+	}
+	if s.stats != nil {
+		s.stats.BumpAsync(StatMocksCreated, 1)
+	}
+	return m, nil
+}
+
+// Get returns a mock by slug. ErrNotFound for unknown or expired.
+func (s *MockService) Get(ctx context.Context, slug string) (*model.Mock, error) {
+	m, err := s.repo.BySlug(ctx, slug)
+	if errors.Is(err, repository.ErrNotFound) {
+		return nil, ErrNotFound
+	}
+	return m, err
+}
+
+// Update applies the input to an existing mock, replacing every field.
+func (s *MockService) Update(ctx context.Context, slug string, in model.MockInput) (*model.Mock, error) {
+	existing, err := s.Get(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validate(&in); err != nil {
+		return nil, err
+	}
+	existing.Name = strings.TrimSpace(in.Name)
+	existing.Method = in.Method
+	existing.ResponseBody = in.ResponseBody
+	existing.ResponseStatus = in.ResponseStatus
+	existing.ResponseHeaders = cleanHeaders(in.ResponseHeaders)
+	existing.ResponseDelayMS = in.ResponseDelayMS
+	existing.ContentType = in.ContentType
+	existing.PathSuffix = in.PathSuffix
+	if in.TTL > 0 {
+		t := time.Now().Add(in.TTL)
+		existing.ExpiresAt = &t
+	}
+	if err := s.repo.Update(ctx, existing); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return existing, nil
+}
+
+// Delete removes a mock and its logs.
+func (s *MockService) Delete(ctx context.Context, slug string) error {
+	if err := s.repo.DeleteBySlug(ctx, slug); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return ErrNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+// ClearLogs purges the request_logs for a mock and resets the counter.
+func (s *MockService) ClearLogs(ctx context.Context, slug string) error {
+	m, err := s.Get(ctx, slug)
+	if err != nil {
+		return err
+	}
+	return s.logs.DeleteByMockID(ctx, m.ID)
+}
+
+func (s *MockService) validate(in *model.MockInput) error {
+	if in.Method == "" {
+		return &ValidationError{Field: "method", Message: "method is required"}
+	}
+	if !model.ValidMethod(string(in.Method)) {
+		return &ValidationError{Field: "method", Message: "unknown method"}
+	}
+	if in.ResponseStatus == 0 {
+		in.ResponseStatus = 200
+	}
+	if in.ResponseStatus < 100 || in.ResponseStatus > 599 {
+		return &ValidationError{Field: "response_status", Message: "status out of range"}
+	}
+	if in.ResponseDelayMS < 0 || in.ResponseDelayMS > 30000 {
+		return &ValidationError{Field: "response_delay_ms", Message: "delay out of range"}
+	}
+	if len(in.ResponseBody) > s.maxBody {
+		return ErrBodyTooLarge
+	}
+	for name := range in.ResponseHeaders {
+		if !headerNameRegexp.MatchString(name) {
+			return &ValidationError{Field: "response_headers", Message: "invalid header name: " + name}
+		}
+	}
+	if in.ContentType == "" {
+		in.ContentType = "text/plain; charset=utf-8"
+	}
+	if len(in.Name) > 100 {
+		in.Name = in.Name[:100]
+	}
+	if in.PathSuffix != "" {
+		in.PathSuffix = normalizePathSuffix(in.PathSuffix)
+		if in.PathSuffix == "" {
+			// User typed only slashes/whitespace — treat as unset.
+		} else if len(in.PathSuffix) > PathSuffixMaxLen {
+			return &ValidationError{Field: "path_suffix", Message: "path is too long"}
+		} else if !pathSuffixRegexp.MatchString(in.PathSuffix) {
+			return &ValidationError{Field: "path_suffix", Message: "path contains invalid characters"}
+		}
+	}
+	return nil
+}
+
+func cleanHeaders(h map[string]string) map[string]string {
+	out := make(map[string]string, len(h))
+	for k, v := range h {
+		k = strings.TrimSpace(k)
+		v = strings.TrimSpace(v)
+		if k == "" {
+			continue
+		}
+		if _, reserved := reservedHeaders[strings.ToLower(k)]; reserved {
+			continue
+		}
+		out[k] = v
+	}
+	return out
+}

@@ -1,0 +1,95 @@
+{{ define "title" }}{{ if .Mock.Name }}{{ .Mock.Name }}{{ else }}/m/{{ .Mock.Slug }}{{ end }} — {{ t "app.name" }}{{ end }}
+
+{{ define "head" }}
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ if .Mock.Name }}{{ .Mock.Name }}{{ else }}Mock /m/{{ .Mock.Slug }}{{ end }}">
+<meta property="og:description" content="{{ t "share.og.description" }}">
+<meta property="og:url" content="{{ .BaseURL }}/share/{{ .Mock.Slug }}">
+<meta name="twitter:card" content="summary">
+{{ end }}
+
+{{ define "content" }}
+<section class="container mock-detail" x-data="shareView()">
+  <div class="banner banner-info">
+    <span aria-hidden="true">👀</span>
+    <div>
+      <strong>{{ t "share.title" }}</strong>
+      <p>{{ t "share.body" }}</p>
+    </div>
+  </div>
+
+  <header class="mock-header">
+    <h1>{{ if .Mock.Name }}{{ .Mock.Name }}{{ else }}/m/{{ .Mock.Slug }}{{ end }}</h1>
+    <div class="mock-meta">
+      <span class="badge badge-method badge-{{ .Mock.Method }}">{{ .Mock.Method }}</span>
+      <span class="badge">{{ t "mock.detail.status" }}: {{ .Mock.ResponseStatus }}</span>
+    </div>
+  </header>
+
+  <div class="card url-card">
+    <label class="label-text">{{ t "mock.detail.url" }}</label>
+    <div class="url-row">
+      <input type="text" readonly value="{{ .URL }}" x-ref="urlInput" class="url-input">
+      <button type="button" class="btn btn-primary"
+              @click="copy($refs.urlInput.value)">
+        <span x-show="!copied">{{ t "mock.detail.copy" }}</span>
+        <span x-show="copied" x-cloak>{{ t "mock.detail.copied" }}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>{{ t "mock.detail.response" }}</h2>
+      <span class="badge">{{ .Mock.ContentType }}</span>
+    </div>
+    {{ if eq .Mock.ResponseBody "" }}
+      <p class="empty">{{ t "mock.detail.response_empty" }}</p>
+    {{ else if isJSONContentType .Mock.ContentType }}
+      <pre class="codeblock json-pretty"><code>{{ highlightJSON .Mock.ResponseBody }}</code></pre>
+    {{ else }}
+      <pre class="codeblock"><code>{{ .Mock.ResponseBody }}</code></pre>
+    {{ end }}
+  </div>
+
+  <div class="card">
+    <h2>{{ t "mock.detail.curl" }}</h2>
+    <pre class="codeblock"><code>{{ .Curl }}</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>{{ t "mock.detail.code" }}</h2>
+    <div class="tabs" x-data="{ tab: 'js' }">
+      <div class="tab-buttons" role="tablist">
+        {{ range .Snippets }}
+        <button type="button" role="tab" @click="tab = '{{ .Lang }}'"
+                :class="tab === '{{ .Lang }}' && 'is-active'">{{ .Label }}</button>
+        {{ end }}
+      </div>
+      {{ range .Snippets }}
+      <div class="tab-panel" x-show="tab === '{{ .Lang }}'" x-cloak>
+        <pre class="codeblock"><code>{{ .Code }}</code></pre>
+      </div>
+      {{ end }}
+    </div>
+  </div>
+</section>
+
+<script>
+  function shareView() {
+    return {
+      copied: false,
+      async copy(text) {
+        try { await navigator.clipboard.writeText(text); }
+        catch (e) {
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta);
+          ta.select(); document.execCommand('copy'); ta.remove();
+        }
+        this.copied = true;
+        setTimeout(() => { this.copied = false; }, 1500);
+      },
+    };
+  }
+</script>
+{{ end }}

@@ -1,0 +1,28 @@
+{{ define "logs_inner" }}
+{{ if eq (len .Logs) 0 }}
+  <p class="empty">{{ t "mock.logs.empty" }}</p>
+{{ else }}
+  <ul class="log-list">
+    {{ range .Logs }}
+    <li class="log-item" x-data="{ open: false }">
+      <button type="button" class="log-header" @click="open = !open" :aria-expanded="open">
+        <span class="badge badge-method badge-{{ .RequestMethod }}">{{ .RequestMethod }}</span>
+        <span class="log-time">{{ fmtTime .CreatedAt }}</span>
+        <span class="muted">{{ .RequestIP }}</span>
+      </button>
+      <div class="log-body" x-show="open" x-cloak>
+        {{ if .RequestHeaders }}
+          <h4>{{ t "mock.logs.headers" }}</h4>
+          <pre class="codeblock"><code>{{ range $k, $v := .RequestHeaders }}{{ $k }}: {{ $v }}
+{{ end }}</code></pre>
+        {{ end }}
+        {{ if .RequestBody }}
+          <h4>{{ t "mock.logs.body" }}</h4>
+          <pre class="codeblock"><code>{{ .RequestBody }}</code></pre>
+        {{ end }}
+      </div>
+    </li>
+    {{ end }}
+  </ul>
+{{ end }}
+{{ end }}

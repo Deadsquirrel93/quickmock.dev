@@ -1,0 +1,49 @@
+{{ define "header" }}
+<header class="site-header">
+  <div class="container header-row">
+    <a class="brand" href="/">
+      <span class="brand-logo">⚡</span>
+      <span class="brand-name">{{ t "app.name" }}</span>
+    </a>
+
+    <nav class="nav" aria-label="Primary">
+      <a href="/" {{ if eq .Path "/" }}aria-current="page"{{ end }}>{{ t "nav.home" }}</a>
+      <a href="/my" {{ if eq .Path "/my" }}aria-current="page"{{ end }}>{{ t "nav.my_mocks" }}</a>
+      <a href="https://github.com/Deadsquirrel93/quickmock.dev" target="_blank" rel="noopener">{{ t "nav.github" }} ↗</a>
+    </nav>
+
+    <button type="button"
+            class="theme-toggle"
+            x-data="themeToggle()"
+            x-init="init()"
+            @click="toggle()"
+            :title="theme === 'dark' ? '{{ t "nav.theme.light" }}' : '{{ t "nav.theme.dark" }}'"
+            :aria-label="theme === 'dark' ? '{{ t "nav.theme.light" }}' : '{{ t "nav.theme.dark" }}'">
+      <span x-text="theme === 'dark' ? '☀️' : '🌙'">🌙</span>
+    </button>
+
+    <div class="lang-switcher" x-data="{ open: false }">
+      <button type="button" class="lang-button" @click="open = !open"
+              :aria-expanded="open" aria-haspopup="listbox">
+        <span aria-hidden="true">🌐</span>
+        <span>{{ langName currentLang }}</span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </button>
+      <ul class="lang-menu" role="listbox" x-show="open" @click.away="open = false" x-cloak>
+        {{ range .Languages }}
+          <li>
+            <form method="post" action="/language" hx-post="/language">
+              <input type="hidden" name="lang" value="{{ . }}">
+              <button type="submit"
+                      class="lang-option {{ if eq . currentLang }}is-current{{ end }}"
+                      role="option">
+                {{ langName . }}
+              </button>
+            </form>
+          </li>
+        {{ end }}
+      </ul>
+    </div>
+  </div>
+</header>
+{{ end }}

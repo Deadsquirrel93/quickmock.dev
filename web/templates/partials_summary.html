@@ -1,0 +1,10 @@
+{{/* HTMX partial endpoint: GET /mock/:slug/summary.
+     Wraps the inner summary in the same .card so hx-swap="outerHTML" works. */}}
+{{ define "partials_summary" }}
+<div class="card"
+     hx-get="/mock/{{ .Mock.Slug }}/summary"
+     hx-trigger="every 5s"
+     hx-swap="outerHTML">
+  {{ template "summary_inner" . }}
+</div>
+{{ end }}
