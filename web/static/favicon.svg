@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="14" fill="#4f46e5"/>
-  <text x="32" y="46" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="38" font-weight="700" fill="#ffffff">{}</text>
+  <path d="M37 8 L14 36 H30 L27 56 L50 28 H34 L40 8 Z"
+        fill="#ffffff"
+        stroke="#ffffff"
+        stroke-width="2"
+        stroke-linejoin="round"/>
 </svg>
