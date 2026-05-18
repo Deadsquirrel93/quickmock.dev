@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ block "title" . }}{{ t "app.name" }} — {{ t "app.tagline" }}{{ end }}</title>
   <meta name="description" content="{{ t "app.tagline" }}">
+
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://quickmock.dev/">
+  <meta property="og:site_name" content="{{ t "app.name" }}">
+  <meta property="og:title" content="{{ t "app.name" }} — {{ t "app.tagline" }}">
+  <meta property="og:description" content="{{ t "app.tagline" }}">
+  <meta property="og:image" content="https://quickmock.dev/static/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ t "app.name" }} — {{ t "app.tagline" }}">
+  <meta name="twitter:description" content="{{ t "app.tagline" }}">
+  <meta name="twitter:image" content="https://quickmock.dev/static/og.png">
+
   {{ block "head" . }}{{ end }}
   <script>
     // FOUC guard: pick the theme BEFORE the stylesheet loads so the page
