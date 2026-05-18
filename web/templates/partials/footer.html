@@ -1,5 +1,5 @@
 {{ define "footer" }}
-<footer class="site-footer">
+<footer class="site-footer" x-data="{ open: false, copied: false }">
   <div class="container footer-row">
     <p class="footer-made">
       {{ t "footer.made_with" }}
@@ -11,10 +11,44 @@
     <p class="footer-links">
       <a href="https://github.com/Deadsquirrel93/quickmock.dev" target="_blank" rel="noopener">{{ t "footer.opensource" }}</a>
       ·
-      <a href="https://boosty.to/deadsquirrel93" target="_blank" rel="noopener">{{ t "footer.donate" }}</a>
+      <button type="button" class="footer-link-button" @click="open = true">{{ t "footer.donate" }}</button>
       ·
       <span>MIT</span>
     </p>
+  </div>
+
+  <div class="modal-overlay" x-show="open" x-cloak
+       @click.self="open = false"
+       @keydown.escape.window="open = false">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="support-title">
+      <button type="button" class="modal-close" @click="open = false" aria-label="{{ t "common.close" }}">×</button>
+      <h3 id="support-title">{{ t "support.title" }}</h3>
+      <p class="modal-desc">{{ t "support.desc" }}</p>
+      <ul class="support-list">
+        <li>
+          <span class="support-icon" aria-hidden="true">⭐</span>
+          <a href="https://github.com/Deadsquirrel93/quickmock.dev" target="_blank" rel="noopener">{{ t "support.star" }}</a>
+        </li>
+        <li>
+          <span class="support-icon" aria-hidden="true">☕</span>
+          <a href="https://boosty.to/deadsquirrel93" target="_blank" rel="noopener">Boosty</a>
+        </li>
+        <li class="support-crypto">
+          <div class="support-crypto-head">
+            <span class="support-icon" aria-hidden="true">💸</span>
+            <span>USDT · TRC20</span>
+          </div>
+          <div class="support-crypto-row">
+            <code class="support-address">TDfYMsk1hBxaZX7znM7yF1Zaezj3PRb4k5</code>
+            <button type="button" class="support-copy"
+                    @click="navigator.clipboard.writeText('TDfYMsk1hBxaZX7znM7yF1Zaezj3PRb4k5').then(() => { copied = true; setTimeout(() => copied = false, 1500); })">
+              <span x-show="!copied">{{ t "common.copy" }}</span>
+              <span x-show="copied" x-cloak>{{ t "common.copied" }}</span>
+            </button>
+          </div>
+        </li>
+      </ul>
+    </div>
   </div>
 </footer>
 {{ end }}

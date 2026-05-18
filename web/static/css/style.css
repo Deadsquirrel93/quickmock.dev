@@ -703,6 +703,127 @@ input:focus, select:focus, textarea:focus {
 .footer-row a { color: var(--fg-muted); }
 .footer-row a:hover { color: var(--accent); }
 
+.footer-link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.footer-link-button:hover { color: var(--accent); }
+
+/* ---- Modal ---- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+.modal {
+  position: relative;
+  background: var(--bg-card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.75rem 1.75rem 1.5rem;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+.modal h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+.modal-desc {
+  margin: 0 0 1.25rem;
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  background: none;
+  border: 0;
+  color: var(--fg-muted);
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+}
+.modal-close:hover { color: var(--fg); }
+
+.support-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.support-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.support-list li:not(.support-crypto) {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+.support-icon { font-size: 1.1rem; }
+.support-list a { color: var(--accent); }
+.support-list a:hover { text-decoration: underline; }
+
+.support-crypto-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
+.support-crypto-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.support-address {
+  flex: 1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-code);
+  color: var(--fg);
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+}
+.support-copy {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.support-copy:hover { background: var(--accent-dk); }
+
 /* ---- Mobile ---- */
 @media (max-width: 640px) {
   .header-row { gap: 0.75rem; flex-wrap: wrap; }

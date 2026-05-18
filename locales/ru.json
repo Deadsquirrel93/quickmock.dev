@@ -161,5 +161,13 @@
   "footer.author.telegram": "Telegram",
   "footer.author.linkedin": "LinkedIn",
   "footer.privacy": "Конфиденциальность",
-  "footer.terms": "Условия"
+  "footer.terms": "Условия",
+
+  "support.title": "Поддержать Quickmock",
+  "support.desc": "Quickmock делает один человек по вечерам и выходным. Если он сэкономил вам время — можно сказать спасибо.",
+  "support.star": "Поставить звезду на GitHub",
+
+  "common.copy": "Скопировать",
+  "common.copied": "Скопировано!",
+  "common.close": "Закрыть"
 }

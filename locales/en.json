@@ -161,5 +161,13 @@
   "footer.author.telegram": "Telegram",
   "footer.author.linkedin": "LinkedIn",
   "footer.privacy": "Privacy",
-  "footer.terms": "Terms"
+  "footer.terms": "Terms",
+
+  "support.title": "Support Quickmock",
+  "support.desc": "Quickmock is built and maintained by one person on evenings and weekends. If it saved you time, here are a few ways to say thanks.",
+  "support.star": "Star the repo on GitHub",
+
+  "common.copy": "Copy",
+  "common.copied": "Copied!",
+  "common.close": "Close"
 }
