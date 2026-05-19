@@ -150,6 +150,24 @@ func (r *Renderer) baseFuncMap(lang string) template.FuncMap {
 		"langName": func(code string) string {
 			return r.localz.T(lang, "lang."+code)
 		},
+		"langOgLocale": func(code string) string {
+			switch code {
+			case "en":
+				return "en_US"
+			case "ru":
+				return "ru_RU"
+			case "kk":
+				return "kk_KZ"
+			case "ky":
+				return "ky_KG"
+			case "uz":
+				return "uz_UZ"
+			case "ar":
+				return "ar_AR"
+			default:
+				return code
+			}
+		},
 		"sortedHeaders": func(h map[string]string) [][2]string {
 			keys := make([]string, 0, len(h))
 			for k := range h {

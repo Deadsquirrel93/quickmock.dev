@@ -161,7 +161,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 
 	// Handlers
 	api := handler.NewAPI(mockSvc, logRepo, mockRepo, renderer, cfg.BaseURL)
-	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks)
+	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks)
 	mockRouter := handler.NewMockRouter(mockSvc, logWriter)
 	healthHandler := handler.Health(pool, mockLimiter)
 	langHandler := handler.Lang(renderer)
@@ -188,6 +188,10 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 
 	// Health
 	r.Get("/healthz", healthHandler)
+
+	r.Get("/robots.txt", handler.RobotsTxt(cfg.BaseURL))
+	r.Get("/sitemap.xml", handler.SitemapXML(cfg.BaseURL, localz.Supported(), cfg.DefaultLang))
+	r.Get("/llms.txt", handler.LLMsTxt(cfg.BaseURL))
 
 	// Public mock router — own rate limit bucket, no i18n.
 	// Two routes share one handler: bare slug, and slug + cosmetic suffix.

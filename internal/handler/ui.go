@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
 	mockmw "github.com/Deadsquirrel93/quickmock.dev/internal/middleware"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
@@ -21,23 +22,29 @@ type UI struct {
 	logs     *repository.LogRepo
 	stats    *service.StatsCache
 	renderer *Renderer
+	localz   *i18n.Localizer
 	baseURL  string
 	maxBody  int
 	maxMocks int
 }
 
-func NewUI(svc *service.MockService, logs *repository.LogRepo, stats *service.StatsCache, renderer *Renderer, baseURL string, maxBody, maxMocks int) *UI {
-	return &UI{svc: svc, logs: logs, stats: stats, renderer: renderer, baseURL: baseURL, maxBody: maxBody, maxMocks: maxMocks}
+func NewUI(svc *service.MockService, logs *repository.LogRepo, stats *service.StatsCache, renderer *Renderer, localz *i18n.Localizer, baseURL string, maxBody, maxMocks int) *UI {
+	return &UI{svc: svc, logs: logs, stats: stats, renderer: renderer, localz: localz, baseURL: baseURL, maxBody: maxBody, maxMocks: maxMocks}
 }
 
 // Home renders GET /.
 func (u *UI) Home(w http.ResponseWriter, r *http.Request) {
+	lang := i18n.LangFromContext(r.Context())
+	if lang == "" {
+		lang = u.localz.Fallback()
+	}
 	u.renderer.Render(w, r, "index", http.StatusOK, map[string]any{
 		"Methods":   model.AllMethods,
 		"MaxBody":   u.maxBody,
 		"MaxMocks":  u.maxMocks,
 		"MaxBodyKB": u.maxBody / 1024,
 		"Stats":     u.stats.Snapshot(r.Context()),
+		"JSONLD":    HomeJSONLD(u.localz, lang, u.baseURL, u.localz.Supported()),
 	})
 }
 
