@@ -111,6 +111,7 @@ MIT — see [LICENSE](LICENSE).
 Quickmock is built and maintained by one person on evenings and weekends. If it saved you time, you can say thanks:
 
 - ⭐ **Star the repo** — costs nothing and genuinely helps with discoverability.
+- 🧡 **Patreon:** [patreon.com/deadsquirrel93](https://www.patreon.com/c/deadsquirrel93)
 - ☕ **Boosty:** [boosty.to/deadsquirrel93](https://boosty.to/deadsquirrel93)
 - 💸 **Crypto (USDT, TRC20):** `TDfYMsk1hBxaZX7znM7yF1Zaezj3PRb4k5`
 

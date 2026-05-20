@@ -111,6 +111,7 @@ MIT — см. [LICENSE](LICENSE).
 Quickmock делает один человек по вечерам и выходным. Если он сэкономил вам время — можно сказать спасибо:
 
 - ⭐ **Поставить звезду репозиторию** — ничего не стоит, реально помогает с видимостью.
+- 🧡 **Patreon:** [patreon.com/deadsquirrel93](https://www.patreon.com/c/deadsquirrel93)
 - ☕ **Boosty:** [boosty.to/deadsquirrel93](https://boosty.to/deadsquirrel93)
 - 💸 **Крипта (USDT, сеть TRC20):** `TDfYMsk1hBxaZX7znM7yF1Zaezj3PRb4k5`
 
