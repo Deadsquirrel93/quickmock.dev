@@ -111,8 +111,61 @@
       </span>
       <textarea name="response_body" rows="10" spellcheck="false"
                 x-model="body" @input="onBodyInput"
-                placeholder='{{ t "mock.create.body_placeholder" }}'>{ "hello": "world" }</textarea>
+                placeholder='{{ t "mock.create.body_placeholder" }}'>{
+  "id": "{{`{{faker.uuid}}`}}",
+  "name": "{{`{{faker.name}}`}}",
+  "email": "{{`{{faker.email}}`}}",
+  "created_at": "{{`{{now.iso8601}}`}}"
+}</textarea>
       <span class="form-hint form-error" x-show="jsonError" x-text="jsonError" x-cloak></span>
+      <details class="body-tokens">
+        <summary>{{ t "mock.create.tokens.summary" }}</summary>
+        <p class="form-hint">{{ t "mock.create.tokens.hint" }}</p>
+        <div class="body-tokens-grid">
+          <div>
+            <p class="body-tokens-group">{{ t "mock.create.tokens.group_person" }}</p>
+            <ul class="body-tokens-list">
+              <li><code>{{`{{faker.name}}`}}</code> — {{ t "mock.create.tokens.faker_name" }}</li>
+              <li><code>{{`{{faker.firstname}}`}}</code> — {{ t "mock.create.tokens.faker_firstname" }}</li>
+              <li><code>{{`{{faker.lastname}}`}}</code> — {{ t "mock.create.tokens.faker_lastname" }}</li>
+              <li><code>{{`{{faker.username}}`}}</code> — {{ t "mock.create.tokens.faker_username" }}</li>
+              <li><code>{{`{{faker.email}}`}}</code> — {{ t "mock.create.tokens.faker_email" }}</li>
+              <li><code>{{`{{faker.phone}}`}}</code> — {{ t "mock.create.tokens.faker_phone" }}</li>
+            </ul>
+          </div>
+          <div>
+            <p class="body-tokens-group">{{ t "mock.create.tokens.group_net" }}</p>
+            <ul class="body-tokens-list">
+              <li><code>{{`{{faker.url}}`}}</code> — {{ t "mock.create.tokens.faker_url" }}</li>
+              <li><code>{{`{{faker.ipv4}}`}}</code> — {{ t "mock.create.tokens.faker_ipv4" }}</li>
+              <li><code>{{`{{faker.uuid}}`}}</code> — {{ t "mock.create.tokens.faker_uuid" }}</li>
+              <li><code>{{`{{faker.int}}`}}</code> — {{ t "mock.create.tokens.faker_int" }}</li>
+              <li><code>{{`{{faker.bool}}`}}</code> — {{ t "mock.create.tokens.faker_bool" }}</li>
+              <li><code>{{`{{faker.color}}`}}</code> — {{ t "mock.create.tokens.faker_color" }}</li>
+            </ul>
+          </div>
+          <div>
+            <p class="body-tokens-group">{{ t "mock.create.tokens.group_text" }}</p>
+            <ul class="body-tokens-list">
+              <li><code>{{`{{faker.word}}`}}</code> — {{ t "mock.create.tokens.faker_word" }}</li>
+              <li><code>{{`{{faker.sentence}}`}}</code> — {{ t "mock.create.tokens.faker_sentence" }}</li>
+              <li><code>{{`{{faker.company}}`}}</code> — {{ t "mock.create.tokens.faker_company" }}</li>
+              <li><code>{{`{{faker.city}}`}}</code> — {{ t "mock.create.tokens.faker_city" }}</li>
+            </ul>
+          </div>
+          <div>
+            <p class="body-tokens-group">{{ t "mock.create.tokens.group_time" }}</p>
+            <ul class="body-tokens-list">
+              <li><code>{{`{{now.iso8601}}`}}</code> — {{ t "mock.create.tokens.now_iso8601" }}</li>
+              <li><code>{{`{{now.unix}}`}}</code> — {{ t "mock.create.tokens.now_unix" }}</li>
+              <li><code>{{`{{now.unix_ms}}`}}</code> — {{ t "mock.create.tokens.now_unix_ms" }}</li>
+              <li><code>{{`{{now.date}}`}}</code> — {{ t "mock.create.tokens.now_date" }}</li>
+              <li><code>{{`{{now.time}}`}}</code> — {{ t "mock.create.tokens.now_time" }}</li>
+              <li><code>{{`{{now.rfc1123}}`}}</code> — {{ t "mock.create.tokens.now_rfc1123" }}</li>
+            </ul>
+          </div>
+        </div>
+      </details>
     </label>
 
     <div class="form-grid">
@@ -194,6 +247,10 @@
     <summary>{{ t "seo.faq.q4" }}</summary>
     <p>{{ t "seo.faq.a4" }}</p>
   </details>
+  <details class="faq-item">
+    <summary>{{ t "seo.faq.q5" }}</summary>
+    <p>{{ t "seo.faq.a5" }}</p>
+  </details>
 </section>
 
 <section class="privacy-block container">
@@ -211,7 +268,7 @@
 <script>
   function createForm() {
     return {
-      body: '{ "hello": "world" }',
+      body: '{\n  "id": "{{`{{faker.uuid}}`}}",\n  "name": "{{`{{faker.name}}`}}",\n  "email": "{{`{{faker.email}}`}}",\n  "created_at": "{{`{{now.iso8601}}`}}"\n}',
       bodySize: 0,
       jsonError: '',
       headers: [],
@@ -235,12 +292,26 @@
         }
         this.pathError = '';
       },
+      stripTokens(s) {
+        const tokens = [];
+        const re = /\{\{\s*(faker|now)\.[a-z0-9_]+\s*\}\}/g;
+        const stripped = s.replace(re, (m) => {
+          const id = tokens.length;
+          tokens.push(m);
+          return `__QM_TOKEN_${id}__`;
+        });
+        return {
+          stripped,
+          restore: (out) => out.replace(/__QM_TOKEN_(\d+)__/g, (_, i) => tokens[+i]),
+        };
+      },
       onBodyInput() {
         this.bodySize = Math.ceil(new Blob([this.body]).size / 1024);
         this.jsonError = '';
         const ct = document.querySelector('select[name=content_type]');
         if (ct && ct.value === 'application/json' && this.body.trim() !== '') {
-          try { JSON.parse(this.body); } catch (e) {
+          const { stripped } = this.stripTokens(this.body);
+          try { JSON.parse(stripped); } catch (e) {
             this.jsonError = '{{ t "errors.invalid_json" }}: ' + e.message;
           }
         }
@@ -249,7 +320,8 @@
         const v = this.body.trim();
         if (v === '') return;
         try {
-          this.body = JSON.stringify(JSON.parse(v), null, 2);
+          const { stripped, restore } = this.stripTokens(v);
+          this.body = restore(JSON.stringify(JSON.parse(stripped), null, 2));
           this.onBodyInput();
         } catch (e) {
           this.jsonError = '{{ t "mock.create.beautify_error" }}';
@@ -259,7 +331,8 @@
         const v = this.body.trim();
         if (v === '') return;
         try {
-          this.body = JSON.stringify(JSON.parse(v));
+          const { stripped, restore } = this.stripTokens(v);
+          this.body = restore(JSON.stringify(JSON.parse(stripped)));
           this.onBodyInput();
         } catch (e) {
           this.jsonError = '{{ t "mock.create.beautify_error" }}';

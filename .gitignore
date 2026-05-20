@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Local docker compose overrides
+docker-compose.override.yml
+
 # Build artifacts
 bin/
 *.exe

@@ -84,7 +84,7 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusOK
 	}
 	w.WriteHeader(status)
-	_, _ = w.Write([]byte(m.ResponseBody))
+	_, _ = w.Write([]byte(service.RenderResponseBody(m.ResponseBody)))
 }
 
 func methodMatches(mockMethod model.Method, requestMethod string) bool {

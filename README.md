@@ -43,8 +43,29 @@ That's it. No account, no API key, no waiting for an email.
 - **Auto-expiring mocks** — TTL from 1 hour to 30 days.
 - **Live request inspector** — see every incoming request, headers, body, IP, in real time.
 - **Copy as cURL** — one click to grab a ready-made test command.
+- **Dynamic tokens** — drop `{{faker.uuid}}`, `{{now.iso8601}}`, etc. into the body; fresh values on every hit. See [Dynamic tokens](#dynamic-tokens).
 - **No signup** — mocks live in your browser's `localStorage`, the slug is your only credential.
 - **Bilingual UI** — English and Russian out of the box; more languages planned.
+
+## Dynamic tokens
+
+Need a different value every call instead of a frozen blob? Put a token in the response body — Quickmock stores the template as-is and substitutes a fresh value on every request. Unknown tokens are left alone, so existing template syntax in your payload won't be mangled.
+
+```json
+{
+  "id": "{{faker.uuid}}",
+  "name": "{{faker.name}}",
+  "email": "{{faker.email}}",
+  "created_at": "{{now.iso8601}}"
+}
+```
+
+| Namespace | Tokens                                                                                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `faker.*` | `name`, `firstname`, `lastname`, `username`, `email`, `phone`, `url`, `ipv4`, `uuid`, `int`, `bool`, `word`, `sentence`, `color`, `company`, `city`               |
+| `now.*`   | `iso8601` (RFC 3339), `unix` (seconds), `unix_ms`, `date` (YYYY-MM-DD), `time` (HH:MM:SS), `rfc1123` (HTTP date)                                                  |
+
+The full list with descriptions also lives inside the create form under "Dynamic tokens".
 
 ## Roadmap
 

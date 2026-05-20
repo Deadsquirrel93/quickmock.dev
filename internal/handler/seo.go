@@ -22,6 +22,7 @@ func HomeJSONLD(localz *i18n.Localizer, lang, baseURL string, supportedLangs []s
 		{t("seo.faq.q2"), t("seo.faq.a2")},
 		{t("seo.faq.q3"), t("seo.faq.a3")},
 		{t("seo.faq.q4"), t("seo.faq.a4")},
+		{t("seo.faq.q5"), t("seo.faq.a5")},
 	}
 
 	mainEntity := make([]map[string]any, 0, len(faqs))
