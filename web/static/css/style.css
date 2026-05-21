@@ -820,6 +820,15 @@ input:focus, select:focus, textarea:focus {
 }
 .footer-link-button:hover { color: var(--accent); }
 
+.footer-disclaimer {
+  max-width: 1100px;
+  margin: 0.75rem auto 0;
+  color: var(--fg-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  opacity: 0.75;
+}
+
 /* ---- Modal ---- */
 .modal-overlay {
   position: fixed;
@@ -843,6 +852,40 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
 }
+.modal-wide {
+  max-width: 620px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.terms-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.terms-list li {
+  padding: 0.75rem 0.9rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+.terms-list li strong { color: var(--fg); }
+.terms-abuse-title {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+}
+.terms-abuse-body {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+.terms-abuse-body a { color: var(--accent); }
 .modal h3 {
   margin: 0 0 0.5rem;
   font-size: 1.25rem;
