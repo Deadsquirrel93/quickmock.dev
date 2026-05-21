@@ -855,7 +855,17 @@ input:focus, select:focus, textarea:focus {
 .modal-wide {
   max-width: 620px;
   max-height: 85vh;
+  /* dvh accounts for mobile browser UI (URL bar) — falls back to vh above */
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+}
+/* Inner scroll wrapper keeps .modal-close pinned to the modal frame
+   instead of scrolling away with the content on small viewports. */
+.modal-scroll {
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
 }
 .terms-list {
   list-style: none;
@@ -899,13 +909,17 @@ input:focus, select:focus, textarea:focus {
 .modal-close {
   position: absolute;
   top: 0.5rem;
-  right: 0.75rem;
+  right: 0.5rem;
+  z-index: 2;
   background: none;
   border: 0;
   color: var(--fg-muted);
   font-size: 1.75rem;
   line-height: 1;
   cursor: pointer;
+  /* 44×44 touch target for mobile */
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   padding: 0.25rem 0.5rem;
 }
 .modal-close:hover { color: var(--fg); }

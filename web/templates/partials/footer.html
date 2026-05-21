@@ -63,31 +63,33 @@
        @keydown.escape.window="termsOpen = false">
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="terms-title">
       <button type="button" class="modal-close" @click="termsOpen = false" aria-label="{{ t "common.close" }}">×</button>
-      <h3 id="terms-title">{{ t "footer.terms" }}</h3>
-      <p class="modal-desc">{{ t "terms.intro" }}</p>
-      <ul class="terms-list">
-        <li>
-          <strong>{{ t "terms.point.ugc.title" }}.</strong>
-          {{ t "terms.point.ugc.body" }}
-        </li>
-        <li>
-          <strong>{{ t "terms.point.prohibited.title" }}.</strong>
-          {{ t "terms.point.prohibited.body" }}
-        </li>
-        <li>
-          <strong>{{ t "terms.point.attacks.title" }}.</strong>
-          {{ t "terms.point.attacks.body" }}
-        </li>
-        <li>
-          <strong>{{ t "terms.point.removal.title" }}.</strong>
-          {{ t "terms.point.removal.body" }}
-        </li>
-      </ul>
-      <h4 class="terms-abuse-title">{{ t "terms.abuse.title" }}</h4>
-      <p class="terms-abuse-body">
-        {{ t "terms.abuse.body" }}
-        <a href="https://t.me/deadsquirrel93" target="_blank" rel="me noopener">{{ t "footer.author.telegram" }} @deadsquirrel93</a>
-      </p>
+      <div class="modal-scroll">
+        <h3 id="terms-title">{{ t "footer.terms" }}</h3>
+        <p class="modal-desc">{{ t "terms.intro" }}</p>
+        <ul class="terms-list">
+          <li>
+            <strong>{{ t "terms.point.ugc.title" }}.</strong>
+            {{ t "terms.point.ugc.body" }}
+          </li>
+          <li>
+            <strong>{{ t "terms.point.prohibited.title" }}.</strong>
+            {{ t "terms.point.prohibited.body" }}
+          </li>
+          <li>
+            <strong>{{ t "terms.point.attacks.title" }}.</strong>
+            {{ t "terms.point.attacks.body" }}
+          </li>
+          <li>
+            <strong>{{ t "terms.point.removal.title" }}.</strong>
+            {{ t "terms.point.removal.body" }}
+          </li>
+        </ul>
+        <h4 class="terms-abuse-title">{{ t "terms.abuse.title" }}</h4>
+        <p class="terms-abuse-body">
+          {{ t "terms.abuse.body" }}
+          <a href="https://t.me/deadsquirrel93" target="_blank" rel="me noopener">{{ t "footer.author.telegram" }} @deadsquirrel93</a>
+        </p>
+      </div>
     </div>
   </div>
 </footer>
