@@ -20,8 +20,11 @@ type realIPCtxKey struct{}
 // it came through our nginx). The original RemoteAddr is preserved in
 // context for future debugging if needed.
 //
-// We only trust XFF when RemoteAddr is loopback — otherwise anyone can
-// spoof it.
+// We trust XFF/X-Real-IP only when the immediate peer is loopback or a
+// private/link-local address — i.e. when the request demonstrably came
+// from our own infra (the docker bridge or the host loopback in front of
+// nginx). For any other peer we ignore the header so external callers
+// can't spoof their IP.
 func RealIP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := clientIP(r)
@@ -36,10 +39,9 @@ func clientIP(r *http.Request) string {
 	if err != nil {
 		host = r.RemoteAddr
 	}
-	if !isLoopback(host) {
+	if !isTrustedProxy(host) {
 		return host
 	}
-	// Behind nginx: trust XFF.
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		first := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
 		if first != "" {
@@ -52,9 +54,16 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
-func isLoopback(host string) bool {
+// isTrustedProxy reports whether host is an address we control — loopback,
+// RFC1918/RFC4193 private, or link-local. Behind docker compose the app
+// sees nginx as the bridge gateway (e.g. 172.18.0.1), which is private but
+// not loopback.
+func isTrustedProxy(host string) bool {
 	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
 }
 
 // IPFromContext returns the resolved client IP, or "" if absent.

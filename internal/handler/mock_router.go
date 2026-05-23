@@ -3,6 +3,7 @@ package handler
 import (
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -101,13 +102,17 @@ func allowFor(m model.Method) string {
 	return string(m)
 }
 
+// flattenHeaders folds http.Header into a flat map for JSONB storage.
+// Keys are lowercased so downstream `request_headers->>'user-agent'`
+// lookups in psql are predictable regardless of how the client cased
+// them on the wire.
 func flattenHeaders(h http.Header) map[string]string {
 	out := make(map[string]string, len(h))
 	for k, v := range h {
 		if len(v) == 0 {
 			continue
 		}
-		out[k] = v[0]
+		out[strings.ToLower(k)] = v[0]
 	}
 	return out
 }
