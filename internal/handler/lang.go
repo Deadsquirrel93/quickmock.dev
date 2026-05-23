@@ -58,7 +58,7 @@ func Lang(r *Renderer, secureCookie bool) http.HandlerFunc {
 		// user came from, falling back to "/". Returning JSON here would
 		// dump raw text onto the page.
 		if strings.HasPrefix(req.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
-			target := safeReferer(req.Header.Get("Referer"))
+			target := safeReferer(req.Header.Get("Referer"), req.Host)
 			http.Redirect(w, req, target, http.StatusSeeOther)
 			return
 		}
@@ -70,10 +70,13 @@ func Lang(r *Renderer, secureCookie bool) http.HandlerFunc {
 }
 
 // safeReferer returns a redirect target derived from the Referer header,
-// restricted to same-origin relative paths. Cross-origin or protocol-relative
-// Referers fall back to "/" to prevent the open-redirect chain
-// `attacker.example → quickmock.dev/language → attacker.example`.
-func safeReferer(ref string) string {
+// restricted to same-origin paths. trustedHost is r.Host of the current
+// request — the value the browser put in the URL bar, which (behind
+// nginx with `proxy_set_header Host $host`) matches what same-origin
+// Referers will carry. Cross-origin, protocol-relative, or unparsable
+// Referers fall back to "/" so attacker.example cannot use POST /language
+// as an open-redirect bounce.
+func safeReferer(ref, trustedHost string) string {
 	if ref == "" {
 		return "/"
 	}
@@ -81,19 +84,24 @@ func safeReferer(ref string) string {
 	if err != nil {
 		return "/"
 	}
-	// Reject absolute (`https://...`) and protocol-relative (`//...`) URLs:
-	// only a same-site path is safe to send the browser to.
-	if u.Scheme != "" || u.Host != "" {
+	// Absolute URLs are accepted only when they point at our own host;
+	// browsers send the full URL for same-origin POSTs by default.
+	if u.Host != "" && u.Host != trustedHost {
 		return "/"
 	}
-	if u.Path == "" || !strings.HasPrefix(u.Path, "/") {
+	p := u.Path
+	if p == "" {
 		return "/"
 	}
-	out := u.Path
+	// Path must be rooted and must NOT be protocol-relative (`//host/...`)
+	// or use a backslash, which some browsers normalise into `/`.
+	if !strings.HasPrefix(p, "/") || strings.HasPrefix(p, "//") || strings.Contains(p, `\`) {
+		return "/"
+	}
 	if u.RawQuery != "" {
-		out += "?" + u.RawQuery
+		p += "?" + u.RawQuery
 	}
-	return out
+	return p
 }
 
 // writeError centralizes JSON error responses for non-HTML routes.
