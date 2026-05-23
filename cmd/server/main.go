@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -160,11 +161,16 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	}
 
 	// Handlers
+	// HTTPS-only cookies + HSTS depend on whether the configured BaseURL
+	// is served over TLS. Local dev (http://localhost:8080) keeps cookies
+	// usable without TLS; prod (https://quickmock.dev) flips both on.
+	secureSite := strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://")
+
 	api := handler.NewAPI(mockSvc, logRepo, mockRepo, renderer, cfg.BaseURL)
 	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks)
 	mockRouter := handler.NewMockRouter(mockSvc, logWriter)
 	healthHandler := handler.Health(pool, mockLimiter)
-	langHandler := handler.Lang(renderer)
+	langHandler := handler.Lang(renderer, secureSite)
 
 	// Static asset subtree
 	staticSub, err := fs.Sub(webSub, "static")
@@ -181,6 +187,9 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	r.Use(mockmw.Recoverer(logger))
 	r.Use(mockmw.RealIP)
 	r.Use(mockmw.AccessLog(logger))
+	// Universal hardening headers: applied to every response, including
+	// /m/* (mock_router force-overrides the CSP it needs locally).
+	r.Use(mockmw.SecurityHeaders(secureSite))
 
 	// Static (no i18n, no rate limit, long cache)
 	r.Handle("/static/*", http.StripPrefix("/static/",
@@ -203,9 +212,12 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		r.HandleFunc("/m/{slug}/*", mockRouter.ServeHTTP)
 	})
 
-	// UI + API routes (i18n applied here only)
+	// UI + API routes (i18n applied here only). UICSP adds the resource
+	// policy that fits first-party UI — distinct from the strict sandbox
+	// CSP the mock router applies to user-controlled responses.
 	r.Group(func(r chi.Router) {
 		r.Use(localz.Middleware)
+		r.Use(mockmw.UICSP())
 
 		r.Get("/", ui.Home)
 		r.Post("/", ui.CreateForm)

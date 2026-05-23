@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
@@ -13,7 +14,9 @@ import (
 // Accepts either form-encoded `lang=ru` or JSON `{"lang":"ru"}`. Sets the
 // cookie and, for HTMX clients, returns the rendered header partial so the
 // dropdown swaps in place. For plain clients returns 200 JSON.
-func Lang(r *Renderer) http.HandlerFunc {
+//
+// `secureCookie` is plumbed from main (true when BaseURL is https://).
+func Lang(r *Renderer, secureCookie bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var lang string
 		ct := req.Header.Get("Content-Type")
@@ -40,7 +43,7 @@ func Lang(r *Renderer) http.HandlerFunc {
 			return
 		}
 
-		i18n.SetLangCookie(w, lang)
+		i18n.SetLangCookie(w, lang, secureCookie)
 
 		// HTMX request → tell the client to reload the current page so
 		// the whole UI repaints in the new language, not just the header.
@@ -55,10 +58,7 @@ func Lang(r *Renderer) http.HandlerFunc {
 		// user came from, falling back to "/". Returning JSON here would
 		// dump raw text onto the page.
 		if strings.HasPrefix(req.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
-			target := req.Header.Get("Referer")
-			if target == "" {
-				target = "/"
-			}
+			target := safeReferer(req.Header.Get("Referer"))
 			http.Redirect(w, req, target, http.StatusSeeOther)
 			return
 		}
@@ -67,6 +67,33 @@ func Lang(r *Renderer) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"lang": lang})
 	}
+}
+
+// safeReferer returns a redirect target derived from the Referer header,
+// restricted to same-origin relative paths. Cross-origin or protocol-relative
+// Referers fall back to "/" to prevent the open-redirect chain
+// `attacker.example → quickmock.dev/language → attacker.example`.
+func safeReferer(ref string) string {
+	if ref == "" {
+		return "/"
+	}
+	u, err := url.Parse(ref)
+	if err != nil {
+		return "/"
+	}
+	// Reject absolute (`https://...`) and protocol-relative (`//...`) URLs:
+	// only a same-site path is safe to send the browser to.
+	if u.Scheme != "" || u.Host != "" {
+		return "/"
+	}
+	if u.Path == "" || !strings.HasPrefix(u.Path, "/") {
+		return "/"
+	}
+	out := u.Path
+	if u.RawQuery != "" {
+		out += "?" + u.RawQuery
+	}
+	return out
 }
 
 // writeError centralizes JSON error responses for non-HTML routes.

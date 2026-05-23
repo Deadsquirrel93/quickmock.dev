@@ -52,12 +52,52 @@ func NewMockService(repo *repository.MockRepo, logs *repository.LogRepo, stats *
 	}
 }
 
-// Reserved response headers we will silently drop. Setting them confuses
-// the HTTP transport and gains nothing for the user.
+// Reserved response headers we will silently drop. Two categories:
+//
+//  1. Transport headers — setting them confuses the HTTP stack and gains
+//     nothing for the user.
+//  2. Origin-affecting security headers — these only ever apply to the
+//     quickmock.dev origin, never to the system the mock is mimicking, so
+//     letting a mock author set them turns a mock into an attack on our
+//     own users (cookie fixation, CORS abuse, weakened CSP, etc.).
 var reservedHeaders = map[string]struct{}{
+	// Transport
 	"content-length":    {},
 	"transfer-encoding": {},
 	"connection":        {},
+	// Cookies under quickmock.dev origin
+	"set-cookie":  {},
+	"set-cookie2": {},
+	// Security headers we own ourselves on /m/*
+	"strict-transport-security":           {},
+	"public-key-pins":                     {},
+	"public-key-pins-report-only":         {},
+	"content-security-policy":             {},
+	"content-security-policy-report-only": {},
+	"x-frame-options":                     {},
+	"x-content-type-options":              {},
+	"referrer-policy":                     {},
+	"permissions-policy":                  {},
+	"clear-site-data":                     {},
+	// CORS — granting cross-origin reads of a mock attacker controls
+	"access-control-allow-origin":      {},
+	"access-control-allow-credentials": {},
+	"access-control-allow-methods":     {},
+	"access-control-allow-headers":     {},
+	"access-control-expose-headers":    {},
+	"access-control-max-age":           {},
+	"cross-origin-opener-policy":       {},
+	"cross-origin-embedder-policy":     {},
+	"cross-origin-resource-policy":     {},
+}
+
+// IsReservedResponseHeader reports whether name is in reservedHeaders.
+// Exposed so the mock router can apply the same filter on the serve path
+// as defence in depth against legacy DB rows written before the filter
+// was tightened.
+func IsReservedResponseHeader(name string) bool {
+	_, bad := reservedHeaders[strings.ToLower(strings.TrimSpace(name))]
+	return bad
 }
 
 var headerNameRegexp = regexp.MustCompile(`^[!#$%&'*+\-.^_` + "`" + `|~0-9A-Za-z]+$`)

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -72,13 +73,33 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// User-controlled response headers go first; the protective headers
+	// below overwrite anything the mock owner tries to set for them.
+	// service.IsReservedResponseHeader is a second-layer filter — the
+	// service already strips these at create/update time, but legacy rows
+	// from before that filter widened could still carry weaponised headers.
 	for k, v := range m.ResponseHeaders {
+		if service.IsReservedResponseHeader(k) {
+			continue
+		}
 		w.Header().Set(k, v)
 	}
 	if m.ContentType != "" {
 		w.Header().Set("Content-Type", m.ContentType)
 	}
 	w.Header().Set("X-Mockapi-Slug", m.Slug)
+
+	// Defence against weaponising /m/:slug as a same-origin script host:
+	// nosniff stops the browser from upgrading a text/* mock to text/html
+	// based on content sniffing, and a strict sandbox CSP prevents JS,
+	// forms, and popups from running when a browser navigates directly to
+	// the mock URL. Machine clients (curl, fetch, http libs) ignore CSP,
+	// so legitimate mock consumption is unaffected.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy",
+		"sandbox; default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Referrer-Policy", "no-referrer")
 
 	status := m.ResponseStatus
 	if status == 0 {
@@ -102,17 +123,40 @@ func allowFor(m model.Method) string {
 	return string(m)
 }
 
+// secretRequestHeaders are request headers whose values likely contain a
+// live credential (bearer token, API key, session cookie). We store a length
+// marker instead of the value so the inspector still shows the header was
+// present but the database never accumulates a haystack of real secrets —
+// which would be an outsized breach blast radius for an open service.
+var secretRequestHeaders = map[string]struct{}{
+	"authorization":       {},
+	"proxy-authorization": {},
+	"cookie":              {},
+	"set-cookie":          {},
+	"x-api-key":           {},
+	"x-auth-token":        {},
+	"x-access-token":      {},
+	"x-csrf-token":        {},
+	"x-xsrf-token":        {},
+}
+
 // flattenHeaders folds http.Header into a flat map for JSONB storage.
 // Keys are lowercased so downstream `request_headers->>'user-agent'`
 // lookups in psql are predictable regardless of how the client cased
-// them on the wire.
+// them on the wire. Values for headers in secretRequestHeaders are
+// replaced with a length marker (see comment above).
 func flattenHeaders(h http.Header) map[string]string {
 	out := make(map[string]string, len(h))
 	for k, v := range h {
 		if len(v) == 0 {
 			continue
 		}
-		out[strings.ToLower(k)] = v[0]
+		lk := strings.ToLower(k)
+		val := v[0]
+		if _, secret := secretRequestHeaders[lk]; secret && val != "" {
+			val = fmt.Sprintf("[redacted len=%d]", len(val))
+		}
+		out[lk] = val
 	}
 	return out
 }

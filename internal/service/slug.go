@@ -7,19 +7,22 @@ import (
 )
 
 // slugAlphabet excludes visually ambiguous characters (0/O/o, I/l/1).
-// 56 characters keeps a 6-char slug at ~31 bits of entropy — plenty.
+// 56 characters at slugLength=12 gives ~70 bits of entropy — enough that
+// guessing a live slug is computationally infeasible even with the public
+// `by-slugs` lookup, which is the only mutation-control we have (no auth).
 const slugAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
 
-const slugLength = 6
+const slugLength = 12
 
 // SlugChecker is satisfied by *repository.MockRepo.SlugExists.
 type SlugChecker interface {
 	SlugExists(ctx context.Context, slug string) (bool, error)
 }
 
-// GenerateSlug returns a 6-character slug not currently in use, retrying up
-// to 5 times on collision. Failing after 5 attempts is treated as a real
-// problem (alphabet exhausted or DB acting up) and surfaced to the caller.
+// GenerateSlug returns a slugLength-character slug not currently in use,
+// retrying up to 5 times on collision. Failing after 5 attempts is treated
+// as a real problem (alphabet exhausted or DB acting up) and surfaced to
+// the caller.
 func GenerateSlug(ctx context.Context, checker SlugChecker) (string, error) {
 	const maxAttempts = 5
 	for attempt := 0; attempt < maxAttempts; attempt++ {

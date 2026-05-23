@@ -61,16 +61,19 @@ func (l *Localizer) resolveLang(r *http.Request) string {
 	return l.fallback
 }
 
-// SetLangCookie writes the language cookie on the response.
+// SetLangCookie writes the language cookie on the response. `secure` should
+// be true when the site is served over HTTPS — the caller derives that from
+// the configured BaseURL once at startup.
 //
 // Use this from the POST /language handler.
-func SetLangCookie(w http.ResponseWriter, lang string) {
+func SetLangCookie(w http.ResponseWriter, lang string, secure bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     cookieName,
 		Value:    lang,
 		Path:     "/",
 		MaxAge:   31536000, // 1 year
 		HttpOnly: false,    // not sensitive; allow JS to read for UI hints
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
