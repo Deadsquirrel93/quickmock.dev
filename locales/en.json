@@ -47,7 +47,7 @@
   "home.hero.subtitle": "Paste a response. Pick a status code. Get a URL. No signup.",
   "home.hero.title": "Create a mock API in 30 seconds",
   "home.howto.step1": "Fill out the form below — method, response body, status code.",
-  "home.howto.step2": "Click \"Create Mock\" and you'll get a public URL like /m/abc123.",
+  "home.howto.step2": "Click \"Create Mock\" and you'll get a public URL like /m/abc123def456.",
   "home.howto.step3": "Use the URL in your code. Open the mock page to watch requests live.",
   "home.howto.title": "How it works",
   "home.privacy.badge": "No trackers · No analytics · No accounts",

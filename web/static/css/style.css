@@ -507,11 +507,18 @@ input:focus, select:focus, textarea:focus {
 .url-row {
   display: flex;
   gap: 0.5rem;
+  align-items: stretch;
 }
 .url-input {
   font-family: ui-monospace, Menlo, monospace;
   font-size: 0.95rem;
+  flex: 1;
+  min-width: 0;
 }
+/* Copy URL button label must not wrap when the slug is long enough to
+   take up most of the row. Without this the 12-char slug pushes "Copy
+   URL" onto two lines on desktop widths. */
+.url-row .btn { white-space: nowrap; }
 
 .codeblock {
   background: var(--bg-code);
