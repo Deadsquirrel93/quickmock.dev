@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ block "title" . }}{{ t "app.name" }} — {{ t "app.tagline" }}{{ end }}</title>
   <meta name="description" content="{{ t "seo.description" }}">
-  <meta name="keywords" content="{{ t "seo.keywords" }}">
   <meta name="author" content="Nikita Chernykh">
   <meta name="robots" content="index,follow,max-image-preview:large">
   <meta name="theme-color" content="#0f172a">
@@ -26,11 +25,6 @@
   <meta property="og:locale" content="{{ t "seo.og_locale" }}">
   {{ range .Languages }}{{ if ne . $.Lang }}<meta property="og:locale:alternate" content="{{ langOgLocale . }}">
   {{ end }}{{ end }}
-
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{{ t "app.name" }} — {{ t "app.tagline" }}">
-  <meta name="twitter:description" content="{{ t "seo.description" }}">
-  <meta name="twitter:image" content="{{ .BaseURL }}/static/og.png">
 
   {{ block "head" . }}{{ end }}
   <script>

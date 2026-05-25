@@ -71,6 +71,7 @@ func HomeJSONLD(localz *i18n.Localizer, lang, baseURL string, supportedLangs []s
 			"browserRequirements": "Requires JavaScript-capable browser",
 			"inLanguage":          supportedLangs,
 			"isAccessibleForFree": true,
+			"dateModified":        LastUpdated,
 			"offers": map[string]any{
 				"@type":         "Offer",
 				"price":         "0",

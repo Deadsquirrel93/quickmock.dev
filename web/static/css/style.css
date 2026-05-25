@@ -781,19 +781,94 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ---- Privacy block ---- */
-.privacy-block {
+.privacy-block,
+.glossary,
+.story,
+.author-block {
   margin: 2rem auto;
   padding: 1.25rem 1rem;
   background: var(--bg-card);
   border-radius: var(--radius);
   border: 1px solid var(--border);
 }
-.privacy-block h2 { margin-top: 0; }
+.privacy-block h2,
+.glossary h2,
+.story h2,
+.author-block h2 { margin-top: 0; }
 .privacy-list {
   margin: 0.5rem 0 0;
   padding-left: 1.25rem;
 }
 .privacy-list li { margin: 0.3rem 0; }
+
+.howto-intro {
+  color: var(--fg-muted);
+  margin: 0.25rem 0 1rem;
+}
+
+.glossary-list { margin: 0.5rem 0 0; }
+.glossary-list dt {
+  font-weight: 600;
+  margin-top: 0.75rem;
+}
+.glossary-list dt:first-child { margin-top: 0; }
+.glossary-list dd {
+  margin: 0.25rem 0 0;
+  color: var(--fg-muted);
+}
+.glossary-list code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--bg-code);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.author-links {
+  margin-top: 0.5rem;
+  color: var(--fg-muted);
+}
+.author-links a { color: var(--accent); }
+.author-links a:hover { text-decoration: underline; }
+
+.last-updated {
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  margin: 1rem auto 2rem;
+  text-align: center;
+}
+
+/* ---- Changelog ---- */
+.changelog { padding: 1rem; }
+.changelog h1 { margin-top: 0.5rem; }
+.changelog-intro { color: var(--fg-muted); margin: 0 0 1.5rem; }
+.changelog-release {
+  margin: 0 0 1.5rem;
+  padding: 1rem 1.1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.changelog-release header h2 { margin: 0 0 0.5rem; font-size: 1.15rem; }
+.changelog-release h3 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted);
+  margin: 0.75rem 0 0.4rem;
+}
+.changelog-release ul { margin: 0; padding-left: 1.25rem; }
+.changelog-release li { margin: 0.4rem 0; line-height: 1.5; }
+.changelog-release code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--bg-code);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.changelog-repo, .changelog-back { margin-top: 1.5rem; }
+.changelog-repo a, .changelog-back a { color: var(--accent); }
+.changelog-repo a:hover, .changelog-back a:hover { text-decoration: underline; }
 
 /* ---- Footer ---- */
 .site-footer {

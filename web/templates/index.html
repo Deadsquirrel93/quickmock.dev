@@ -19,6 +19,7 @@
 
 <section class="howto container">
   <h2>{{ t "home.howto.title" }}</h2>
+  <p class="howto-intro">{{ t "home.howto.intro" }}</p>
   <ol class="howto-steps">
     <li><span class="step-num">1</span>{{ t "home.howto.step1" }}</li>
     <li><span class="step-num">2</span>{{ t "home.howto.step2" }}</li>
@@ -251,6 +252,39 @@
   </details>
 </section>
 
+<section class="glossary container" aria-labelledby="glossary-title">
+  <h2 id="glossary-title">{{ t "home.glossary.title" }}</h2>
+  <dl class="glossary-list">
+    <dt>{{ t "home.glossary.mock.term" }}</dt>
+    <dd>{{ t "home.glossary.mock.def" }}</dd>
+    <dt>{{ t "home.glossary.endpoint.term" }}</dt>
+    <dd>{{ t "home.glossary.endpoint.def" }}</dd>
+    <dt>{{ t "home.glossary.ttl.term" }}</dt>
+    <dd>{{ t "home.glossary.ttl.def" }}</dd>
+    <dt>{{ t "home.glossary.faker.term" }}</dt>
+    <dd>{{ t "home.glossary.faker.def" }}</dd>
+    <dt>{{ t "home.glossary.ct.term" }}</dt>
+    <dd>{{ t "home.glossary.ct.def" }}</dd>
+  </dl>
+</section>
+
+<section class="story container" aria-labelledby="story-title">
+  <h2 id="story-title">{{ t "home.story.title" }}</h2>
+  <p>{{ t "home.story.body" }}</p>
+</section>
+
+<section class="author-block container" aria-labelledby="author-title">
+  <h2 id="author-title">{{ t "home.author.title" }}</h2>
+  <p>{{ t "home.author.body" }}</p>
+  <p class="author-links">
+    <a href="https://github.com/Deadsquirrel93/quickmock.dev" target="_blank" rel="me noopener">GitHub</a>
+    ·
+    <a href="https://www.linkedin.com/in/chernykh-nikita/" target="_blank" rel="me noopener">LinkedIn</a>
+    ·
+    <a href="https://t.me/deadsquirrel93" target="_blank" rel="me noopener">Telegram</a>
+  </p>
+</section>
+
 <section class="privacy-block container">
   <h2>{{ t "home.privacy.title" }}</h2>
   <p>{{ t "home.privacy.body" }}</p>
@@ -262,6 +296,8 @@
     <li>{{ t "home.privacy.what_we_log.item4" }}</li>
   </ul>
 </section>
+
+<p class="last-updated container">{{ t "home.last_updated" .LastUpdated }}</p>
 
 <script>
   function createForm() {
