@@ -28,9 +28,12 @@ func LangFromContext(ctx context.Context) string {
 // each request and stores it in the request context.
 //
 // Detection order, highest priority first:
-//  1. Cookie "lang" — user's explicit choice.
-//  2. Accept-Language header — first supported language in q-value order.
-//  3. The Localizer's fallback language.
+//  1. ?lang=<code> query param — makes hreflang / sitemap URLs actually
+//     serve the language they advertise, so a bot following the canonical
+//     ?lang=ru link sees Russian content (otherwise hreflang is a lie).
+//  2. Cookie "lang" — user's explicit choice from the switcher.
+//  3. Accept-Language header — first supported language in q-value order.
+//  4. The Localizer's fallback language.
 //
 // The middleware is intended for UI routes only. Public mock endpoints
 // (/m/:slug) should be mounted on a router that does not include it.
@@ -43,13 +46,17 @@ func (l *Localizer) Middleware(next http.Handler) http.Handler {
 }
 
 func (l *Localizer) resolveLang(r *http.Request) string {
-	// 1. Cookie.
+	// 1. ?lang=<code> query param.
+	if q := r.URL.Query().Get("lang"); q != "" && l.IsSupported(q) {
+		return q
+	}
+	// 2. Cookie.
 	if c, err := r.Cookie(cookieName); err == nil {
 		if l.IsSupported(c.Value) {
 			return c.Value
 		}
 	}
-	// 2. Accept-Language header.
+	// 3. Accept-Language header.
 	if h := r.Header.Get("Accept-Language"); h != "" {
 		for _, code := range parseAcceptLanguage(h) {
 			if l.IsSupported(code) {
@@ -57,7 +64,7 @@ func (l *Localizer) resolveLang(r *http.Request) string {
 			}
 		}
 	}
-	// 3. Default.
+	// 4. Default.
 	return l.fallback
 }
 
