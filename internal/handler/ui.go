@@ -123,6 +123,13 @@ func (u *UI) SummaryPartial(w http.ResponseWriter, r *http.Request) {
 	u.renderer.Render(w, r, "partials_summary", http.StatusOK, map[string]any{"Mock": m})
 }
 
+// Changelog renders GET /changelog — a curated technical changelog. The
+// page is fully static; the entries live in the template, hand-picked from
+// the git history.
+func (u *UI) Changelog(w http.ResponseWriter, r *http.Request) {
+	u.renderer.Render(w, r, "changelog", http.StatusOK, nil)
+}
+
 // MyMocks renders GET /my — the localStorage-driven mocks list.
 //
 // The page is a thin shell. A small Alpine.js bootstrap reads slugs from

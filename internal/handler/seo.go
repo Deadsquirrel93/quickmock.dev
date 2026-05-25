@@ -227,26 +227,38 @@ curl -X POST ` + base + `/api/mocks \
 func SitemapXML(baseURL string, langs []string, fallbackLang string) http.HandlerFunc {
 	base := strings.TrimRight(baseURL, "/")
 
+	type pageEntry struct {
+		path       string
+		changefreq string
+		priority   string
+	}
+	pages := []pageEntry{
+		{"/", "weekly", "1.0"},
+		{"/changelog", "weekly", "0.7"},
+	}
+
 	var b strings.Builder
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
 	b.WriteString(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">` + "\n")
-	b.WriteString("  <url>\n")
-	fmt.Fprintf(&b, "    <loc>%s/</loc>\n", base)
-	for _, l := range langs {
-		// hreflang URLs must equal the canonical of each locale variant.
-		// The fallback lang is served at /, the rest at /?lang=<code>.
-		if l == fallbackLang {
-			fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s/\"/>\n", l, base)
-		} else {
-			fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s/?lang=%s\"/>\n", l, base, l)
+	for _, p := range pages {
+		b.WriteString("  <url>\n")
+		fmt.Fprintf(&b, "    <loc>%s%s</loc>\n", base, p.path)
+		for _, l := range langs {
+			// hreflang URLs must equal the canonical of each locale variant.
+			// The fallback lang is served at <path>, the rest at <path>?lang=<code>.
+			if l == fallbackLang {
+				fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s%s\"/>\n", l, base, p.path)
+			} else {
+				fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s%s?lang=%s\"/>\n", l, base, p.path, l)
+			}
 		}
+		if fallbackLang != "" {
+			fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"%s%s\"/>\n", base, p.path)
+		}
+		fmt.Fprintf(&b, "    <changefreq>%s</changefreq>\n", p.changefreq)
+		fmt.Fprintf(&b, "    <priority>%s</priority>\n", p.priority)
+		b.WriteString("  </url>\n")
 	}
-	if fallbackLang != "" {
-		fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"%s/\"/>\n", base)
-	}
-	b.WriteString("    <changefreq>weekly</changefreq>\n")
-	b.WriteString("    <priority>1.0</priority>\n")
-	b.WriteString("  </url>\n")
 	b.WriteString("</urlset>\n")
 
 	body := b.String()

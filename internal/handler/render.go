@@ -194,6 +194,15 @@ func (r *Renderer) baseFuncMap(lang string) template.FuncMap {
 			}
 			return t.Format("2006-01-02 15:04:05 MST")
 		},
+		"safeHTML": func(s string) template.HTML {
+			// Trusted: only used for static, in-repo locale strings that
+			// already contain markup (e.g. <code>, <strong>) — never for
+			// user input.
+			return template.HTML(s)
+		},
+		"tHTML": func(key string, args ...any) template.HTML {
+			return template.HTML(r.localz.T(lang, key, args...))
+		},
 		"highlightJSON": service.HighlightJSON,
 		"isJSONContentType": func(ct string) bool {
 			return strings.Contains(strings.ToLower(ct), "json")
