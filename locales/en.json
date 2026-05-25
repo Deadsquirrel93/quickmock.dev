@@ -1,6 +1,6 @@
 {
   "app.name": "Quickmock",
-  "app.tagline": "Spin up an HTTP mock endpoint in 30 seconds.",
+  "app.tagline": "Free HTTP mock API in 30 seconds. No signup.",
   "common.cancel": "Cancel",
   "common.close": "Close",
   "common.copied": "Copied!",
@@ -182,7 +182,7 @@
   "nav.theme.dark": "Dark theme",
   "nav.theme.light": "Light theme",
   "nav.theme.toggle": "Toggle theme",
-  "seo.description": "Quickmock — free instant HTTP mock API generator. Create a fake REST endpoint with a custom response, status code, headers and delay in 30 seconds. No signup, no account, no tracking. Inspect incoming requests live. Perfect for frontend prototyping, webhook testing, integration testing and API contract development.",
+  "seo.description": "Quickmock — free HTTP mock API in 30 seconds. Pick method, status, body — get a public URL. Live request inspector. No signup, no tracking, open source.",
   "seo.faq.a1": "Quickmock is a free online tool that creates a public HTTP mock endpoint in 30 seconds. You paste a response body, pick a method and status code, and get a URL you can call from any client — curl, Postman, your frontend, a CI test, anywhere.",
   "seo.faq.a2": "No. There is no account, no email, no credit card. Mocks are limited per IP and expire after the TTL you pick (up to 30 days). The service is free and open source.",
   "seo.faq.a3": "Frontend prototyping while the backend is not ready, webhook testing, integration and contract tests, reproducing edge cases like 500 errors or slow responses, API demos, and teaching examples.",

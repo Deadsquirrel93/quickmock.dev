@@ -106,10 +106,11 @@ func (r *Renderer) Render(w http.ResponseWriter, req *http.Request, name string,
 	}
 
 	full := map[string]any{
-		"Lang":      lang,
-		"Languages": r.localz.Supported(),
-		"BaseURL":   r.baseURL,
-		"Path":      req.URL.Path,
+		"Lang":        lang,
+		"Languages":   r.localz.Supported(),
+		"BaseURL":     r.baseURL,
+		"Path":        req.URL.Path,
+		"DefaultLang": r.localz.Fallback(),
 	}
 	for k, v := range data {
 		full[k] = v

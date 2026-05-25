@@ -232,7 +232,13 @@ func SitemapXML(baseURL string, langs []string, fallbackLang string) http.Handle
 	b.WriteString("  <url>\n")
 	fmt.Fprintf(&b, "    <loc>%s/</loc>\n", base)
 	for _, l := range langs {
-		fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s/?lang=%s\"/>\n", l, base, l)
+		// hreflang URLs must equal the canonical of each locale variant.
+		// The fallback lang is served at /, the rest at /?lang=<code>.
+		if l == fallbackLang {
+			fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s/\"/>\n", l, base)
+		} else {
+			fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s/?lang=%s\"/>\n", l, base, l)
+		}
 	}
 	if fallbackLang != "" {
 		fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"%s/\"/>\n", base)
