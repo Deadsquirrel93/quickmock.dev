@@ -18,7 +18,7 @@
   "changelog.section.fixed": "Исправлено",
   "changelog.section.security": "Безопасность",
   "changelog.r0608.title": "2026-06-08 — Ссылка на автора",
-  "changelog.r0608.added1": "Имя автора в подвале теперь ведёт на личный сайт мейнтейнера (<a href=\"https://deadsquirrel.dev/\" target=\"_blank\" rel=\"me noopener\">deadsquirrel.dev</a>) с атрибутом <code>rel=\"me\"</code> как identity-сигналом.",
+  "changelog.r0608.added1": "Имя автора в подвале теперь ведёт на личный сайт мейнтейнера (<a href=\"https://deadsquirrel.dev/\" target=\"_blank\" rel=\"me noopener\">deadsquirrel.dev</a>) — с языковым маппингом под локаль и атрибутом <code>rel=\"me\"</code> как identity-сигналом.",
   "changelog.r0525.title": "2026-05-25 — Контент на главной",
   "changelog.r0525.added1": "Сама эта <a href=\"/changelog\">/changelog</a> страница, на EN и RU, с hreflang и записью в <code>sitemap.xml</code>.",
   "changelog.r0525.added2": "На главной — секция <em>Краткий глоссарий</em> (Mock API, Эндпоинт, TTL, Faker-токен, Content-Type) для тех, кто пришёл сюда без контекста.",
