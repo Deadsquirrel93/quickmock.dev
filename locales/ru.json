@@ -63,7 +63,7 @@
   "footer.author.telegram": "Telegram",
   "footer.disclaimer": "Содержимое моков создают пользователи. Администратор сайта им не владеет, не отслеживает и не одобряет.",
   "footer.donate": "Поддержать проект",
-  "footer.made_with": "Сделано с ❤️ Никитой Черных",
+  "footer.made_with": "Сделано с ❤️ <a href=\"https://deadsquirrel.dev/\" target=\"_blank\" rel=\"me noopener\">Никитой Черных</a>",
   "footer.opensource": "Открытый код",
   "footer.privacy": "Конфиденциальность",
   "footer.terms": "Условия",
