@@ -17,6 +17,8 @@
   "changelog.section.added": "Added",
   "changelog.section.fixed": "Fixed",
   "changelog.section.security": "Security",
+  "changelog.r0608.title": "2026-06-08 — Author link",
+  "changelog.r0608.added1": "Footer credit now links the author name to the maintainer's personal site (<a href=\"https://deadsquirrel.dev/\" target=\"_blank\" rel=\"me noopener\">deadsquirrel.dev</a>), with <code>rel=\"me\"</code> as an identity signal.",
   "changelog.r0525.title": "2026-05-25 — Site content pass",
   "changelog.r0525.added1": "This <a href=\"/changelog\">/changelog</a> page itself, in EN and RU, with hreflang and an entry in <code>sitemap.xml</code>.",
   "changelog.r0525.added2": "Home page: a <em>Quick glossary</em> section (Mock API, Endpoint, TTL, Faker token, Content-Type) for readers landing here without context.",
