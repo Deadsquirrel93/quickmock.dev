@@ -113,6 +113,10 @@ var pathSuffixRegexp = regexp.MustCompile(`^[A-Za-z0-9._~-]+(/[A-Za-z0-9._~-]+)*
 // usually < 100 chars).
 const PathSuffixMaxLen = 255
 
+// MaxSequenceSteps caps the EXTRA sequence steps per mock (the main
+// response is step 1 on top of these). The create-form UI mirrors this cap.
+const MaxSequenceSteps = 10
+
 // normalizePathSuffix strips leading/trailing slashes and collapses runs.
 // Returns the cleaned value plus whether anything was left.
 func normalizePathSuffix(s string) string {
@@ -155,17 +159,21 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 	expires := time.Now().Add(ttl)
 
 	m := &model.Mock{
-		Slug:            slug,
-		Name:            strings.TrimSpace(in.Name),
-		Method:          in.Method,
-		ResponseBody:    in.ResponseBody,
-		ResponseStatus:  in.ResponseStatus,
-		ResponseHeaders: cleanHeaders(in.ResponseHeaders),
-		ResponseDelayMS: in.ResponseDelayMS,
-		ContentType:     in.ContentType,
-		PathSuffix:      in.PathSuffix,
-		ExpiresAt:       &expires,
-		CreatorIP:       creatorIP,
+		Slug:               slug,
+		Name:               strings.TrimSpace(in.Name),
+		Method:             in.Method,
+		ResponseBody:       in.ResponseBody,
+		ResponseStatus:     in.ResponseStatus,
+		ResponseHeaders:    cleanHeaders(in.ResponseHeaders),
+		ResponseDelayMS:    in.ResponseDelayMS,
+		ResponseDelayMaxMS: in.ResponseDelayMaxMS,
+		ErrorRatePct:       in.ErrorRatePct,
+		ErrorResponse:      in.ErrorResponse,
+		SequenceSteps:      in.SequenceSteps,
+		ContentType:        in.ContentType,
+		PathSuffix:         in.PathSuffix,
+		ExpiresAt:          &expires,
+		CreatorIP:          creatorIP,
 	}
 	if err := s.repo.Create(ctx, m); err != nil {
 		return nil, fmt.Errorf("insert mock: %w", err)
@@ -200,6 +208,10 @@ func (s *MockService) Update(ctx context.Context, slug string, in model.MockInpu
 	existing.ResponseStatus = in.ResponseStatus
 	existing.ResponseHeaders = cleanHeaders(in.ResponseHeaders)
 	existing.ResponseDelayMS = in.ResponseDelayMS
+	existing.ResponseDelayMaxMS = in.ResponseDelayMaxMS
+	existing.ErrorRatePct = in.ErrorRatePct
+	existing.ErrorResponse = in.ErrorResponse
+	existing.SequenceSteps = in.SequenceSteps
 	existing.ContentType = in.ContentType
 	existing.PathSuffix = in.PathSuffix
 	if in.TTL > 0 {
@@ -274,6 +286,60 @@ func (s *MockService) validate(in *model.MockInput) error {
 		} else if !pathSuffixRegexp.MatchString(in.PathSuffix) {
 			return &ValidationError{Field: "path_suffix", Message: "path contains invalid characters"}
 		}
+	}
+	if in.ResponseDelayMaxMS != 0 &&
+		(in.ResponseDelayMaxMS < 0 || in.ResponseDelayMaxMS < in.ResponseDelayMS || in.ResponseDelayMaxMS > 30000) {
+		return &ValidationError{Field: "response_delay_max_ms", Message: "delay max out of range"}
+	}
+	if in.ErrorRatePct < 0 || in.ErrorRatePct > 100 {
+		return &ValidationError{Field: "error_rate_pct", Message: "error rate out of range"}
+	}
+	if in.ErrorRatePct == 0 {
+		// Normalise: an alternate response without a rate is dead config.
+		in.ErrorResponse = nil
+	} else {
+		if in.ErrorResponse == nil {
+			return &ValidationError{Field: "error_response", Message: "error response required when error rate is set"}
+		}
+		if err := s.validateStep(in.ErrorResponse, "error_response", 500); err != nil {
+			return err
+		}
+		// The error response inherits the mock's headers and content-type.
+		in.ErrorResponse.Headers = nil
+	}
+	if len(in.SequenceSteps) > MaxSequenceSteps {
+		return &ValidationError{Field: "response_sequence", Message: "too many sequence steps"}
+	}
+	for i := range in.SequenceSteps {
+		st := &in.SequenceSteps[i]
+		if err := s.validateStep(st, "response_sequence", 200); err != nil {
+			return err
+		}
+		st.Headers = cleanHeaders(st.Headers)
+		if len(st.Headers) == 0 {
+			st.Headers = nil
+		}
+		for name := range st.Headers {
+			if !headerNameRegexp.MatchString(name) {
+				return &ValidationError{Field: "response_sequence", Message: "invalid step header name: " + name}
+			}
+		}
+	}
+	return nil
+}
+
+// validateStep applies the shared rules for one alternate response. A zero
+// status gets the variant's default (500 for the error response, 200 for a
+// sequence step).
+func (s *MockService) validateStep(st *model.ResponseStep, field string, defaultStatus int) error {
+	if st.Status == 0 {
+		st.Status = defaultStatus
+	}
+	if st.Status < 100 || st.Status > 599 {
+		return &ValidationError{Field: field, Message: "step status out of range"}
+	}
+	if len(st.Body) > s.maxBody {
+		return ErrBodyTooLarge
 	}
 	return nil
 }
