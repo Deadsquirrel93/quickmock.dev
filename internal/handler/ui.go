@@ -219,17 +219,74 @@ func readFormInput(r *http.Request) model.MockInput {
 		headers[n] = v
 	}
 
-	return model.MockInput{
-		Name:            r.FormValue("name"),
-		Method:          model.Method(strings.ToUpper(r.FormValue("method"))),
-		ResponseStatus:  status,
-		ResponseBody:    r.FormValue("response_body"),
-		ResponseHeaders: headers,
-		ResponseDelayMS: delay,
-		ContentType:     r.FormValue("content_type"),
-		PathSuffix:      r.FormValue("path_suffix"),
-		TTL:             ttl,
+	delayMax, _ := strconv.Atoi(r.FormValue("response_delay_max_ms"))
+	errRate, _ := strconv.Atoi(r.FormValue("error_rate_pct"))
+
+	var errResp *model.ResponseStep
+	if errRate > 0 {
+		errStatus, _ := strconv.Atoi(r.FormValue("error_status"))
+		errResp = &model.ResponseStep{Status: errStatus, Body: r.FormValue("error_body")}
 	}
+
+	// Sequence steps arrive as parallel arrays, same trick as headers.
+	// Rows the user added but left fully empty are dropped.
+	var steps []model.ResponseStep
+	stStatus := r.Form["seq_status[]"]
+	stBody := r.Form["seq_body[]"]
+	stHeaders := r.Form["seq_headers[]"]
+	for i := range stStatus {
+		status, _ := strconv.Atoi(stStatus[i])
+		body, hdrs := "", ""
+		if i < len(stBody) {
+			body = stBody[i]
+		}
+		if i < len(stHeaders) {
+			hdrs = stHeaders[i]
+		}
+		if status == 0 && strings.TrimSpace(body) == "" && strings.TrimSpace(hdrs) == "" {
+			continue
+		}
+		steps = append(steps, model.ResponseStep{
+			Status:  status,
+			Body:    body,
+			Headers: parseHeaderLines(hdrs),
+		})
+	}
+
+	return model.MockInput{
+		Name:               r.FormValue("name"),
+		Method:             model.Method(strings.ToUpper(r.FormValue("method"))),
+		ResponseStatus:     status,
+		ResponseBody:       r.FormValue("response_body"),
+		ResponseHeaders:    headers,
+		ResponseDelayMS:    delay,
+		ResponseDelayMaxMS: delayMax,
+		ErrorRatePct:       errRate,
+		ErrorResponse:      errResp,
+		SequenceSteps:      steps,
+		ContentType:        r.FormValue("content_type"),
+		PathSuffix:         r.FormValue("path_suffix"),
+		TTL:                ttl,
+	}
+}
+
+// parseHeaderLines turns a "Name: value" per-line textarea into a header
+// map. Lines without a colon or without a name are skipped; nil is returned
+// for an effectively empty input so the steps stay clean in storage.
+func parseHeaderLines(s string) map[string]string {
+	out := map[string]string{}
+	for _, line := range strings.Split(s, "\n") {
+		name, value, ok := strings.Cut(strings.TrimRight(line, "\r"), ":")
+		name = strings.TrimSpace(name)
+		if !ok || name == "" {
+			continue
+		}
+		out[name] = strings.TrimSpace(value)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func errorKey(err error) string {
@@ -247,4 +304,3 @@ func errorKey(err error) string {
 		return "internal"
 	}
 }
-
