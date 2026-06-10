@@ -106,7 +106,17 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusOK
 	}
 	w.WriteHeader(status)
-	_, _ = w.Write([]byte(service.RenderResponseBody(m.ResponseBody)))
+	// bodyBytes is capped at maxLog+1, so {{request.body*}} tokens see at
+	// most the first 16 KB of the incoming body — same window as the
+	// inspector.
+	_, _ = w.Write([]byte(service.RenderResponseBodyForRequest(m.ResponseBody, &service.RequestData{
+		Method: r.Method,
+		Path:   r.URL.Path,
+		IP:     mockmw.IPFromContext(r.Context()),
+		Query:  r.URL.Query(),
+		Header: r.Header,
+		Body:   bodyBytes,
+	})))
 }
 
 func methodMatches(mockMethod model.Method, requestMethod string) bool {

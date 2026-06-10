@@ -44,6 +44,7 @@ That's it. No account, no API key, no waiting for an email.
 - **Live request inspector** — see every incoming request, headers, body, IP, in real time.
 - **Copy as cURL** — one click to grab a ready-made test command.
 - **Dynamic tokens** — drop `{{faker.uuid}}`, `{{now.iso8601}}`, etc. into the body; fresh values on every hit. See [Dynamic tokens](#dynamic-tokens).
+- **Request echo** — `{{request.*}}` tokens reflect the incoming request back: method, path, IP, query params, headers, raw body, or a JSON field from the body.
 - **No signup** — mocks live in your browser's `localStorage`, the slug is your only credential.
 - **Bilingual UI** — English and Russian out of the box; more languages planned.
 
@@ -60,10 +61,22 @@ Need a different value every call instead of a frozen blob? Put a token in the r
 }
 ```
 
-| Namespace | Tokens                                                                                                                                                            |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `faker.*` | `name`, `firstname`, `lastname`, `username`, `email`, `phone`, `url`, `ipv4`, `uuid`, `int`, `bool`, `word`, `sentence`, `color`, `company`, `city`               |
-| `now.*`   | `iso8601` (RFC 3339), `unix` (seconds), `unix_ms`, `date` (YYYY-MM-DD), `time` (HH:MM:SS), `rfc1123` (HTTP date)                                                  |
+| Namespace   | Tokens                                                                                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `faker.*`   | `name`, `firstname`, `lastname`, `username`, `email`, `phone`, `url`, `ipv4`, `uuid`, `int`, `bool`, `word`, `sentence`, `color`, `company`, `city`               |
+| `now.*`     | `iso8601` (RFC 3339), `unix` (seconds), `unix_ms`, `date` (YYYY-MM-DD), `time` (HH:MM:SS), `rfc1123` (HTTP date)                                                  |
+| `request.*` | `method`, `path`, `ip`, `query.<name>`, `header.<name>`, `body` (raw, first 16 KB), `body.<json.dot.path>` (e.g. `body.user.name`, `body.items.0.sku`)            |
+
+`request.*` tokens echo the incoming request back into the response. Values are inserted verbatim — token-looking text inside a query param or body field is never re-expanded — and nothing extra is stored:
+
+```json
+{
+  "echo_method": "{{request.method}}",
+  "echo_id": "{{request.query.id}}",
+  "echo_trace": "{{request.header.x-request-id}}",
+  "echo_user": "{{request.body.user.name}}"
+}
+```
 
 The full list with descriptions also lives inside the create form under "Dynamic tokens".
 

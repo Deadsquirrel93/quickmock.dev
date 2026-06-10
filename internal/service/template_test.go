@@ -2,6 +2,8 @@ package service
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -138,5 +140,138 @@ func TestRenderResponseBody_IPv4(t *testing.T) {
 	re := regexp.MustCompile(`^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$`)
 	if !re.MatchString(out) {
 		t.Fatalf("expected dotted quad, got %q", out)
+	}
+}
+
+func sampleRequest() *RequestData {
+	return &RequestData{
+		Method: "POST",
+		Path:   "/m/abc123/users/42",
+		IP:     "203.0.113.7",
+		Query:  url.Values{"id": {"42"}, "filter": {"active"}},
+		Header: http.Header{"X-Request-Id": {"req-777"}, "User-Agent": {"curl/8.0"}},
+		Body:   []byte(`{"user":{"name":"Bob","age":30,"admin":true},"items":[{"sku":"A1"},{"sku":"B2"}]}`),
+	}
+}
+
+func TestRenderRequest_MethodPathIP(t *testing.T) {
+	out := RenderResponseBodyForRequest(`{{request.method}} {{request.path}} {{request.ip}}`, sampleRequest())
+	want := "POST /m/abc123/users/42 203.0.113.7"
+	if out != want {
+		t.Fatalf("expected %q, got %q", want, out)
+	}
+}
+
+func TestRenderRequest_QueryParam(t *testing.T) {
+	out := RenderResponseBodyForRequest(`{"id":"{{request.query.id}}","f":"{{request.query.filter}}"}`, sampleRequest())
+	want := `{"id":"42","f":"active"}`
+	if out != want {
+		t.Fatalf("expected %q, got %q", want, out)
+	}
+}
+
+func TestRenderRequest_MissingQueryParamLeftAsIs(t *testing.T) {
+	in := `{{request.query.nope}}`
+	if out := RenderResponseBodyForRequest(in, sampleRequest()); out != in {
+		t.Fatalf("expected missing query param token preserved, got %q", out)
+	}
+}
+
+func TestRenderRequest_HeaderCaseInsensitive(t *testing.T) {
+	out := RenderResponseBodyForRequest(`{{request.header.x-request-id}}|{{request.header.X-Request-Id}}`, sampleRequest())
+	want := "req-777|req-777"
+	if out != want {
+		t.Fatalf("expected %q, got %q", want, out)
+	}
+}
+
+func TestRenderRequest_MissingHeaderLeftAsIs(t *testing.T) {
+	in := `{{request.header.x-nope}}`
+	if out := RenderResponseBodyForRequest(in, sampleRequest()); out != in {
+		t.Fatalf("expected missing header token preserved, got %q", out)
+	}
+}
+
+func TestRenderRequest_RawBody(t *testing.T) {
+	req := sampleRequest()
+	out := RenderResponseBodyForRequest(`{{request.body}}`, req)
+	if out != string(req.Body) {
+		t.Fatalf("expected raw body echoed, got %q", out)
+	}
+}
+
+func TestRenderRequest_BodyJSONPath(t *testing.T) {
+	out := RenderResponseBodyForRequest(
+		`{"n":"{{request.body.user.name}}","a":{{request.body.user.age}},"adm":{{request.body.user.admin}},"sku":"{{request.body.items.1.sku}}"}`,
+		sampleRequest())
+	want := `{"n":"Bob","a":30,"adm":true,"sku":"B2"}`
+	if out != want {
+		t.Fatalf("expected %q, got %q", want, out)
+	}
+}
+
+func TestRenderRequest_BodyJSONPathMissingLeftAsIs(t *testing.T) {
+	in := `{{request.body.user.nope}}`
+	if out := RenderResponseBodyForRequest(in, sampleRequest()); out != in {
+		t.Fatalf("expected missing JSON path token preserved, got %q", out)
+	}
+}
+
+func TestRenderRequest_BodyJSONPathOnInvalidJSONLeftAsIs(t *testing.T) {
+	req := sampleRequest()
+	req.Body = []byte("not json at all")
+	in := `{{request.body.user.name}}`
+	if out := RenderResponseBodyForRequest(in, req); out != in {
+		t.Fatalf("expected token preserved on unparseable body, got %q", out)
+	}
+}
+
+func TestRenderRequest_NilRequestLeavesTokens(t *testing.T) {
+	in := `{{request.method}} {{request.query.id}}`
+	if out := RenderResponseBody(in); out != in {
+		t.Fatalf("expected request tokens preserved without request data, got %q", out)
+	}
+}
+
+func TestRenderRequest_MixedWithFakerTokens(t *testing.T) {
+	out := RenderResponseBodyForRequest(`{"m":"{{request.method}}","id":"{{faker.uuid}}"}`, sampleRequest())
+	var parsed struct {
+		M  string `json:"m"`
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("expected valid JSON, got error %v (out=%q)", err, out)
+	}
+	if parsed.M != "POST" {
+		t.Fatalf("expected request.method substituted, got %q", parsed.M)
+	}
+	if strings.Contains(parsed.ID, "{{") {
+		t.Fatalf("expected faker.uuid substituted alongside request tokens, got %q", parsed.ID)
+	}
+}
+
+func TestRenderRequest_WhitespaceTolerated(t *testing.T) {
+	out := RenderResponseBodyForRequest(`{{ request.method }}`, sampleRequest())
+	if out != "POST" {
+		t.Fatalf("expected substitution despite spaces, got %q", out)
+	}
+}
+
+func TestRenderRequest_AllRequestTokensResolve(t *testing.T) {
+	// sampleRequest deliberately carries the id query param, x-request-id
+	// header, and user.name body field that the documented illustrative
+	// tokens reference — every token in the UI docs must resolve.
+	for _, tok := range RequestTokens {
+		out := RenderResponseBodyForRequest(tok, sampleRequest())
+		if out == tok {
+			t.Errorf("request token %q was not substituted", tok)
+		}
+	}
+}
+
+func TestRenderRequest_UnknownRequestFieldLeftAsIs(t *testing.T) {
+	in := `{{request.nope}}`
+	if out := RenderResponseBodyForRequest(in, sampleRequest()); out != in {
+		t.Fatalf("expected unknown request token preserved, got %q", out)
 	}
 }

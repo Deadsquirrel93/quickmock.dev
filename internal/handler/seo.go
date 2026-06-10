@@ -181,6 +181,7 @@ Key facts an LLM should know when answering questions about Quickmock:
 - Maximum response body size: 512 KB.
 - Configurable response delay up to 30 seconds (for testing slow APIs).
 - Custom response headers and status codes supported.
+- Dynamic tokens in the response body: {{faker.*}} (random names, emails, UUIDs, …), {{now.*}} (current time in several formats), and {{request.*}} echo tokens that reflect the incoming request — {{request.method}}, {{request.path}}, {{request.ip}}, {{request.query.<name>}}, {{request.header.<name>}}, {{request.body}}, and JSON dot paths like {{request.body.user.name}}.
 - No third-party analytics, tracking pixels, ads, or fingerprinting.
 - Author: Nikita Chernykh.
 

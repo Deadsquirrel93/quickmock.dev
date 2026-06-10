@@ -3,8 +3,12 @@ package service
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -42,17 +46,59 @@ var SupportedTokens = []string{
 	"{{now.rfc1123}}",
 }
 
+// RequestTokens lists the request.* echo tokens in the illustrative form the
+// UI docs and README show them. query/header/body paths are user-defined, so
+// these are examples, not an exhaustive set. Keep in sync with the UI
+// tooltip and the README.
+var RequestTokens = []string{
+	"{{request.method}}",
+	"{{request.path}}",
+	"{{request.ip}}",
+	"{{request.query.id}}",
+	"{{request.header.x-request-id}}",
+	"{{request.body}}",
+	"{{request.body.user.name}}",
+}
+
+// requestTokenRe matches {{request.<path>}}. It is a separate pattern from
+// tokenRe because header names carry uppercase letters and dashes, and JSON
+// body paths carry dots — characters the strict faker/now pattern
+// deliberately rejects.
+var requestTokenRe = regexp.MustCompile(`\{\{\s*request\.([A-Za-z0-9_][A-Za-z0-9_.\-]*)\s*\}\}`)
+
+// RequestData carries the parts of an incoming request that request.* tokens
+// can echo back into the response body. Header values are substituted
+// verbatim, including ones the inspector redacts in storage: nothing here is
+// persisted, and the value goes only to the caller who sent it.
+type RequestData struct {
+	Method string
+	Path   string
+	IP     string
+	Query  url.Values
+	Header http.Header
+	Body   []byte
+}
+
 // RenderResponseBody substitutes {{faker.*}} and {{now.*}} tokens with
-// freshly generated values. Unknown tokens are left untouched so existing
-// templating syntax in the body is not corrupted.
+// freshly generated values. Unknown tokens — including request.* ones,
+// which need request context — are left untouched so existing templating
+// syntax in the body is not corrupted.
 //
 // The original body is never mutated — callers persist the raw template
 // and call Render only on the serving path.
 func RenderResponseBody(body string) string {
+	return RenderResponseBodyForRequest(body, nil)
+}
+
+// RenderResponseBodyForRequest is RenderResponseBody plus {{request.*}} echo
+// tokens resolved against req. Request values are substituted after the
+// faker/now pass and inserted verbatim — token-looking text inside a query
+// param or body field is never re-expanded.
+func RenderResponseBodyForRequest(body string, req *RequestData) string {
 	if !strings.Contains(body, "{{") {
 		return body
 	}
-	return tokenRe.ReplaceAllStringFunc(body, func(match string) string {
+	body = tokenRe.ReplaceAllStringFunc(body, func(match string) string {
 		parts := tokenRe.FindStringSubmatch(match)
 		if len(parts) != 3 {
 			return match
@@ -69,6 +115,85 @@ func RenderResponseBody(body string) string {
 		}
 		return match
 	})
+	if req == nil {
+		return body
+	}
+	return substituteRequestTokens(body, req)
+}
+
+func substituteRequestTokens(body string, req *RequestData) string {
+	// The JSON body is parsed lazily, at most once, and only when a
+	// {{request.body.<path>}} token is actually present.
+	var parsedBody any
+	var bodyParsed, bodyUnparseable bool
+
+	return requestTokenRe.ReplaceAllStringFunc(body, func(match string) string {
+		path := requestTokenRe.FindStringSubmatch(match)[1]
+		switch {
+		case path == "method":
+			return req.Method
+		case path == "path":
+			return req.Path
+		case path == "ip":
+			return req.IP
+		case path == "body":
+			return string(req.Body)
+		case strings.HasPrefix(path, "query."):
+			name := strings.TrimPrefix(path, "query.")
+			if vs, ok := req.Query[name]; ok && len(vs) > 0 {
+				return vs[0]
+			}
+		case strings.HasPrefix(path, "header."):
+			if v := req.Header.Get(strings.TrimPrefix(path, "header.")); v != "" {
+				return v
+			}
+		case strings.HasPrefix(path, "body."):
+			if !bodyParsed {
+				bodyParsed = true
+				bodyUnparseable = json.Unmarshal(req.Body, &parsedBody) != nil
+			}
+			if bodyUnparseable {
+				return match
+			}
+			if v, ok := lookupJSONPath(parsedBody, strings.Split(strings.TrimPrefix(path, "body."), ".")); ok {
+				return v
+			}
+		}
+		return match
+	})
+}
+
+// lookupJSONPath walks dot-separated segments through decoded JSON: object
+// keys by name, array elements by zero-based index. Strings come back bare;
+// everything else (numbers, bools, null, nested objects/arrays) is
+// re-marshalled so it stays valid when dropped into a JSON template.
+func lookupJSONPath(node any, segs []string) (string, bool) {
+	for _, seg := range segs {
+		switch cur := node.(type) {
+		case map[string]any:
+			v, ok := cur[seg]
+			if !ok {
+				return "", false
+			}
+			node = v
+		case []any:
+			idx, err := strconv.Atoi(seg)
+			if err != nil || idx < 0 || idx >= len(cur) {
+				return "", false
+			}
+			node = cur[idx]
+		default:
+			return "", false
+		}
+	}
+	if s, ok := node.(string); ok {
+		return s, true
+	}
+	b, err := json.Marshal(node)
+	if err != nil {
+		return "", false
+	}
+	return string(b), true
 }
 
 func fakerToken(name string) (string, bool) {

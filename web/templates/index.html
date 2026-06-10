@@ -163,6 +163,18 @@
               <li><code>{{`{{now.rfc1123}}`}}</code> — {{ t "mock.create.tokens.now_rfc1123" }}</li>
             </ul>
           </div>
+          <div>
+            <p class="body-tokens-group">{{ t "mock.create.tokens.group_request" }}</p>
+            <ul class="body-tokens-list">
+              <li><code>{{`{{request.method}}`}}</code> — {{ t "mock.create.tokens.request_method" }}</li>
+              <li><code>{{`{{request.path}}`}}</code> — {{ t "mock.create.tokens.request_path" }}</li>
+              <li><code>{{`{{request.ip}}`}}</code> — {{ t "mock.create.tokens.request_ip" }}</li>
+              <li><code>{{`{{request.query.id}}`}}</code> — {{ t "mock.create.tokens.request_query" }}</li>
+              <li><code>{{`{{request.header.x-request-id}}`}}</code> — {{ t "mock.create.tokens.request_header" }}</li>
+              <li><code>{{`{{request.body}}`}}</code> — {{ t "mock.create.tokens.request_body" }}</li>
+              <li><code>{{`{{request.body.user.name}}`}}</code> — {{ t "mock.create.tokens.request_body_path" }}</li>
+            </ul>
+          </div>
         </div>
       </details>
     </label>
