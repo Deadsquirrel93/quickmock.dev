@@ -30,6 +30,10 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 	if err != nil {
 		return fmt.Errorf("marshal headers: %w", err)
 	}
+	errResp, seq, err := marshalFlaky(m)
+	if err != nil {
+		return err
+	}
 	var suffix *string
 	if m.PathSuffix != "" {
 		suffix = &m.PathSuffix
@@ -38,13 +42,15 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 		INSERT INTO mocks (
 			slug, name, method, response_body, response_status,
 			response_headers, response_delay_ms, content_type,
-			path_suffix, expires_at, creator_ip
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+			path_suffix, expires_at, creator_ip,
+			response_delay_max_ms, error_rate_pct, error_response, response_sequence
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		RETURNING id, created_at
 	`,
 		m.Slug, m.Name, string(m.Method), m.ResponseBody, m.ResponseStatus,
 		headers, m.ResponseDelayMS, m.ContentType,
 		suffix, m.ExpiresAt, m.CreatorIP,
+		m.ResponseDelayMaxMS, m.ErrorRatePct, errResp, seq,
 	).Scan(&m.ID, &m.CreatedAt)
 }
 
@@ -55,7 +61,8 @@ func (r *MockRepo) BySlug(ctx context.Context, slug string) (*model.Mock, error)
 		SELECT id, slug, name, method, response_body, response_status,
 		       response_headers, response_delay_ms, content_type,
 		       path_suffix, expires_at, created_at, request_count,
-		       last_request_at, creator_ip
+		       last_request_at, creator_ip,
+		       response_delay_max_ms, error_rate_pct, error_response, response_sequence
 		FROM mocks
 		WHERE slug = $1
 		  AND (expires_at IS NULL OR expires_at > now())
@@ -69,6 +76,10 @@ func (r *MockRepo) Update(ctx context.Context, m *model.Mock) error {
 	headers, err := json.Marshal(m.ResponseHeaders)
 	if err != nil {
 		return fmt.Errorf("marshal headers: %w", err)
+	}
+	errResp, seq, err := marshalFlaky(m)
+	if err != nil {
+		return err
 	}
 	var suffix *string
 	if m.PathSuffix != "" {
@@ -84,12 +95,17 @@ func (r *MockRepo) Update(ctx context.Context, m *model.Mock) error {
 			response_delay_ms = $7,
 			content_type      = $8,
 			path_suffix       = $9,
-			expires_at        = $10
+			expires_at        = $10,
+			response_delay_max_ms = $11,
+			error_rate_pct        = $12,
+			error_response        = $13,
+			response_sequence     = $14
 		WHERE slug = $1
 		  AND (expires_at IS NULL OR expires_at > now())
 	`,
 		m.Slug, m.Name, string(m.Method), m.ResponseBody, m.ResponseStatus,
 		headers, m.ResponseDelayMS, m.ContentType, suffix, m.ExpiresAt,
+		m.ResponseDelayMaxMS, m.ErrorRatePct, errResp, seq,
 	)
 	if err != nil {
 		return err
@@ -167,11 +183,14 @@ func scanMock(row pgx.Row) (*model.Mock, error) {
 		method  string
 		headers []byte
 		suffix  *string
+		errResp []byte
+		seq     []byte
 	)
 	err := row.Scan(
 		&m.ID, &m.Slug, &m.Name, &method, &m.ResponseBody, &m.ResponseStatus,
 		&headers, &m.ResponseDelayMS, &m.ContentType, &suffix,
 		&m.ExpiresAt, &m.CreatedAt, &m.RequestCount, &m.LastRequestAt, &m.CreatorIP,
+		&m.ResponseDelayMaxMS, &m.ErrorRatePct, &errResp, &seq,
 	)
 	if suffix != nil {
 		m.PathSuffix = *suffix
@@ -189,6 +208,27 @@ func scanMock(row pgx.Row) (*model.Mock, error) {
 	if m.ResponseHeaders == nil {
 		m.ResponseHeaders = map[string]string{}
 	}
+	if len(errResp) > 0 {
+		_ = json.Unmarshal(errResp, &m.ErrorResponse)
+	}
+	if len(seq) > 0 {
+		_ = json.Unmarshal(seq, &m.SequenceSteps)
+	}
 	return &m, nil
 }
 
+// marshalFlaky serialises the optional flaky-config blobs. nil slices map
+// to SQL NULL so plain mocks keep NULL columns.
+func marshalFlaky(m *model.Mock) (errResp, seq []byte, err error) {
+	if m.ErrorResponse != nil {
+		if errResp, err = json.Marshal(m.ErrorResponse); err != nil {
+			return nil, nil, fmt.Errorf("marshal error response: %w", err)
+		}
+	}
+	if len(m.SequenceSteps) > 0 {
+		if seq, err = json.Marshal(m.SequenceSteps); err != nil {
+			return nil, nil, fmt.Errorf("marshal response sequence: %w", err)
+		}
+	}
+	return errResp, seq, nil
+}
