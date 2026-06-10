@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	mockmw "github.com/Deadsquirrel93/quickmock.dev/internal/middleware"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
 )
 
@@ -22,11 +24,12 @@ import (
 type MockRouter struct {
 	svc    *service.MockService
 	logs   *service.LogWriter
+	seq    *repository.SeqCounter
 	maxLog int
 }
 
-func NewMockRouter(svc *service.MockService, logs *service.LogWriter) *MockRouter {
-	return &MockRouter{svc: svc, logs: logs, maxLog: 16 * 1024}
+func NewMockRouter(svc *service.MockService, logs *service.LogWriter, seq *repository.SeqCounter) *MockRouter {
+	return &MockRouter{svc: svc, logs: logs, seq: seq, maxLog: 16 * 1024}
 }
 
 // ServeHTTP matches the slug, validates the method, sleeps the configured
@@ -65,9 +68,13 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		RequestIP:      mockmw.IPFromContext(r.Context()),
 	})
 
-	if m.ResponseDelayMS > 0 {
+	served := pickVariant(m, rand.IntN(100), func() uint64 {
+		return h.seq.Next(r.Context(), m.ID)
+	})
+
+	if d := effectiveDelay(m.ResponseDelayMS, m.ResponseDelayMaxMS); d > 0 {
 		select {
-		case <-time.After(time.Duration(m.ResponseDelayMS) * time.Millisecond):
+		case <-time.After(d):
 		case <-r.Context().Done():
 			return
 		}
@@ -84,10 +91,19 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set(k, v)
 	}
+	// Sequence-step headers win over the mock's own per key; the ContentType
+	// field below still wins over both — same precedence main headers have.
+	for k, v := range served.Headers {
+		if service.IsReservedResponseHeader(k) {
+			continue
+		}
+		w.Header().Set(k, v)
+	}
 	if m.ContentType != "" {
 		w.Header().Set("Content-Type", m.ContentType)
 	}
 	w.Header().Set("X-Mockapi-Slug", m.Slug)
+	w.Header().Set("X-Mockapi-Variant", served.Variant)
 
 	// Defence against weaponising /m/:slug as a same-origin script host:
 	// nosniff stops the browser from upgrading a text/* mock to text/html
@@ -101,7 +117,7 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 
-	status := m.ResponseStatus
+	status := served.Status
 	if status == 0 {
 		status = http.StatusOK
 	}
@@ -109,7 +125,7 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// bodyBytes is capped at maxLog+1, so {{request.body*}} tokens see at
 	// most the first 16 KB of the incoming body — same window as the
 	// inspector.
-	_, _ = w.Write([]byte(service.RenderResponseBodyForRequest(m.ResponseBody, &service.RequestData{
+	_, _ = w.Write([]byte(service.RenderResponseBodyForRequest(served.Body, &service.RequestData{
 		Method: r.Method,
 		Path:   r.URL.Path,
 		IP:     mockmw.IPFromContext(r.Context()),

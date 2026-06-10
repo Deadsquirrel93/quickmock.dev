@@ -134,6 +134,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	statsRepo := repository.NewStatsRepo(pool)
 	mockLimiter := repository.NewRateLimiter(rdb, cfg.RateIP, cfg.RateWindow)
 	apiLimiter := repository.NewRateLimiter(rdb, 600, time.Minute)
+	seqCounter := repository.NewSeqCounter(rdb)
 
 	// Services
 	statsCache := service.NewStatsCache(statsRepo, 30*time.Second, logger)
@@ -168,7 +169,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 
 	api := handler.NewAPI(mockSvc, logRepo, mockRepo, renderer, cfg.BaseURL)
 	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks)
-	mockRouter := handler.NewMockRouter(mockSvc, logWriter)
+	mockRouter := handler.NewMockRouter(mockSvc, logWriter, seqCounter)
 	healthHandler := handler.Health(pool, mockLimiter)
 	langHandler := handler.Lang(renderer, secureSite)
 
