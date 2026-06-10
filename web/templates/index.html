@@ -182,8 +182,12 @@
     <div class="form-grid">
       <label>
         <span class="label-text">{{ t "mock.create.delay" }}</span>
-        <input type="number" name="response_delay_ms" value="0" min="0" max="30000">
-        <span class="form-hint">{{ t "mock.create.delay_hint" }}</span>
+        <div class="kv-row">
+          <input type="number" name="response_delay_ms" value="0" min="0" max="30000">
+          <input type="number" name="response_delay_max_ms" min="0" max="30000"
+                 placeholder='{{ t "mock.create.delay_max_placeholder" }}'>
+        </div>
+        <span class="form-hint">{{ t "mock.create.delay_jitter_hint" }}</span>
       </label>
       <label>
         <span class="label-text">{{ t "mock.create.ttl" }}</span>
@@ -211,6 +215,54 @@
       </template>
       <button type="button" class="btn btn-ghost"
               @click="headers.push({name:'', value:''})">+ {{ t "mock.create.headers_add" }}</button>
+    </details>
+
+    <details class="advanced">
+      <summary>{{ t "mock.create.flaky.title" }}</summary>
+      <p class="form-hint">{{ t "mock.create.flaky.hint" }}</p>
+
+      <div class="form-grid">
+        <label>
+          <span class="label-text">{{ t "mock.create.flaky.error_rate" }}</span>
+          <input type="number" name="error_rate_pct" x-model.number="errorRate" min="0" max="100" value="0">
+          <span class="form-hint">{{ t "mock.create.flaky.error_rate_hint" }}</span>
+        </label>
+        <label x-show="errorRate > 0" x-cloak>
+          <span class="label-text">{{ t "mock.create.flaky.error_status" }}</span>
+          <input type="number" name="error_status" value="500" min="100" max="599">
+        </label>
+      </div>
+      <label x-show="errorRate > 0" x-cloak>
+        <span class="label-text">{{ t "mock.create.flaky.error_body" }}</span>
+        <textarea name="error_body" rows="3" spellcheck="false"
+                  placeholder='{{ t "mock.create.flaky.error_body_placeholder" }}'></textarea>
+      </label>
+
+      <p class="label-text">{{ t "mock.create.flaky.seq_title" }}</p>
+      <p class="form-hint">{{ t "mock.create.flaky.seq_hint" }}</p>
+      <template x-for="(st, i) in steps" :key="st.key">
+        <div class="seq-step">
+          <div class="kv-row">
+            <span class="label-text" x-text="'{{ t "mock.create.flaky.step" }} ' + (i + 2)"></span>
+            <input type="number" name="seq_status[]" :value="st.status"
+                   @input="st.status = $event.target.value" min="100" max="599"
+                   placeholder='{{ t "mock.create.status" }}'>
+            <button type="button" class="btn btn-ghost" @click="moveStep(i, -1)"
+                    :disabled="i === 0">↑</button>
+            <button type="button" class="btn btn-ghost" @click="moveStep(i, 1)"
+                    :disabled="i === steps.length - 1">↓</button>
+            <button type="button" class="btn btn-ghost" @click="steps.splice(i, 1)">−</button>
+          </div>
+          <textarea name="seq_body[]" rows="3" spellcheck="false" :value="st.body"
+                    @input="st.body = $event.target.value"
+                    placeholder='{{ t "mock.create.flaky.step_body_placeholder" }}'></textarea>
+          <textarea name="seq_headers[]" rows="2" spellcheck="false" :value="st.headers"
+                    @input="st.headers = $event.target.value"
+                    placeholder='{{ t "mock.create.flaky.step_headers_placeholder" }}'></textarea>
+        </div>
+      </template>
+      <button type="button" class="btn btn-ghost" @click="addStep()"
+              x-show="steps.length < 10">+ {{ t "mock.create.flaky.step_add" }}</button>
     </details>
 
     <details class="advanced">
@@ -322,6 +374,18 @@
       curlError: '',
       pathSuffix: '',
       pathError: '',
+      errorRate: 0,
+      steps: [],
+      stepKey: 0,
+      addStep() {
+        if (this.steps.length >= 10) return;
+        this.steps.push({ key: this.stepKey++, status: 500, body: '', headers: '' });
+      },
+      moveStep(i, d) {
+        const j = i + d;
+        if (j < 0 || j >= this.steps.length) return;
+        [this.steps[i], this.steps[j]] = [this.steps[j], this.steps[i]];
+      },
       init() { this.onBodyInput(); },
       onPathInput() {
         const v = this.pathSuffix.trim();
