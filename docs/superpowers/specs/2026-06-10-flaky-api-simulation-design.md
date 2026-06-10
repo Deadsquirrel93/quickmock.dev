@@ -123,9 +123,9 @@ New `<details class="advanced">` section "Flaky simulation":
   A static label explains "Step 1 is the main response above"; added steps
   are numbered from 2.
 
-All strings via `t` keys in `locales/en.json` + `locales/ru.json`. Edit
-pre-fill (the JS that loads `GET /api/mocks/:id` into the form) populates the
-new fields.
+All strings via `t` keys in `locales/en.json` + `locales/ru.json`.
+(Note: the UI has no edit form — only create. `PUT /api/mocks/:id` picks the
+new fields up through the shared request struct; no extra UI work.)
 
 ## API (`internal/handler/api.go`)
 
