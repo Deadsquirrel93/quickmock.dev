@@ -31,28 +31,36 @@ func NewAPI(svc *service.MockService, logs *repository.LogRepo, mocks *repositor
 
 // CreateMockRequest is the JSON shape accepted by POST /api/mocks.
 type createMockRequest struct {
-	Name            string            `json:"name"`
-	Method          string            `json:"method"`
-	ResponseBody    string            `json:"response_body"`
-	ResponseStatus  int               `json:"response_status"`
-	ResponseHeaders map[string]string `json:"response_headers"`
-	ResponseDelayMS int               `json:"response_delay_ms"`
-	ContentType     string            `json:"content_type"`
-	PathSuffix      string            `json:"path_suffix"`
-	TTLSeconds      int               `json:"ttl_seconds"`
+	Name               string               `json:"name"`
+	Method             string               `json:"method"`
+	ResponseBody       string               `json:"response_body"`
+	ResponseStatus     int                  `json:"response_status"`
+	ResponseHeaders    map[string]string    `json:"response_headers"`
+	ResponseDelayMS    int                  `json:"response_delay_ms"`
+	ResponseDelayMaxMS int                  `json:"response_delay_max_ms"`
+	ErrorRatePct       int                  `json:"error_rate_pct"`
+	ErrorResponse      *model.ResponseStep  `json:"error_response"`
+	ResponseSequence   []model.ResponseStep `json:"response_sequence"`
+	ContentType        string               `json:"content_type"`
+	PathSuffix         string               `json:"path_suffix"`
+	TTLSeconds         int                  `json:"ttl_seconds"`
 }
 
 func (req createMockRequest) toInput() model.MockInput {
 	return model.MockInput{
-		Name:            req.Name,
-		Method:          model.Method(strings.ToUpper(req.Method)),
-		ResponseBody:    req.ResponseBody,
-		ResponseStatus:  req.ResponseStatus,
-		ResponseHeaders: req.ResponseHeaders,
-		ResponseDelayMS: req.ResponseDelayMS,
-		ContentType:     req.ContentType,
-		PathSuffix:      req.PathSuffix,
-		TTL:             time.Duration(req.TTLSeconds) * time.Second,
+		Name:               req.Name,
+		Method:             model.Method(strings.ToUpper(req.Method)),
+		ResponseBody:       req.ResponseBody,
+		ResponseStatus:     req.ResponseStatus,
+		ResponseHeaders:    req.ResponseHeaders,
+		ResponseDelayMS:    req.ResponseDelayMS,
+		ResponseDelayMaxMS: req.ResponseDelayMaxMS,
+		ErrorRatePct:       req.ErrorRatePct,
+		ErrorResponse:      req.ErrorResponse,
+		SequenceSteps:      req.ResponseSequence,
+		ContentType:        req.ContentType,
+		PathSuffix:         req.PathSuffix,
+		TTL:                time.Duration(req.TTLSeconds) * time.Second,
 	}
 }
 
@@ -170,21 +178,25 @@ func (a *API) ParseCurl(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) mockView(m *model.Mock) map[string]any {
 	return map[string]any{
-		"id":                m.ID,
-		"slug":              m.Slug,
-		"name":              m.Name,
-		"url":               service.MockURL(m, a.baseURL),
-		"method":            m.Method,
-		"response_status":   m.ResponseStatus,
-		"response_body":     m.ResponseBody,
-		"response_headers":  m.ResponseHeaders,
-		"response_delay_ms": m.ResponseDelayMS,
-		"content_type":      m.ContentType,
-		"path_suffix":       m.PathSuffix,
-		"expires_at":        m.ExpiresAt,
-		"created_at":        m.CreatedAt,
-		"request_count":     m.RequestCount,
-		"last_request_at":   m.LastRequestAt,
+		"id":                    m.ID,
+		"slug":                  m.Slug,
+		"name":                  m.Name,
+		"url":                   service.MockURL(m, a.baseURL),
+		"method":                m.Method,
+		"response_status":       m.ResponseStatus,
+		"response_body":         m.ResponseBody,
+		"response_headers":      m.ResponseHeaders,
+		"response_delay_ms":     m.ResponseDelayMS,
+		"response_delay_max_ms": m.ResponseDelayMaxMS,
+		"error_rate_pct":        m.ErrorRatePct,
+		"error_response":        m.ErrorResponse,
+		"response_sequence":     m.SequenceSteps,
+		"content_type":          m.ContentType,
+		"path_suffix":           m.PathSuffix,
+		"expires_at":            m.ExpiresAt,
+		"created_at":            m.CreatedAt,
+		"request_count":         m.RequestCount,
+		"last_request_at":       m.LastRequestAt,
 	}
 }
 
