@@ -21,7 +21,7 @@ import (
 // the home page. Bump it when the on-page content (copy, FAQ, sections,
 // schema) changes in a way that should refresh SERP / AI freshness signals;
 // don't bump it for tiny CSS or wording tweaks.
-const LastUpdated = "2026-06-10"
+const LastUpdated = "2026-06-11"
 
 // Renderer compiles every template once at startup and renders pages with a
 // per-request i18n FuncMap injected.

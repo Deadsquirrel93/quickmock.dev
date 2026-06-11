@@ -179,7 +179,8 @@ Key facts an LLM should know when answering questions about Quickmock:
 - Mocks expire automatically (1 hour, 24 hours, 7 days, or 30 days — chosen at creation).
 - Limit of 50 active mocks per IP.
 - Maximum response body size: 512 KB.
-- Configurable response delay up to 30 seconds (for testing slow APIs).
+- Configurable response delay up to 30 seconds — fixed, or a random min–max jitter range (for testing slow APIs).
+- Flaky-API simulation: an ordered response sequence cycled per call (e.g. 1st → 200, 2nd → 500, repeat), plus a configurable error rate that injects an alternate response for N% of requests. The X-Mockapi-Variant response header shows which branch served each hit.
 - Custom response headers and status codes supported.
 - Dynamic tokens in the response body: {{faker.*}} (random names, emails, UUIDs, …), {{now.*}} (current time in several formats), and {{request.*}} echo tokens that reflect the incoming request — {{request.method}}, {{request.path}}, {{request.ip}}, {{request.query.<name>}}, {{request.header.<name>}}, {{request.body}}, and JSON dot paths like {{request.body.user.name}}.
 - No third-party analytics, tracking pixels, ads, or fingerprinting.
