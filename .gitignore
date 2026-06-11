@@ -33,6 +33,9 @@ redis-data/
 # Internal spec / brief — not for public repo
 mock-api-tz.md
 
+# Superpowers brainstorm specs / implementation plans — local working docs
+/docs/superpowers/
+
 # Internal docs — kept locally, not shipped to the public repo
 /API.md
 /ARCHITECTURE.md
