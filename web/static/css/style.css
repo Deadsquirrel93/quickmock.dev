@@ -1069,6 +1069,82 @@ input:focus, select:focus, textarea:focus {
 }
 .support-copy:hover { background: var(--accent-dk); }
 
+/* ---- Guides ---- */
+.guide { margin: 2rem auto; }
+.guide h1 { margin: 0.25rem 0 0.5rem; }
+
+.breadcrumb {
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+  margin: 0 0 1rem;
+}
+.breadcrumb a { color: var(--fg-muted); text-decoration: none; }
+.breadcrumb a:hover { color: var(--accent); text-decoration: underline; }
+.breadcrumb [aria-current="page"] { color: var(--fg); }
+
+.guide-intro { color: var(--fg-muted); font-size: 1.05rem; margin: 0 0 1.5rem; }
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+/* Card is an <a>, so reset link styling and the .card vertical margin and
+   lay it out as a column that fills its grid cell. */
+.guide-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.guide-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  transform: translateY(-2px);
+}
+.guide-card h2 { margin: 0; font-size: 1.05rem; color: var(--accent); }
+.guide-card p { margin: 0; color: var(--fg-muted); font-size: 0.92rem; line-height: 1.5; }
+
+/* Case page */
+.guide-summary { font-size: 1.1rem; color: var(--fg-muted); margin: 0 0 1.5rem; }
+.guide-case h2 { font-size: 1.05rem; margin: 1.75rem 0 0.6rem; }
+.guide-case > p { line-height: 1.6; }
+.guide-code {
+  background: var(--bg-code);
+  color: #e2e8f0;
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin: 0;
+  overflow-x: auto;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.guide-code code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+  background: transparent;
+  padding: 0;
+  white-space: pre;
+}
+.guide-cta { text-align: center; margin-top: 2rem; }
+.guide-cta h2 { margin-top: 0; }
+.guide-case .guide-back, .guide-case > p:last-child { margin-top: 1.5rem; }
+
+/* Home "Common use cases" teaser — mirrors the .faq card. */
+.usecases {
+  margin: 2rem auto;
+  padding: 1.25rem 1rem;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.usecases h2 { margin-top: 0; }
+.usecases p { color: var(--fg-muted); margin: 0.5rem 0 0; }
+.usecases a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.usecases a:hover { text-decoration: underline; }
+
 /* ---- Mobile ---- */
 @media (max-width: 640px) {
   .header-row { gap: 0.75rem; flex-wrap: wrap; }
