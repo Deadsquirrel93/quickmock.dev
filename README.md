@@ -46,6 +46,7 @@ That's it. No account, no API key, no waiting for an email.
 - **Copy as cURL** — one click to grab a ready-made test command.
 - **Dynamic tokens** — drop `{{faker.uuid}}`, `{{now.iso8601}}`, etc. into the body; fresh values on every hit. See [Dynamic tokens](#dynamic-tokens).
 - **Request echo** — `{{request.*}}` tokens reflect the incoming request back: method, path, IP, query params, headers, raw body, or a JSON field from the body.
+- **Use-case guides** — `/guide` has ready-to-run recipes: retry testing, flaky/slow APIs, webhook inspection, fake data, and more.
 - **No signup** — mocks live in your browser's `localStorage`, the slug is your only credential.
 - **Bilingual UI** — English and Russian out of the box; more languages planned.
 

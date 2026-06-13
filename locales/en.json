@@ -58,6 +58,8 @@
   "changelog.section.added": "Added",
   "changelog.section.fixed": "Fixed",
   "changelog.section.security": "Security",
+  "changelog.r0613.title": "2026-06-13 — Use-case guides",
+  "changelog.r0613.added1": "New <a href=\"/guide\">/guide</a> section: scenario-first landing pages for common tasks — mock a REST API, test retry logic, simulate flaky or slow APIs, inspect webhooks, return fake data, echo the request. Each page has a ready-to-run curl example; all are listed in the sitemap.",
   "changelog.r0611.title": "2026-06-11 — Flaky-API simulation",
   "changelog.r0611.added1": "<strong>Response sequences:</strong> a mock can now hold an ordered list of up to 10 extra responses (status + body + headers each) cycled per hit — 1st call → main response, 2nd → step 2, … then loop. Classic retry-logic testing. The position is a shared per-mock counter (Redis, with an in-process fallback), so every caller advances the same sequence.",
   "changelog.r0611.added2": "<strong>Error rate & delay jitter:</strong> a configurable share of requests (0–100%, rolled per request) can answer with an alternate status/body, and the response delay can be a min–max range for random latency jitter instead of a fixed value. All three settings combine, and a new <code>X-Mockapi-Variant</code> response header (<code>default</code>, <code>error</code>, or <code>seq-i/n</code>) shows which branch served each hit. Configurable from the create form (new “Flaky simulation” section) and the API.",
