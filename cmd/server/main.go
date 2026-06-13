@@ -227,6 +227,8 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		r.Get("/mock/{slug}/summary", ui.SummaryPartial)
 		r.Get("/my", ui.MyMocks)
 		r.Get("/changelog", ui.Changelog)
+		r.Get("/guide", ui.Guide)
+		r.Get("/guide/{slug}", ui.GuideCase)
 		r.Get("/share/{slug}", ui.Share)
 		r.Post("/language", langHandler)
 		r.NotFound(ui.NotFound)

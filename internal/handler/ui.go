@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -128,6 +129,66 @@ func (u *UI) SummaryPartial(w http.ResponseWriter, r *http.Request) {
 // the git history.
 func (u *UI) Changelog(w http.ResponseWriter, r *http.Request) {
 	u.renderer.Render(w, r, "changelog", http.StatusOK, nil)
+}
+
+// Guide renders GET /guide — the use-case index.
+func (u *UI) Guide(w http.ResponseWriter, r *http.Request) {
+	lang := i18n.LangFromContext(r.Context())
+	if lang == "" {
+		lang = u.localz.Fallback()
+	}
+	u.renderer.Render(w, r, "guide", http.StatusOK, map[string]any{
+		"Cases":           UseCases,
+		"MetaTitle":       u.localz.T(lang, "guide.title") + " — " + u.localz.T(lang, "app.name"),
+		"MetaDescription": u.localz.T(lang, "guide.meta_description"),
+	})
+}
+
+// GuideCase renders GET /guide/:slug — one use-case landing page.
+func (u *UI) GuideCase(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	c, ok := UseCaseBySlug(slug)
+	if !ok {
+		u.renderer.Render(w, r, "404", http.StatusNotFound, nil)
+		return
+	}
+	lang := i18n.LangFromContext(r.Context())
+	if lang == "" {
+		lang = u.localz.Fallback()
+	}
+	title := u.localz.T(lang, c.KeyPrefix+".title")
+	u.renderer.Render(w, r, "guide_case", http.StatusOK, map[string]any{
+		"Case":            c,
+		"CreateCurl":      guideCreateCurl(u.baseURL, c),
+		"CallCurl":        guideCallCurl(u.baseURL, c),
+		"MetaTitle":       title + " — " + u.localz.T(lang, "app.name"),
+		"MetaDescription": u.localz.T(lang, c.KeyPrefix+".summary"),
+		"JSONLD":          GuideCaseJSONLD(u.localz, lang, u.baseURL, c),
+	})
+}
+
+// guideCreateCurl renders the copy-paste create command for a case.
+func guideCreateCurl(baseURL string, c UseCase) string {
+	return fmt.Sprintf("curl -X POST %s/api/mocks \\\n  -H 'Content-Type: application/json' \\\n  -d '%s'",
+		strings.TrimRight(baseURL, "/"), c.CreateBody)
+}
+
+// guideCallCurl renders the command that calls the created mock. The slug is a
+// placeholder the reader replaces with the slug from the create response.
+func guideCallCurl(baseURL string, c UseCase) string {
+	base := strings.TrimRight(baseURL, "/")
+	parts := []string{"curl"}
+	if c.CallVerb != "GET" {
+		parts = append(parts, "-X "+c.CallVerb)
+	}
+	if c.CallHeader != "" {
+		parts = append(parts, "-H '"+c.CallHeader+"'")
+	}
+	if c.CallData != "" {
+		parts = append(parts, "-H 'Content-Type: application/json'", "-d '"+c.CallData+"'")
+	}
+	parts = append(parts, base+"/m/<slug>")
+	return strings.Join(parts, " ")
 }
 
 // MyMocks renders GET /my — the localStorage-driven mocks list.
