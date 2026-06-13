@@ -1,0 +1,36 @@
+{{ define "head" }}
+<script type="application/ld+json">{{ .JSONLD }}</script>
+{{ end }}
+
+{{ define "content" }}
+<section class="guide guide-case container">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">{{ t "guide.breadcrumb.home" }}</a> ·
+    <a href="/guide">{{ t "guide.breadcrumb.guide" }}</a> ·
+    <span aria-current="page">{{ t (printf "%s.title" .Case.KeyPrefix) }}</span>
+  </nav>
+
+  <h1>{{ t (printf "%s.title" .Case.KeyPrefix) }}</h1>
+  <p class="guide-summary">{{ t (printf "%s.summary" .Case.KeyPrefix) }}</p>
+
+  <h2>{{ t "guide.section.why" }}</h2>
+  <p>{{ t (printf "%s.why" .Case.KeyPrefix) }}</p>
+
+  <h2>{{ t "guide.section.create" }}</h2>
+  <pre class="guide-code"><code>{{ .CreateCurl }}</code></pre>
+
+  <h2>{{ t "guide.section.call" }}</h2>
+  <pre class="guide-code"><code>{{ .CallCurl }}</code></pre>
+  {{ if .Case.UsesInspector }}<p class="form-hint">{{ t "guide.inspector_note" }}</p>{{ end }}
+
+  <h2>{{ t "guide.section.expect" }}</h2>
+  <pre class="guide-code"><code>{{ .Case.Expect }}</code></pre>
+
+  <div class="guide-cta card">
+    <h2>{{ t "guide.cta.title" }}</h2>
+    <a class="btn btn-primary" href="/">{{ t "guide.cta.button" }}</a>
+  </div>
+
+  <p><a href="/guide">{{ t "guide.back" }}</a></p>
+</section>
+{{ end }}

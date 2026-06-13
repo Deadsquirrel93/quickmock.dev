@@ -1,0 +1,20 @@
+{{ define "content" }}
+<section class="guide container">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">{{ t "guide.breadcrumb.home" }}</a> ·
+    <span aria-current="page">{{ t "guide.breadcrumb.guide" }}</span>
+  </nav>
+
+  <h1>{{ t "guide.title" }}</h1>
+  <p class="guide-intro">{{ t "guide.intro" }}</p>
+
+  <div class="guide-grid">
+    {{ range .Cases }}
+    <a class="guide-card card" href="/guide/{{ .Slug }}">
+      <h2>{{ t (printf "%s.title" .KeyPrefix) }}</h2>
+      <p>{{ t (printf "%s.summary" .KeyPrefix) }}</p>
+    </a>
+    {{ end }}
+  </div>
+</section>
+{{ end }}
