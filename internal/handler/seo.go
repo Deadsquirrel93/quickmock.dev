@@ -252,6 +252,15 @@ curl -X POST ` + base + `/api/mocks \
 ## Pages
 
 - [Home](` + base + `/): Landing page and create form.
+- [Guides](` + base + `/guide): Use-case recipes with ready-to-run curl examples.
+- [Mock a REST API](` + base + `/guide/mock-rest-api): Public JSON endpoint to unblock a frontend.
+- [Test retry logic](` + base + `/guide/test-retry-logic): A mock that fails then succeeds (sequence).
+- [Simulate a flaky API](` + base + `/guide/simulate-flaky-api): Random errors plus latency jitter.
+- [Simulate a slow API](` + base + `/guide/simulate-slow-api): Fixed delay for timeout testing.
+- [Test a webhook receiver](` + base + `/guide/mock-webhook-receiver): Catch and inspect incoming webhooks.
+- [Mock an error response](` + base + `/guide/mock-error-response): Return an exact 4xx/5xx on demand.
+- [Return fake data](` + base + `/guide/fake-json-data): {{faker.*}} tokens for realistic values.
+- [Echo the request](` + base + `/guide/echo-request-data): {{request.*}} tokens reflect the request back.
 - [GitHub repo](https://github.com/Deadsquirrel93/quickmock.dev): Source code, issues, releases.
 
 ## Notes for AI assistants
@@ -278,6 +287,10 @@ func SitemapXML(baseURL string, langs []string, fallbackLang string) http.Handle
 	pages := []pageEntry{
 		{"/", "weekly", "1.0"},
 		{"/changelog", "weekly", "0.7"},
+		{"/guide", "weekly", "0.7"},
+	}
+	for _, c := range UseCases {
+		pages = append(pages, pageEntry{"/guide/" + c.Slug, "monthly", "0.6"})
 	}
 
 	var b strings.Builder

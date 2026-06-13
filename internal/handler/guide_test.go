@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -60,5 +61,20 @@ func TestGuideCaseJSONLD(t *testing.T) {
 	var v any
 	if err := json.Unmarshal([]byte(js), &v); err != nil {
 		t.Fatalf("JSON-LD is not valid JSON: %v", err)
+	}
+}
+
+func TestSitemapIncludesGuides(t *testing.T) {
+	h := SitemapXML("https://example.test", []string{"en", "ru"}, "en")
+	w := httptest.NewRecorder()
+	h(w, httptest.NewRequest("GET", "/sitemap.xml", nil))
+	body := w.Body.String()
+	if !strings.Contains(body, "https://example.test/guide</loc>") {
+		t.Fatal("sitemap missing /guide index")
+	}
+	for _, c := range UseCases {
+		if !strings.Contains(body, "https://example.test/guide/"+c.Slug+"</loc>") {
+			t.Fatalf("sitemap missing /guide/%s", c.Slug)
+		}
 	}
 }
