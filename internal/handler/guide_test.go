@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	quickmock "github.com/Deadsquirrel93/quickmock.dev"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 )
 
@@ -40,5 +42,23 @@ func TestUseCasesIntegrity(t *testing.T) {
 		if c.CallVerb == "" {
 			t.Fatalf("%s: CallVerb empty", c.Slug)
 		}
+	}
+}
+
+func TestGuideCaseJSONLD(t *testing.T) {
+	localz := i18n.New("en")
+	if err := localz.LoadFS(quickmock.LocalesFS, "locales"); err != nil {
+		t.Fatal(err)
+	}
+	c, _ := UseCaseBySlug("test-retry-logic")
+	js := string(GuideCaseJSONLD(localz, "en", "https://example.test", c))
+	for _, want := range []string{"HowTo", "BreadcrumbList", "/guide/test-retry-logic"} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("JSON-LD missing %q in %s", want, js)
+		}
+	}
+	var v any
+	if err := json.Unmarshal([]byte(js), &v); err != nil {
+		t.Fatalf("JSON-LD is not valid JSON: %v", err)
 	}
 }
