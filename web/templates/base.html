@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ block "title" . }}{{ t "app.name" }} — {{ t "app.tagline" }}{{ end }}</title>
-  <meta name="description" content="{{ t "seo.description" }}">
+  <title>{{ block "title" . }}{{ if .MetaTitle }}{{ .MetaTitle }}{{ else }}{{ t "app.name" }} — {{ t "app.tagline" }}{{ end }}{{ end }}</title>
+  <meta name="description" content="{{ if .MetaDescription }}{{ .MetaDescription }}{{ else }}{{ t "seo.description" }}{{ end }}">
   <meta name="author" content="Nikita Chernykh">
   <meta name="robots" content="index,follow,max-image-preview:large">
   <meta name="theme-color" content="#0f172a">
@@ -17,8 +17,8 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="{{ .BaseURL }}{{ .Path }}{{ if ne .Lang .DefaultLang }}?lang={{ .Lang }}{{ end }}">
   <meta property="og:site_name" content="{{ t "app.name" }}">
-  <meta property="og:title" content="{{ t "app.name" }} — {{ t "app.tagline" }}">
-  <meta property="og:description" content="{{ t "seo.description" }}">
+  <meta property="og:title" content="{{ if .MetaTitle }}{{ .MetaTitle }}{{ else }}{{ t "app.name" }} — {{ t "app.tagline" }}{{ end }}">
+  <meta property="og:description" content="{{ if .MetaDescription }}{{ .MetaDescription }}{{ else }}{{ t "seo.description" }}{{ end }}">
   <meta property="og:image" content="{{ .BaseURL }}/static/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
