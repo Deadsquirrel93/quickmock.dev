@@ -69,6 +69,12 @@ func TestGuideCaseRenders(t *testing.T) {
 	if !strings.Contains(body, "application/ld+json") {
 		t.Fatal("case page missing JSON-LD")
 	}
+	if !strings.Contains(body, "navigator.clipboard") {
+		t.Fatal("case page missing copy buttons")
+	}
+	if !strings.Contains(body, "/?prefill=test-retry-logic#create") {
+		t.Fatal("case page CTA missing the prefill link")
+	}
 }
 
 func TestGuideCaseNotFound(t *testing.T) {

@@ -1098,13 +1098,11 @@ input:focus, select:focus, textarea:focus {
   margin: 0;
   text-decoration: none;
   color: inherit;
-  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  transition: border-color .15s ease;
 }
-.guide-card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 12px rgba(0,0,0,.08);
-  transform: translateY(-2px);
-}
+/* Match the site's subtle hover language (see .mock-card-link): no transforms,
+   just an accent border, and never underline the title/summary. */
+.guide-card:hover { border-color: var(--accent); text-decoration: none; }
 .guide-card h2 { margin: 0; font-size: 1.05rem; color: var(--accent); }
 .guide-card p { margin: 0; color: var(--fg-muted); font-size: 0.92rem; line-height: 1.5; }
 
@@ -1112,6 +1110,7 @@ input:focus, select:focus, textarea:focus {
 .guide-summary { font-size: 1.1rem; color: var(--fg-muted); margin: 0 0 1.5rem; }
 .guide-case h2 { font-size: 1.05rem; margin: 1.75rem 0 0.6rem; }
 .guide-case > p { line-height: 1.6; }
+.guide-code-block { position: relative; }
 .guide-code {
   background: var(--bg-code);
   color: #e2e8f0;
@@ -1128,8 +1127,28 @@ input:focus, select:focus, textarea:focus {
   padding: 0;
   white-space: pre;
 }
+/* Copy button overlaid on the dark code block — light-on-dark in both themes,
+   so it doesn't use the page-themed .btn-ghost colors. */
+.guide-copy {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  transition: background .15s ease, color .15s ease;
+}
+.guide-copy:hover { background: rgba(148, 163, 184, 0.3); color: #fff; }
 .guide-cta { text-align: center; margin-top: 2rem; }
 .guide-cta h2 { margin-top: 0; }
+/* The CTA is an <a> styled as a button; cancel the global a:hover underline. */
+.guide-cta .btn { text-decoration: none; }
 .guide-case .guide-back, .guide-case > p:last-child { margin-top: 1.5rem; }
 
 /* Home "Common use cases" teaser — mirrors the .faq card. */

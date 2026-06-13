@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
@@ -39,14 +40,33 @@ func (u *UI) Home(w http.ResponseWriter, r *http.Request) {
 	if lang == "" {
 		lang = u.localz.Fallback()
 	}
-	u.renderer.Render(w, r, "index", http.StatusOK, map[string]any{
+	data := map[string]any{
 		"Methods":   model.AllMethods,
 		"MaxBody":   u.maxBody,
 		"MaxMocks":  u.maxMocks,
 		"MaxBodyKB": u.maxBody / 1024,
 		"Stats":     u.stats.Snapshot(r.Context()),
 		"JSONLD":    HomeJSONLD(u.localz, lang, u.baseURL, u.localz.Supported()),
-	})
+	}
+	// A "Create this mock" CTA on a /guide/<slug> page links here with
+	// ?prefill=<slug>; hand the create form that case's config (the registry
+	// is the single source of truth) so the Alpine form can populate itself.
+	if prefill, ok := guidePrefill(r.URL.Query().Get("prefill")); ok {
+		data["Prefill"] = prefill
+	}
+	u.renderer.Render(w, r, "index", http.StatusOK, data)
+}
+
+// guidePrefill returns a use-case's create body as inline JS for the home form
+// to apply, when slug names a known guide. The body is in-repo trusted content.
+func guidePrefill(slug string) (template.JS, bool) {
+	if slug == "" {
+		return "", false
+	}
+	if c, ok := UseCaseBySlug(slug); ok {
+		return template.JS(c.CreateBody), true
+	}
+	return "", false
 }
 
 // CreateForm handles POST / — the HTML form submission.

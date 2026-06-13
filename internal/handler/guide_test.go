@@ -64,6 +64,22 @@ func TestGuideCaseJSONLD(t *testing.T) {
 	}
 }
 
+func TestGuidePrefill(t *testing.T) {
+	js, ok := guidePrefill("simulate-slow-api")
+	if !ok {
+		t.Fatal("known slug must produce prefill")
+	}
+	if !strings.Contains(string(js), "response_delay_ms") {
+		t.Fatalf("prefill missing the case config: %s", js)
+	}
+	if _, ok := guidePrefill("does-not-exist"); ok {
+		t.Fatal("unknown slug must not produce prefill")
+	}
+	if _, ok := guidePrefill(""); ok {
+		t.Fatal("empty slug must not produce prefill")
+	}
+}
+
 func TestSitemapIncludesGuides(t *testing.T) {
 	h := SitemapXML("https://example.test", []string{"en", "ru"}, "en")
 	w := httptest.NewRecorder()

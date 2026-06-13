@@ -17,10 +17,24 @@
   <p>{{ t (printf "%s.why" .Case.KeyPrefix) }}</p>
 
   <h2>{{ t "guide.section.create" }}</h2>
-  <pre class="guide-code"><code>{{ .CreateCurl }}</code></pre>
+  <div class="guide-code-block" x-data="{ copied: false }">
+    <button type="button" class="guide-copy"
+            @click="navigator.clipboard.writeText($refs.createCode.textContent).then(() => { copied = true; setTimeout(() => copied = false, 1500); })">
+      <span x-show="!copied">{{ t "common.copy" }}</span>
+      <span x-show="copied" x-cloak>{{ t "common.copied" }}</span>
+    </button>
+    <pre class="guide-code"><code x-ref="createCode">{{ .CreateCurl }}</code></pre>
+  </div>
 
   <h2>{{ t "guide.section.call" }}</h2>
-  <pre class="guide-code"><code>{{ .CallCurl }}</code></pre>
+  <div class="guide-code-block" x-data="{ copied: false }">
+    <button type="button" class="guide-copy"
+            @click="navigator.clipboard.writeText($refs.callCode.textContent).then(() => { copied = true; setTimeout(() => copied = false, 1500); })">
+      <span x-show="!copied">{{ t "common.copy" }}</span>
+      <span x-show="copied" x-cloak>{{ t "common.copied" }}</span>
+    </button>
+    <pre class="guide-code"><code x-ref="callCode">{{ .CallCurl }}</code></pre>
+  </div>
   {{ if .Case.UsesInspector }}<p class="form-hint">{{ t "guide.inspector_note" }}</p>{{ end }}
 
   <h2>{{ t "guide.section.expect" }}</h2>
@@ -28,7 +42,7 @@
 
   <div class="guide-cta card">
     <h2>{{ t "guide.cta.title" }}</h2>
-    <a class="btn btn-primary" href="/">{{ t "guide.cta.button" }}</a>
+    <a class="btn btn-primary" href="/?prefill={{ .Case.Slug }}#create">{{ t "guide.cta.button" }}</a>
   </div>
 
   <p><a href="/guide">{{ t "guide.back" }}</a></p>

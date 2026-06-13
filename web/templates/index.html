@@ -51,7 +51,7 @@
     </div>
   {{ end }}
 
-  <form class="create-form card" method="post" action="/" x-data="createForm()">
+  <form class="create-form card" id="create" method="post" action="/" x-data="createForm()">
     <h2>{{ t "mock.create.title" }}</h2>
 
     <div class="form-row">
@@ -372,6 +372,7 @@
 <p class="last-updated container">{{ t "home.last_updated" .LastUpdated }}</p>
 
 <script>
+  {{ if .Prefill }}window.__qmPrefill = {{ .Prefill }};{{ end }}
   function createForm() {
     return {
       body: '{\n  "id": "{{`{{faker.uuid}}`}}",\n  "name": "{{`{{faker.name}}`}}",\n  "email": "{{`{{faker.email}}`}}",\n  "created_at": "{{`{{now.iso8601}}`}}"\n}',
@@ -394,7 +395,43 @@
         if (j < 0 || j >= this.steps.length) return;
         [this.steps[i], this.steps[j]] = [this.steps[j], this.steps[i]];
       },
-      init() { this.onBodyInput(); },
+      init() { this.applyPrefill(); this.onBodyInput(); },
+      // Populate the form from a guide's config (window.__qmPrefill, set when
+      // arriving via a /guide/<slug> "Create this mock" CTA). Mirrors the
+      // mixed Alpine-state + plain-DOM approach parseCurl() uses.
+      applyPrefill() {
+        const p = window.__qmPrefill;
+        if (!p) return;
+        const setVal = (sel, v) => {
+          const el = document.querySelector(sel);
+          if (el && v !== undefined && v !== null && v !== '') el.value = v;
+        };
+        setVal('select[name=method]', p.method);
+        setVal('input[name=response_status]', p.response_status);
+        setVal('select[name=content_type]', p.content_type);
+        setVal('input[name=response_delay_ms]', p.response_delay_ms);
+        setVal('input[name=response_delay_max_ms]', p.response_delay_max_ms);
+        if (typeof p.response_body === 'string') this.body = p.response_body;
+        if (p.response_headers) {
+          this.headers = Object.entries(p.response_headers).map(([name, value]) => ({ name, value }));
+        }
+        if (p.error_rate_pct) {
+          this.errorRate = p.error_rate_pct;
+          if (p.error_response) {
+            setVal('input[name=error_status]', p.error_response.status);
+            const eb = document.querySelector('textarea[name=error_body]');
+            if (eb && p.error_response.body) eb.value = p.error_response.body;
+          }
+        }
+        if (Array.isArray(p.response_sequence)) {
+          this.steps = p.response_sequence.map((s) => ({
+            key: this.stepKey++,
+            status: s.status || 500,
+            body: s.body || '',
+            headers: s.headers ? Object.entries(s.headers).map(([k, v]) => k + ': ' + v).join('\n') : '',
+          }));
+        }
+      },
       onPathInput() {
         const v = this.pathSuffix.trim();
         if (v === '') { this.pathError = ''; return; }
