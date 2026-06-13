@@ -1117,16 +1117,20 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--radius);
   padding: 1rem;
   margin: 0;
-  overflow-x: auto;
   font-size: 0.88rem;
   line-height: 1.5;
 }
+/* Long commands wrap instead of scrolling sideways (the copy button grabs the
+   full text either way), and the wrapped block leaves room on the right so the
+   floating copy button never sits on top of the text. */
 .guide-code code {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
   background: transparent;
   padding: 0;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
+.guide-code-block .guide-code { padding-right: 5.5rem; }
 /* Copy button overlaid on the dark code block — light-on-dark in both themes,
    so it doesn't use the page-themed .btn-ghost colors. */
 .guide-copy {
