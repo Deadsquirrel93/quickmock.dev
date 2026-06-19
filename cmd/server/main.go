@@ -300,7 +300,12 @@ func expireWorker(ctx context.Context, repo *repository.MockRepo, logger *slog.L
 
 func cacheHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		// Assets are content-versioned in their URLs (?v=<hash>, injected by
+		// the renderer), so the bytes behind any given URL never change — the
+		// hash flips when content does. That makes a year-long immutable cache
+		// safe: a deploy that changes a file changes its URL, and returning
+		// visitors fetch the new URL immediately instead of waiting out a TTL.
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		next.ServeHTTP(w, r)
 	})
 }

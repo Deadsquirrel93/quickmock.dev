@@ -3,9 +3,12 @@
 package handler
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -30,18 +33,58 @@ type Renderer struct {
 	localz   *i18n.Localizer
 	logger   *slog.Logger
 	baseURL  string
+	assetVer string
 	defaults map[string]any
+}
+
+// assetVersion returns a short content hash of the embedded static asset tree
+// (fsys/static). It changes whenever any static file's path or content
+// changes, so it can be appended to asset URLs (?v=…) to bust stale
+// client/CDN caches the moment a new build ships — while still letting the
+// files themselves be cached for a long time. Non-static files (templates,
+// locales) are ignored so an unrelated edit doesn't force a re-download.
+func assetVersion(fsys fs.FS) (string, error) {
+	h := sha256.New()
+	err := fs.WalkDir(fsys, "static", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		f, err := fsys.Open(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		// Fold the path in too so a rename alone changes the version.
+		io.WriteString(h, path)
+		if _, err := io.Copy(h, f); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil))[:12], nil
 }
 
 // NewRenderer parses all top-level pages from fsys/templates, each combined
 // with every partial under templates/partials so that {{ template "header" }}
 // just works.
 func NewRenderer(fsys fs.FS, localz *i18n.Localizer, logger *slog.Logger, baseURL string) (*Renderer, error) {
+	assetVer, err := assetVersion(fsys)
+	if err != nil {
+		return nil, fmt.Errorf("asset version: %w", err)
+	}
+
 	r := &Renderer{
 		pages:    make(map[string]*template.Template),
 		localz:   localz,
 		logger:   logger,
 		baseURL:  baseURL,
+		assetVer: assetVer,
 		defaults: map[string]any{"BaseURL": baseURL},
 	}
 
@@ -112,12 +155,13 @@ func (r *Renderer) Render(w http.ResponseWriter, req *http.Request, name string,
 	}
 
 	full := map[string]any{
-		"Lang":        lang,
-		"Languages":   r.localz.Supported(),
-		"BaseURL":     r.baseURL,
-		"Path":        req.URL.Path,
-		"DefaultLang": r.localz.Fallback(),
-		"LastUpdated": LastUpdated,
+		"Lang":         lang,
+		"Languages":    r.localz.Supported(),
+		"BaseURL":      r.baseURL,
+		"Path":         req.URL.Path,
+		"DefaultLang":  r.localz.Fallback(),
+		"LastUpdated":  LastUpdated,
+		"AssetVersion": r.assetVer,
 	}
 	for k, v := range data {
 		full[k] = v
