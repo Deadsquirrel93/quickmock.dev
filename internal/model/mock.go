@@ -72,6 +72,10 @@ type Mock struct {
 	RequestCount  int64
 	LastRequestAt *time.Time
 	CreatorIP     string
+	// CORSEnabled makes the serve handler emit a fixed permissive CORS preset
+	// and answer OPTIONS preflight. The values are server-owned (see
+	// internal/handler/mock_router.go); user-set CORS headers stay stripped.
+	CORSEnabled bool
 }
 
 // MockInput is what the create/update handlers accept after parsing form or
@@ -90,5 +94,6 @@ type MockInput struct {
 	SequenceSteps      []ResponseStep
 	ContentType        string
 	PathSuffix         string
+	CORSEnabled        bool
 	TTL                time.Duration
 }
