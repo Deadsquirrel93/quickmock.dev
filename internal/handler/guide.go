@@ -113,6 +113,16 @@ var UseCases = []UseCase{
 }`,
 		"POST", "X-Request-Id: abc-123", `{"a":1}`,
 		`{"you_sent":{"a":1},"method":"POST","trace":"abc-123"}`, false),
+
+	uc("mock-api-with-cors",
+		`{
+  "method": "GET",
+  "content_type": "application/json",
+  "response_body": "{\"ok\":true}",
+  "cors_enabled": true
+}`,
+		"GET", "Origin: https://app.example.com", "",
+		"the response carries Access-Control-Allow-Origin: *\nand OPTIONS preflight answers 204 — fetch() works from any origin", false),
 }
 
 // UseCaseBySlug returns the case for a /guide/<slug> request.

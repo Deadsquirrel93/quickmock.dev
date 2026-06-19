@@ -21,8 +21,8 @@ func TestUseCaseBySlug(t *testing.T) {
 }
 
 func TestUseCasesIntegrity(t *testing.T) {
-	if len(UseCases) != 8 {
-		t.Fatalf("want 8 cases, got %d", len(UseCases))
+	if len(UseCases) != 9 {
+		t.Fatalf("want 9 cases, got %d", len(UseCases))
 	}
 	seen := map[string]bool{}
 	for _, c := range UseCases {
@@ -77,6 +77,20 @@ func TestGuidePrefill(t *testing.T) {
 	}
 	if _, ok := guidePrefill(""); ok {
 		t.Fatal("empty slug must not produce prefill")
+	}
+}
+
+func TestCORSGuideCase(t *testing.T) {
+	c, ok := UseCaseBySlug("mock-api-with-cors")
+	if !ok {
+		t.Fatal("cors case must be registered")
+	}
+	if !strings.Contains(c.CreateBody, `"cors_enabled": true`) {
+		t.Fatalf("cors case CreateBody must enable cors: %s", c.CreateBody)
+	}
+	js, ok := guidePrefill("mock-api-with-cors")
+	if !ok || !strings.Contains(string(js), "cors_enabled") {
+		t.Fatalf("cors prefill must carry cors_enabled: %s", js)
 	}
 }
 
