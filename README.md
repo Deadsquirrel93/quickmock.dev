@@ -41,6 +41,7 @@ That's it. No account, no API key, no waiting for an email.
 - **Custom response headers** — set `Content-Type`, CORS headers, anything.
 - **Simulate slow APIs** — fixed delay, or a min–max range for random jitter.
 - **Simulate flaky APIs** — an ordered response sequence cycled per call (1st → 200, 2nd → 500, repeat — classic retry testing) plus a configurable error rate that injects an alternate response for N% of requests.
+- **CORS toggle** — one checkbox adds a permissive, credential-free `Access-Control-*` preset and answers `OPTIONS` preflight, so a mock is callable from browser JS on any origin.
 - **Auto-expiring mocks** — TTL from 1 hour to 30 days.
 - **Live request inspector** — see every incoming request, headers, body, IP, in real time.
 - **Copy as cURL** — one click to grab a ready-made test command.
