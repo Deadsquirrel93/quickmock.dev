@@ -203,6 +203,8 @@
   "mock.create.flaky.step_body_placeholder": "Response body for this step",
   "mock.create.flaky.step_headers_placeholder": "Extra headers, one per line: X-Header: value",
   "mock.create.flaky.step_add": "Add step",
+  "mock.create.cors": "Enable CORS",
+  "mock.create.cors_hint": "Adds permissive Access-Control-* headers and answers the OPTIONS preflight, so browser code on any origin can call this mock. No credentials are exposed.",
   "mock.create.headers": "Response Headers",
   "mock.create.headers_add": "Add header",
   "mock.create.headers_name": "Name",

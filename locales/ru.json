@@ -203,6 +203,8 @@
   "mock.create.flaky.step_body_placeholder": "Тело ответа для этого шага",
   "mock.create.flaky.step_headers_placeholder": "Доп. заголовки, по одному в строке: X-Header: value",
   "mock.create.flaky.step_add": "Добавить шаг",
+  "mock.create.cors": "Включить CORS",
+  "mock.create.cors_hint": "Добавляет разрешающие заголовки Access-Control-* и отвечает на preflight OPTIONS, чтобы браузерный код с любого origin мог вызвать этот мок. Учётные данные не передаются.",
   "mock.create.headers": "Заголовки ответа",
   "mock.create.headers_add": "Добавить заголовок",
   "mock.create.headers_name": "Имя",
