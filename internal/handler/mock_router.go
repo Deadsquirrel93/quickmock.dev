@@ -149,6 +149,34 @@ func allowFor(m model.Method) string {
 	return string(m)
 }
 
+// setCORSHeaders writes the fixed, permissive, credential-free CORS preset.
+// Values are server-owned constants — the mock owner toggles cors_enabled but
+// never picks them, which is why user-supplied Access-Control-* headers stay
+// blocked by reservedHeaders in internal/service/mock.go. Omitting
+// Allow-Credentials keeps `*` valid and means no cookies/credentials are ever
+// exposed; the mock has none anyway.
+func setCORSHeaders(w http.ResponseWriter) {
+	h := w.Header()
+	h.Set("Access-Control-Allow-Origin", "*")
+	h.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD")
+	// `*` does not cover Authorization per the Fetch spec, so list it too —
+	// frontend devs routinely send Bearer tokens.
+	h.Set("Access-Control-Allow-Headers", "*, Authorization")
+	h.Set("Access-Control-Max-Age", "600")
+}
+
+// corsPreflight answers a CORS preflight when the mock has CORS enabled,
+// reporting whether it handled the request. Called before method matching so a
+// GET-only mock still satisfies the browser's OPTIONS preflight.
+func corsPreflight(w http.ResponseWriter, m *model.Mock, method string) bool {
+	if !m.CORSEnabled || method != http.MethodOptions {
+		return false
+	}
+	setCORSHeaders(w)
+	w.WriteHeader(http.StatusNoContent)
+	return true
+}
+
 // secretRequestHeaders are request headers whose values likely contain a
 // live credential (bearer token, API key, session cookie). We store a length
 // marker instead of the value so the inspector still shows the header was
