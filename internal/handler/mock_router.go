@@ -47,6 +47,12 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Answer the browser's CORS preflight before method matching, so a
+	// GET-only mock with CORS on still returns 204 instead of 405.
+	if corsPreflight(w, m, r.Method) {
+		return
+	}
+
 	if !methodMatches(m.Method, r.Method) {
 		w.Header().Set("Allow", allowFor(m.Method))
 		http.Error(w, `{"error":{"code":"method_not_allowed","message":"Method not allowed for this mock"}}`,
@@ -101,6 +107,9 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if m.ContentType != "" {
 		w.Header().Set("Content-Type", m.ContentType)
+	}
+	if m.CORSEnabled {
+		setCORSHeaders(w)
 	}
 	w.Header().Set("X-Mockapi-Slug", m.Slug)
 	w.Header().Set("X-Mockapi-Variant", served.Variant)
