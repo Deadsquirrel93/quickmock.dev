@@ -198,3 +198,18 @@ func TestValidateDelayJitter(t *testing.T) {
 		})
 	}
 }
+
+func TestCORSHeadersStayReserved(t *testing.T) {
+	// The cors_enabled toggle must NOT loosen the blacklist on user-supplied
+	// CORS headers — those stay server-owned only.
+	for _, h := range []string{
+		"Access-Control-Allow-Origin",
+		"access-control-allow-credentials",
+		"Access-Control-Allow-Methods",
+		"Access-Control-Allow-Headers",
+	} {
+		if !IsReservedResponseHeader(h) {
+			t.Fatalf("%s must stay reserved for user input", h)
+		}
+	}
+}

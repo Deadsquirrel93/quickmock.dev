@@ -172,6 +172,7 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 		SequenceSteps:      in.SequenceSteps,
 		ContentType:        in.ContentType,
 		PathSuffix:         in.PathSuffix,
+		CORSEnabled:        in.CORSEnabled,
 		ExpiresAt:          &expires,
 		CreatorIP:          creatorIP,
 	}
@@ -214,6 +215,7 @@ func (s *MockService) Update(ctx context.Context, slug string, in model.MockInpu
 	existing.SequenceSteps = in.SequenceSteps
 	existing.ContentType = in.ContentType
 	existing.PathSuffix = in.PathSuffix
+	existing.CORSEnabled = in.CORSEnabled
 	if in.TTL > 0 {
 		t := time.Now().Add(in.TTL)
 		existing.ExpiresAt = &t
