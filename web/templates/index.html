@@ -217,6 +217,12 @@
               @click="headers.push({name:'', value:''})">+ {{ t "mock.create.headers_add" }}</button>
     </details>
 
+    <label class="cors-toggle">
+      <input type="checkbox" name="cors_enabled" x-model="cors">
+      <span class="label-text">{{ t "mock.create.cors" }}</span>
+      <span class="form-hint">{{ t "mock.create.cors_hint" }}</span>
+    </label>
+
     <details class="advanced">
       <summary>{{ t "mock.create.flaky.title" }}</summary>
       <p class="form-hint">{{ t "mock.create.flaky.hint" }}</p>
@@ -384,6 +390,7 @@
       pathSuffix: '',
       pathError: '',
       errorRate: 0,
+      cors: false,
       steps: [],
       stepKey: 0,
       addStep() {
@@ -423,6 +430,7 @@
             if (eb && p.error_response.body) eb.value = p.error_response.body;
           }
         }
+        if (p.cors_enabled) this.cors = true;
         if (Array.isArray(p.response_sequence)) {
           this.steps = p.response_sequence.map((s) => ({
             key: this.stepKey++,
