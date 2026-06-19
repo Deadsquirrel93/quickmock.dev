@@ -43,14 +43,16 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 			slug, name, method, response_body, response_status,
 			response_headers, response_delay_ms, content_type,
 			path_suffix, expires_at, creator_ip,
-			response_delay_max_ms, error_rate_pct, error_response, response_sequence
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+			response_delay_max_ms, error_rate_pct, error_response, response_sequence,
+			cors_enabled
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 		RETURNING id, created_at
 	`,
 		m.Slug, m.Name, string(m.Method), m.ResponseBody, m.ResponseStatus,
 		headers, m.ResponseDelayMS, m.ContentType,
 		suffix, m.ExpiresAt, m.CreatorIP,
 		m.ResponseDelayMaxMS, m.ErrorRatePct, errResp, seq,
+		m.CORSEnabled,
 	).Scan(&m.ID, &m.CreatedAt)
 }
 
@@ -62,7 +64,8 @@ func (r *MockRepo) BySlug(ctx context.Context, slug string) (*model.Mock, error)
 		       response_headers, response_delay_ms, content_type,
 		       path_suffix, expires_at, created_at, request_count,
 		       last_request_at, creator_ip,
-		       response_delay_max_ms, error_rate_pct, error_response, response_sequence
+		       response_delay_max_ms, error_rate_pct, error_response, response_sequence,
+		       cors_enabled
 		FROM mocks
 		WHERE slug = $1
 		  AND (expires_at IS NULL OR expires_at > now())
@@ -99,13 +102,15 @@ func (r *MockRepo) Update(ctx context.Context, m *model.Mock) error {
 			response_delay_max_ms = $11,
 			error_rate_pct        = $12,
 			error_response        = $13,
-			response_sequence     = $14
+			response_sequence     = $14,
+			cors_enabled          = $15
 		WHERE slug = $1
 		  AND (expires_at IS NULL OR expires_at > now())
 	`,
 		m.Slug, m.Name, string(m.Method), m.ResponseBody, m.ResponseStatus,
 		headers, m.ResponseDelayMS, m.ContentType, suffix, m.ExpiresAt,
 		m.ResponseDelayMaxMS, m.ErrorRatePct, errResp, seq,
+		m.CORSEnabled,
 	)
 	if err != nil {
 		return err
@@ -191,6 +196,7 @@ func scanMock(row pgx.Row) (*model.Mock, error) {
 		&headers, &m.ResponseDelayMS, &m.ContentType, &suffix,
 		&m.ExpiresAt, &m.CreatedAt, &m.RequestCount, &m.LastRequestAt, &m.CreatorIP,
 		&m.ResponseDelayMaxMS, &m.ErrorRatePct, &errResp, &seq,
+		&m.CORSEnabled,
 	)
 	if suffix != nil {
 		m.PathSuffix = *suffix
