@@ -43,6 +43,7 @@ type createMockRequest struct {
 	ResponseSequence   []model.ResponseStep `json:"response_sequence"`
 	ContentType        string               `json:"content_type"`
 	PathSuffix         string               `json:"path_suffix"`
+	CORSEnabled        bool                 `json:"cors_enabled"`
 	TTLSeconds         int                  `json:"ttl_seconds"`
 }
 
@@ -60,6 +61,7 @@ func (req createMockRequest) toInput() model.MockInput {
 		SequenceSteps:      req.ResponseSequence,
 		ContentType:        req.ContentType,
 		PathSuffix:         req.PathSuffix,
+		CORSEnabled:        req.CORSEnabled,
 		TTL:                time.Duration(req.TTLSeconds) * time.Second,
 	}
 }
@@ -193,6 +195,7 @@ func (a *API) mockView(m *model.Mock) map[string]any {
 		"response_sequence":     m.SequenceSteps,
 		"content_type":          m.ContentType,
 		"path_suffix":           m.PathSuffix,
+		"cors_enabled":          m.CORSEnabled,
 		"expires_at":            m.ExpiresAt,
 		"created_at":            m.CreatedAt,
 		"request_count":         m.RequestCount,

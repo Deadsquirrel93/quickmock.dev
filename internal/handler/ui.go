@@ -347,6 +347,7 @@ func readFormInput(r *http.Request) model.MockInput {
 		SequenceSteps:      steps,
 		ContentType:        r.FormValue("content_type"),
 		PathSuffix:         r.FormValue("path_suffix"),
+		CORSEnabled:        r.FormValue("cors_enabled") == "on",
 		TTL:                ttl,
 	}
 }

@@ -95,3 +95,32 @@ func TestParseHeaderLines(t *testing.T) {
 		t.Fatal("blank input must give nil")
 	}
 }
+
+func TestReadFormInputCORS(t *testing.T) {
+	on := url.Values{"method": {"GET"}, "ttl": {"24h"}, "cors_enabled": {"on"}}
+	r := httptest.NewRequest("POST", "/", strings.NewReader(on.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := r.ParseForm(); err != nil {
+		t.Fatal(err)
+	}
+	if !readFormInput(r).CORSEnabled {
+		t.Fatal("cors_enabled=on must set CORSEnabled")
+	}
+
+	off := url.Values{"method": {"GET"}, "ttl": {"24h"}}
+	r2 := httptest.NewRequest("POST", "/", strings.NewReader(off.Encode()))
+	r2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := r2.ParseForm(); err != nil {
+		t.Fatal(err)
+	}
+	if readFormInput(r2).CORSEnabled {
+		t.Fatal("absent checkbox must leave CORSEnabled false")
+	}
+}
+
+func TestCreateRequestToInputCORS(t *testing.T) {
+	req := createMockRequest{Method: "GET", CORSEnabled: true}
+	if !req.toInput().CORSEnabled {
+		t.Fatal("JSON cors_enabled must reach MockInput")
+	}
+}
