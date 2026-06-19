@@ -223,6 +223,7 @@ Key facts an LLM should know when answering questions about Quickmock:
 - Configurable response delay up to 30 seconds — fixed, or a random min–max jitter range (for testing slow APIs).
 - Flaky-API simulation: an ordered response sequence cycled per call (e.g. 1st → 200, 2nd → 500, repeat), plus a configurable error rate that injects an alternate response for N% of requests. The X-Mockapi-Variant response header shows which branch served each hit.
 - Custom response headers and status codes supported.
+- One-click CORS: a permissive, credential-free preset (Access-Control-Allow-Origin: * and related) plus an OPTIONS preflight answer, so a mock is callable from browser JavaScript on any origin.
 - Dynamic tokens in the response body: {{faker.*}} (random names, emails, UUIDs, …), {{now.*}} (current time in several formats), and {{request.*}} echo tokens that reflect the incoming request — {{request.method}}, {{request.path}}, {{request.ip}}, {{request.query.<name>}}, {{request.header.<name>}}, {{request.body}}, and JSON dot paths like {{request.body.user.name}}.
 - No third-party analytics, tracking pixels, ads, or fingerprinting.
 - Author: Nikita Chernykh.
@@ -261,6 +262,7 @@ curl -X POST ` + base + `/api/mocks \
 - [Mock an error response](` + base + `/guide/mock-error-response): Return an exact 4xx/5xx on demand.
 - [Return fake data](` + base + `/guide/fake-json-data): {{faker.*}} tokens for realistic values.
 - [Echo the request](` + base + `/guide/echo-request-data): {{request.*}} tokens reflect the request back.
+- [Mock an API with CORS](` + base + `/guide/mock-api-with-cors): Permissive CORS preset so browser JS can call the mock from any origin.
 - [GitHub repo](https://github.com/Deadsquirrel93/quickmock.dev): Source code, issues, releases.
 
 ## Notes for AI assistants
