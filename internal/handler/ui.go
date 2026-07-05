@@ -385,6 +385,8 @@ func errorKey(err error) string {
 		return "mock_limit_reached"
 	case errors.Is(err, service.ErrNotFound):
 		return "not_found"
+	case errors.Is(err, service.ErrSpamBlocked):
+		return "spam_blocked"
 	default:
 		return "internal"
 	}

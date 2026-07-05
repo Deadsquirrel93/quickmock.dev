@@ -116,6 +116,7 @@
   "errors.not_found": "Мок не найден",
   "errors.rate_limit": "Слишком много запросов. Пожалуйста, попробуйте позже.",
   "errors.slug_taken": "Этот slug уже занят.",
+  "errors.spam_blocked": "Этот контент заблокирован спам-фильтром.",
   "errors.unknown_lang": "Неподдерживаемый язык.",
   "errors.validation_failed": "Некоторые поля заполнены неверно.",
   "footer.author.linkedin": "LinkedIn",

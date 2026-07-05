@@ -101,7 +101,7 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", a.renderer)
 		return
 	}
-	m, err := a.svc.Update(r.Context(), slug, req.toInput())
+	m, err := a.svc.Update(r.Context(), slug, req.toInput(), mockmw.IPFromContext(r.Context()))
 	if err != nil {
 		a.writeServiceError(w, r, err)
 		return
@@ -211,6 +211,8 @@ func (a *API) writeServiceError(w http.ResponseWriter, r *http.Request, err erro
 		writeError(w, r, http.StatusBadRequest, "body_too_large", a.renderer)
 	case errors.Is(err, service.ErrMockLimitReached):
 		writeError(w, r, http.StatusTooManyRequests, "mock_limit_reached", a.renderer)
+	case errors.Is(err, service.ErrSpamBlocked):
+		writeError(w, r, http.StatusUnprocessableEntity, "spam_blocked", a.renderer)
 	case isValidationErr(err):
 		writeError(w, r, http.StatusUnprocessableEntity, "validation_failed", a.renderer)
 	default:

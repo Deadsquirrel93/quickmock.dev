@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,9 @@ type Config struct {
 	DefaultLang string
 	SSEMaxConns int
 	SSEMaxPerIP int
+
+	SpamPatternsFile string
+	SpamAllowIPs     []string
 }
 
 // Load reads configuration from the environment.
@@ -70,6 +74,15 @@ func Load() (Config, error) {
 	}
 	if c.SSEMaxPerIP, err = getInt("QUICKMOCK_SSE_MAX_PER_IP", 4); err != nil {
 		return c, err
+	}
+
+	c.SpamPatternsFile = os.Getenv("QUICKMOCK_SPAM_PATTERNS_FILE")
+	if v := os.Getenv("QUICKMOCK_SPAM_ALLOW_IPS"); v != "" {
+		for _, s := range strings.Split(v, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				c.SpamAllowIPs = append(c.SpamAllowIPs, s)
+			}
+		}
 	}
 
 	return c, nil

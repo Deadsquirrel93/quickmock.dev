@@ -11,7 +11,7 @@ import (
 // testService returns a MockService good enough for validate(): only
 // maxBody is read there.
 func testService() *MockService {
-	return NewMockService(nil, nil, nil, 1024, 10, time.Hour)
+	return NewMockService(nil, nil, nil, 1024, 10, time.Hour, nil)
 }
 
 func baseInput() model.MockInput {

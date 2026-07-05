@@ -139,7 +139,17 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 
 	// Services
 	statsCache := service.NewStatsCache(statsRepo, 30*time.Second, logger)
-	mockSvc := service.NewMockService(mockRepo, logRepo, statsCache, cfg.MaxBody, cfg.MaxMocks, cfg.DefaultTTL)
+	spamPatterns, err := service.LoadSpamPatterns(cfg.SpamPatternsFile)
+	if err != nil {
+		logger.Error("spam patterns", slog.Any("err", err))
+		return 1
+	}
+	spamFilter, err := service.NewSpamFilter(spamPatterns, cfg.SpamAllowIPs, logger)
+	if err != nil {
+		logger.Error("spam filter", slog.Any("err", err))
+		return 1
+	}
+	mockSvc := service.NewMockService(mockRepo, logRepo, statsCache, cfg.MaxBody, cfg.MaxMocks, cfg.DefaultTTL, spamFilter)
 	sseBroker := sse.NewBroker()
 	sseStreams := sse.NewStreamLimiter(cfg.SSEMaxConns, cfg.SSEMaxPerIP)
 	logWriter := service.NewLogWriter(logRepo, mockRepo, statsCache, 1024, logger, sseBroker)

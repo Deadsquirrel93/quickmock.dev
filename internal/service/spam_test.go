@@ -1,11 +1,14 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 )
@@ -134,5 +137,17 @@ func TestNilAndEmptyFilterBlockNothing(t *testing.T) {
 	empty := testSpamFilter(t, nil, nil)
 	if empty.Blocked(&in, "1.2.3.4") {
 		t.Error("empty filter (off) must be a no-op")
+	}
+}
+
+func TestCreateRejectsSpamBeforeStorage(t *testing.T) {
+	f := testSpamFilter(t, []string{`(?i)spamword`}, nil)
+	s := NewMockService(nil, nil, nil, 1024, 10, time.Hour, f)
+	_, err := s.Create(context.Background(), model.MockInput{
+		Method:       model.MethodGET,
+		ResponseBody: "spamword",
+	}, "198.51.100.7")
+	if !errors.Is(err, ErrSpamBlocked) {
+		t.Fatalf("err = %v, want ErrSpamBlocked", err)
 	}
 }

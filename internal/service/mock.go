@@ -20,6 +20,7 @@ var (
 	ErrBodyTooLarge     = errors.New("body too large")
 	ErrMockLimitReached = errors.New("mock limit reached")
 	ErrNotFound         = errors.New("not found")
+	ErrSpamBlocked      = errors.New("content blocked by spam filter")
 )
 
 // ValidationError carries the offending field name. Handlers translate the
@@ -39,9 +40,10 @@ type MockService struct {
 	maxBody    int
 	maxMocks   int
 	defaultTTL time.Duration
+	spam       *SpamFilter
 }
 
-func NewMockService(repo *repository.MockRepo, logs *repository.LogRepo, stats *StatsCache, maxBody, maxMocks int, defaultTTL time.Duration) *MockService {
+func NewMockService(repo *repository.MockRepo, logs *repository.LogRepo, stats *StatsCache, maxBody, maxMocks int, defaultTTL time.Duration, spam *SpamFilter) *MockService {
 	return &MockService{
 		repo:       repo,
 		logs:       logs,
@@ -49,6 +51,7 @@ func NewMockService(repo *repository.MockRepo, logs *repository.LogRepo, stats *
 		maxBody:    maxBody,
 		maxMocks:   maxMocks,
 		defaultTTL: defaultTTL,
+		spam:       spam,
 	}
 }
 
@@ -137,6 +140,10 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 		return nil, err
 	}
 
+	if s.spam.Blocked(&in, creatorIP) {
+		return nil, ErrSpamBlocked
+	}
+
 	if creatorIP != "" {
 		n, err := s.repo.CountActiveByCreatorIP(ctx, creatorIP)
 		if err != nil {
@@ -195,13 +202,16 @@ func (s *MockService) Get(ctx context.Context, slug string) (*model.Mock, error)
 }
 
 // Update applies the input to an existing mock, replacing every field.
-func (s *MockService) Update(ctx context.Context, slug string, in model.MockInput) (*model.Mock, error) {
+func (s *MockService) Update(ctx context.Context, slug string, in model.MockInput, creatorIP string) (*model.Mock, error) {
 	existing, err := s.Get(ctx, slug)
 	if err != nil {
 		return nil, err
 	}
 	if err := s.validate(&in); err != nil {
 		return nil, err
+	}
+	if s.spam.Blocked(&in, creatorIP) {
+		return nil, ErrSpamBlocked
 	}
 	existing.Name = strings.TrimSpace(in.Name)
 	existing.Method = in.Method

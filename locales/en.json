@@ -116,6 +116,7 @@
   "errors.not_found": "Mock not found",
   "errors.rate_limit": "Too many requests. Please try again later.",
   "errors.slug_taken": "That slug is already taken.",
+  "errors.spam_blocked": "This content is blocked by the spam filter.",
   "errors.unknown_lang": "Unsupported language.",
   "errors.validation_failed": "Some fields are invalid.",
   "footer.author.linkedin": "LinkedIn",
