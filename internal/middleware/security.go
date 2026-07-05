@@ -32,12 +32,17 @@ func SecurityHeaders(secure bool) func(http.Handler) http.Handler {
 // scripts in base.html (theme bootstrap, component definitions). Moving to
 // a nonce-based CSP would let us drop both — left as a future hardening.
 //
+// style-src also allows 'unsafe-inline': HTMX injects its indicator <style>
+// and Alpine sets element styles at runtime, both of which the strict
+// policy blocked (console noise, no functional effect). Inline styles can't
+// run scripts, so this is a small, well-understood relaxation.
+//
 // frame-ancestors 'none' duplicates X-Frame-Options for browsers that
 // honor only one. form-action 'self' kills cross-origin form posts.
 func UICSP() func(http.Handler) http.Handler {
 	const policy = "default-src 'self'; " +
 		"script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-		"style-src 'self'; " +
+		"style-src 'self' 'unsafe-inline'; " +
 		"img-src 'self' data:; " +
 		"font-src 'self'; " +
 		"connect-src 'self'; " +
