@@ -43,7 +43,7 @@ That's it. No account, no API key, no waiting for an email.
 - **Simulate flaky APIs** — an ordered response sequence cycled per call (1st → 200, 2nd → 500, repeat — classic retry testing) plus a configurable error rate that injects an alternate response for N% of requests.
 - **CORS toggle** — one checkbox adds a permissive, credential-free `Access-Control-*` preset and answers `OPTIONS` preflight, so a mock is callable from browser JS on any origin.
 - **Auto-expiring mocks** — TTL from 1 hour to 30 days.
-- **Live request inspector** — see every incoming request, headers, body, IP, in real time.
+- **Live inspector & config export** — requests stream in over SSE, and any mock's config can be exported/imported as JSON.
 - **Copy as cURL** — one click to grab a ready-made test command.
 - **Dynamic tokens** — drop `{{faker.uuid}}`, `{{now.iso8601}}`, etc. into the body; fresh values on every hit. See [Dynamic tokens](#dynamic-tokens).
 - **Request echo** — `{{request.*}}` tokens reflect the incoming request back: method, path, IP, query params, headers, raw body, or a JSON field from the body.
