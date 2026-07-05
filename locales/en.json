@@ -286,6 +286,7 @@
   "mock.detail.delete_confirm": "Are you sure? This cannot be undone.",
   "mock.detail.deleted": "Mock deleted.",
   "mock.detail.edit": "Edit",
+  "mock.detail.export": "Export JSON",
   "mock.detail.expires": "Expires",
   "mock.detail.last_request": "Last request",
   "mock.detail.method": "Method",

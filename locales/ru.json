@@ -286,6 +286,7 @@
   "mock.detail.delete_confirm": "Вы уверены? Это действие необратимо.",
   "mock.detail.deleted": "Мок удалён.",
   "mock.detail.edit": "Редактировать",
+  "mock.detail.export": "Экспорт JSON",
   "mock.detail.expires": "Истекает",
   "mock.detail.last_request": "Последний запрос",
   "mock.detail.method": "Метод",

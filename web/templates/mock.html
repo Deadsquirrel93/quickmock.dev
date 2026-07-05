@@ -9,6 +9,7 @@
       <span class="badge">{{ t "mock.detail.status" }}: {{ .Mock.ResponseStatus }}</span>
       {{ if .Mock.ExpiresAt }}<span class="muted">{{ t "mock.detail.expires" }}: {{ fmtTime .Mock.ExpiresAt }}</span>{{ end }}
     </div>
+    <a class="btn btn-ghost" href="/mock/{{ .Mock.Slug }}/export">{{ t "mock.detail.export" }}</a>
   </header>
 
   <div class="card url-card">
