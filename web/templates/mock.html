@@ -85,8 +85,10 @@
         {{ t "mock.logs.clear" }}
       </button>
     </div>
-    <div hx-get="/mock/{{ .Mock.Slug }}/logs"
-         hx-trigger="load, every 2s"
+    <div id="qm-logs"
+         data-stream="/mock/{{ .Mock.Slug }}/logs/stream"
+         hx-get="/mock/{{ .Mock.Slug }}/logs"
+         hx-trigger="load, qm:log"
          hx-swap="innerHTML">
       {{ template "logs_inner" . }}
     </div>
@@ -142,6 +144,37 @@
       },
     };
   }
+
+  // Live inspector: SSE with automatic fallback to the old 2s polling.
+  // The stream sends empty "log" events; each one triggers an HTMX refetch
+  // of the logs partial. No EventSource (old browser), or a stream that
+  // ends up closed (e.g. 429 over the connection cap) => polling.
+  (function () {
+    var box = document.getElementById('qm-logs');
+    if (!box) return;
+    function usePolling() {
+      if ((box.getAttribute('hx-trigger') || '').indexOf('every') !== -1) return;
+      box.setAttribute('hx-trigger', 'load, every 2s');
+      htmx.process(box);
+    }
+    if (!window.EventSource) { usePolling(); return; }
+    var es = new EventSource(box.dataset.stream);
+    var failures = 0;
+    es.onopen = function () { failures = 0; };
+    es.addEventListener('log', function () {
+      failures = 0;
+      htmx.trigger(box, 'qm:log');
+    });
+    es.onerror = function () {
+      failures++;
+      // CLOSED = the browser gave up (non-200 response). Repeated errors
+      // without a successful open mean the endpoint is unreachable.
+      if (es.readyState === EventSource.CLOSED || failures >= 3) {
+        es.close();
+        usePolling();
+      }
+    };
+  })();
 </script>
 {{ end }}
 
