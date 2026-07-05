@@ -439,6 +439,8 @@
       },
       // Populate the form from a mock-config object in the POST /api/mocks
       // JSON shape. Used by guide prefills and by JSON import.
+      // Blank / 0 / false values in p are treated as "leave the field
+      // untouched" (setVal skips empty), so an empty string never clears a field.
       applyConfig(p) {
         const setVal = (sel, v) => {
           const el = document.querySelector(sel);
@@ -475,6 +477,7 @@
           this.pathSuffix = p.path_suffix;
           this.onPathInput();
         }
+        this.onBodyInput();
       },
       onPathInput() {
         const v = this.pathSuffix.trim();
@@ -568,6 +571,7 @@
         }
         const rd = new FileReader();
         rd.onload = () => this.applyImportText(rd.result);
+        rd.onerror = () => { this.importError = '{{ t "mock.create.import_read_error" }}'; };
         rd.readAsText(f);
       },
       applyImportText(s) {
