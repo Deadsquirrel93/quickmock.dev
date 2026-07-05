@@ -32,6 +32,7 @@ import (
 	mockmw "github.com/Deadsquirrel93/quickmock.dev/internal/middleware"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/sse"
 )
 
 func main() {
@@ -139,7 +140,9 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	// Services
 	statsCache := service.NewStatsCache(statsRepo, 30*time.Second, logger)
 	mockSvc := service.NewMockService(mockRepo, logRepo, statsCache, cfg.MaxBody, cfg.MaxMocks, cfg.DefaultTTL)
-	logWriter := service.NewLogWriter(logRepo, mockRepo, statsCache, 1024, logger)
+	sseBroker := sse.NewBroker()
+	sseStreams := sse.NewStreamLimiter(cfg.SSEMaxConns, cfg.SSEMaxPerIP)
+	logWriter := service.NewLogWriter(logRepo, mockRepo, statsCache, 1024, logger, sseBroker)
 	logWriter.Start(rootCtx)
 
 	// i18n
@@ -168,7 +171,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	secureSite := strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://")
 
 	api := handler.NewAPI(mockSvc, logRepo, mockRepo, renderer, cfg.BaseURL)
-	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks)
+	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks, sseBroker, sseStreams)
 	mockRouter := handler.NewMockRouter(mockSvc, logWriter, seqCounter)
 	healthHandler := handler.Health(pool, mockLimiter)
 	langHandler := handler.Lang(renderer, secureSite)
@@ -224,6 +227,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		r.Post("/", ui.CreateForm)
 		r.Get("/mock/{slug}", ui.Detail)
 		r.Get("/mock/{slug}/logs", ui.LogsPartial)
+		r.Get("/mock/{slug}/logs/stream", ui.LogsStream)
 		r.Get("/mock/{slug}/summary", ui.SummaryPartial)
 		r.Get("/mock/{slug}/export", ui.Export)
 		r.Get("/my", ui.MyMocks)

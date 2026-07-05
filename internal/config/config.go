@@ -24,6 +24,8 @@ type Config struct {
 	MaxMocks    int
 	DefaultTTL  time.Duration
 	DefaultLang string
+	SSEMaxConns int
+	SSEMaxPerIP int
 }
 
 // Load reads configuration from the environment.
@@ -61,6 +63,12 @@ func Load() (Config, error) {
 		return c, err
 	}
 	if c.DefaultTTL, err = getDuration("QUICKMOCK_DEFAULT_TTL", 168*time.Hour); err != nil {
+		return c, err
+	}
+	if c.SSEMaxConns, err = getInt("QUICKMOCK_SSE_MAX_CONNS", 500); err != nil {
+		return c, err
+	}
+	if c.SSEMaxPerIP, err = getInt("QUICKMOCK_SSE_MAX_PER_IP", 4); err != nil {
 		return c, err
 	}
 

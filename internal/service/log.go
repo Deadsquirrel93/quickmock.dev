@@ -8,6 +8,7 @@ import (
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/sse"
 )
 
 // LogWriter accepts request log rows on a buffered channel and writes them
@@ -22,11 +23,12 @@ type LogWriter struct {
 	done    chan struct{}
 	logger  *slog.Logger
 	maxBody int
+	broker  *sse.Broker
 }
 
 // NewLogWriter creates a writer with `capacity` buffered slots. A capacity
 // of ~1024 absorbs reasonable bursts while remaining tiny in memory.
-func NewLogWriter(repo *repository.LogRepo, mocks *repository.MockRepo, stats *StatsCache, capacity int, logger *slog.Logger) *LogWriter {
+func NewLogWriter(repo *repository.LogRepo, mocks *repository.MockRepo, stats *StatsCache, capacity int, logger *slog.Logger, broker *sse.Broker) *LogWriter {
 	return &LogWriter{
 		repo:    repo,
 		mocks:   mocks,
@@ -35,6 +37,7 @@ func NewLogWriter(repo *repository.LogRepo, mocks *repository.MockRepo, stats *S
 		done:    make(chan struct{}),
 		logger:  logger,
 		maxBody: 16 * 1024, // request body truncation
+		broker:  broker,
 	}
 }
 
@@ -105,5 +108,8 @@ func (w *LogWriter) write(ctx context.Context, l model.RequestLog) {
 	}
 	if w.stats != nil {
 		w.stats.BumpAsync(StatRequestsServed, 1)
+	}
+	if w.broker != nil {
+		w.broker.Publish(l.MockID)
 	}
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/sse"
 )
 
 // UI groups the HTML-rendering handlers.
@@ -28,10 +29,12 @@ type UI struct {
 	baseURL  string
 	maxBody  int
 	maxMocks int
+	broker   *sse.Broker
+	streams  *sse.StreamLimiter
 }
 
-func NewUI(svc *service.MockService, logs *repository.LogRepo, stats *service.StatsCache, renderer *Renderer, localz *i18n.Localizer, baseURL string, maxBody, maxMocks int) *UI {
-	return &UI{svc: svc, logs: logs, stats: stats, renderer: renderer, localz: localz, baseURL: baseURL, maxBody: maxBody, maxMocks: maxMocks}
+func NewUI(svc *service.MockService, logs *repository.LogRepo, stats *service.StatsCache, renderer *Renderer, localz *i18n.Localizer, baseURL string, maxBody, maxMocks int, broker *sse.Broker, streams *sse.StreamLimiter) *UI {
+	return &UI{svc: svc, logs: logs, stats: stats, renderer: renderer, localz: localz, baseURL: baseURL, maxBody: maxBody, maxMocks: maxMocks, broker: broker, streams: streams}
 }
 
 // Home renders GET /.
