@@ -282,6 +282,29 @@
       <span class="form-hint" x-show="curlError" x-text="curlError" x-cloak></span>
     </details>
 
+    <details class="advanced">
+      <summary>{{ t "mock.create.import" }}</summary>
+      <p class="form-hint">{{ t "mock.create.import_hint" }}</p>
+      <input type="file" accept=".json,application/json" style="display:none"
+             x-ref="importFile" @change="importFile($event)">
+      <button type="button" class="btn btn-ghost" @click="$refs.importFile.click()">
+        {{ t "mock.create.import_file" }}
+      </button>
+      <button type="button" class="btn btn-ghost" @click="showImport = !showImport">
+        {{ t "mock.create.import_paste" }}
+      </button>
+      <template x-if="showImport">
+        <div>
+          <textarea x-model="importText" rows="4" spellcheck="false"
+                    placeholder='{"method":"GET","response_status":200}'></textarea>
+          <button type="button" class="btn btn-secondary" @click="applyImportText(importText)">
+            {{ t "mock.create.import_apply" }}
+          </button>
+        </div>
+      </template>
+      <span class="form-hint" x-show="importError" x-text="importError" x-cloak></span>
+    </details>
+
     <button type="submit" class="btn btn-primary btn-large">{{ t "mock.create.submit" }}</button>
   </form>
 </section>
@@ -387,6 +410,9 @@
       headers: [],
       curlInput: '',
       curlError: '',
+      importError: '',
+      importText: '',
+      showImport: false,
       pathSuffix: '',
       pathError: '',
       errorRate: 0,
@@ -409,10 +435,16 @@
       applyPrefill() {
         const p = window.__qmPrefill;
         if (!p) return;
+        this.applyConfig(p);
+      },
+      // Populate the form from a mock-config object in the POST /api/mocks
+      // JSON shape. Used by guide prefills and by JSON import.
+      applyConfig(p) {
         const setVal = (sel, v) => {
           const el = document.querySelector(sel);
           if (el && v !== undefined && v !== null && v !== '') el.value = v;
         };
+        setVal('input[name=name]', p.name);
         setVal('select[name=method]', p.method);
         setVal('input[name=response_status]', p.response_status);
         setVal('select[name=content_type]', p.content_type);
@@ -438,6 +470,10 @@
             body: s.body || '',
             headers: s.headers ? Object.entries(s.headers).map(([k, v]) => k + ': ' + v).join('\n') : '',
           }));
+        }
+        if (typeof p.path_suffix === 'string' && p.path_suffix) {
+          this.pathSuffix = p.path_suffix;
+          this.onPathInput();
         }
       },
       onPathInput() {
@@ -521,6 +557,34 @@
         } catch (e) {
           this.curlError = '{{ t "mock.curl_import.error" }}';
         }
+      },
+      importFile(ev) {
+        const f = ev.target.files[0];
+        ev.target.value = '';
+        if (!f) return;
+        if (f.size > 524288) {
+          this.importError = '{{ t "mock.create.import_too_large" }}';
+          return;
+        }
+        const rd = new FileReader();
+        rd.onload = () => this.applyImportText(rd.result);
+        rd.readAsText(f);
+      },
+      applyImportText(s) {
+        this.importError = '';
+        if (s.length > 524288) {
+          this.importError = '{{ t "mock.create.import_too_large" }}';
+          return;
+        }
+        let p;
+        try { p = JSON.parse(s); } catch (e) { p = null; }
+        if (!p || typeof p !== 'object' || Array.isArray(p)) {
+          this.importError = '{{ t "mock.create.import_invalid" }}';
+          return;
+        }
+        this.applyConfig(p);
+        this.showImport = false;
+        this.importText = '';
       },
     };
   }
