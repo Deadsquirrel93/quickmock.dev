@@ -29,6 +29,12 @@ func (r *statusRecorder) Write(b []byte) (int, error) {
 	return n, err
 }
 
+// Unwrap exposes the underlying ResponseWriter. Without it, wrapping this
+// recorder hides the base writer's http.Flusher and deadline setters from
+// http.NewResponseController and from streaming handlers — which breaks the
+// SSE request inspector (it needs to Flush each event).
+func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
+
 // AccessLog emits one structured log line per request.
 //
 // Quiet by default for /healthz to keep journals readable.

@@ -15,6 +15,23 @@ import (
 // connections from squatting limiter slots forever.
 const streamLifetime = 5 * time.Minute
 
+// flusher walks the ResponseWriter's Unwrap chain to find the underlying
+// http.Flusher. Middleware (e.g. the access-log statusRecorder) wraps the
+// writer, so a plain w.(http.Flusher) assertion fails behind the middleware
+// stack even though the base net/http writer can flush.
+func flusher(w http.ResponseWriter) (http.Flusher, bool) {
+	for {
+		if f, ok := w.(http.Flusher); ok {
+			return f, true
+		}
+		u, ok := w.(interface{ Unwrap() http.ResponseWriter })
+		if !ok {
+			return nil, false
+		}
+		w = u.Unwrap()
+	}
+}
+
 // LogsStream handles GET /mock/:slug/logs/stream — a Server-Sent Events
 // stream that emits an empty "log" event whenever a new request hits the
 // mock. The client reacts by refetching the logs partial; no payload here.
@@ -25,7 +42,7 @@ func (u *UI) LogsStream(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	fl, ok := w.(http.Flusher)
+	fl, ok := flusher(w)
 	if !ok {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 		return
