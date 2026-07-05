@@ -1,0 +1,27 @@
+# Quickmock default anti-spam patterns (M4.4).
+# One RE2 regex per line; lines starting with # and blank lines are ignored.
+# Replace this list at runtime with QUICKMOCK_SPAM_PATTERNS_FILE=<path>,
+# or disable the filter with QUICKMOCK_SPAM_PATTERNS_FILE=off.
+#
+# Curation rule: target PROMOTIONAL PHRASING, never bare keywords — users
+# legitimately mock arbitrary API payloads ("Casino Royale" is a movie).
+# False positives are escapable via QUICKMOCK_SPAM_ALLOW_IPS.
+
+# Pharma spam: drug name only together with buy/order context.
+(?i)\b(buy|order|cheap|discount|purchase)\b[^\n]{0,40}\b(viagra|cialis|levitra|tramadol|xanax)\b
+(?i)\b(viagra|cialis|levitra|tramadol|xanax)\b[^\n]{0,40}\b(online|without a? ?prescription|for sale)\b
+
+# Casino / gambling promo.
+(?i)\b(online casino|best casino|casino bonus|free spins|no deposit bonus|sports betting bonus)\b
+
+# Adult promo with a link (a bare word is not enough).
+(?i)\b(porn|xxx|adult dating|escort service)\b[^\n]{0,60}https?://
+
+# SEO / backlink spam.
+(?i)\b(buy|sell|cheap|quality)\b[^\n]{0,30}\bbacklinks?\b
+(?i)\bincrease your (google |search )?rankings?\b
+
+# Crypto / get-rich scams.
+(?i)\b(double|triple) your (bitcoin|btc|crypto|investment|money)\b
+(?i)\bguaranteed (profit|returns?|income)\b
+(?i)\bmake \$?\d[\d,]{2,} (a|per) (day|week|month) (from home|online)\b
