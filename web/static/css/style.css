@@ -53,6 +53,10 @@
 
 [x-cloak] { display: none !important; }
 
+/* Utility hide class. Served from our stylesheet so it works under the
+   strict `style-src 'self'` CSP, unlike an inline style="display:none". */
+.is-hidden { display: none !important; }
+
 * { box-sizing: border-box; }
 
 html, body {
