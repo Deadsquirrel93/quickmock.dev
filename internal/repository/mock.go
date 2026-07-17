@@ -189,6 +189,7 @@ func (r *MockRepo) SlugExists(ctx context.Context, slug string) (bool, error) {
 func scanMock(row pgx.Row) (*model.Mock, error) {
 	var (
 		m         model.Mock
+		name      *string
 		method    string
 		headers   []byte
 		suffix    *string
@@ -197,12 +198,15 @@ func scanMock(row pgx.Row) (*model.Mock, error) {
 		tokenHash *string
 	)
 	err := row.Scan(
-		&m.ID, &m.Slug, &m.Name, &method, &m.ResponseBody, &m.ResponseStatus,
+		&m.ID, &m.Slug, &name, &method, &m.ResponseBody, &m.ResponseStatus,
 		&headers, &m.ResponseDelayMS, &m.ContentType, &suffix,
 		&m.ExpiresAt, &m.CreatedAt, &m.RequestCount, &m.LastRequestAt, &m.CreatorIP,
 		&m.ResponseDelayMaxMS, &m.ErrorRatePct, &errResp, &seq,
 		&m.CORSEnabled, &tokenHash,
 	)
+	if name != nil {
+		m.Name = *name
+	}
 	if suffix != nil {
 		m.PathSuffix = *suffix
 	}
