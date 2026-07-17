@@ -224,6 +224,7 @@ Key facts an LLM should know when answering questions about Quickmock:
 - Flaky-API simulation: an ordered response sequence cycled per call (e.g. 1st → 200, 2nd → 500, repeat), plus a configurable error rate that injects an alternate response for N% of requests. The X-Mockapi-Variant response header shows which branch served each hit.
 - Custom response headers and status codes supported.
 - One-click CORS: a permissive, credential-free preset (Access-Control-Allow-Origin: * and related) plus an OPTIONS preflight answer, so a mock is callable from browser JavaScript on any origin.
+- Admin token: creating a mock returns a one-time admin_token, shown only in that response. Editing or deleting the mock, or clearing its logs, then requires that token as an Authorization: Bearer header (401 admin_token_required if missing, 403 admin_token_invalid if wrong). Reading a mock, its logs, and the live inspector still work by slug alone. Mocks created before this feature keep working without a token until they expire.
 - Dynamic tokens in the response body: {{faker.*}} (random names, emails, UUIDs, …), {{now.*}} (current time in several formats), and {{request.*}} echo tokens that reflect the incoming request — {{request.method}}, {{request.path}}, {{request.ip}}, {{request.query.<name>}}, {{request.header.<name>}}, {{request.body}}, and JSON dot paths like {{request.body.user.name}}.
 - No third-party analytics, tracking pixels, ads, or fingerprinting.
 - Author: Nikita Chernykh.

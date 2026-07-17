@@ -48,7 +48,8 @@ That's it. No account, no API key, no waiting for an email.
 - **Dynamic tokens** — drop `{{faker.uuid}}`, `{{now.iso8601}}`, etc. into the body; fresh values on every hit. See [Dynamic tokens](#dynamic-tokens).
 - **Request echo** — `{{request.*}}` tokens reflect the incoming request back: method, path, IP, query params, headers, raw body, or a JSON field from the body.
 - **Use-case guides** — `/guide` has ready-to-run recipes: retry testing, flaky/slow APIs, webhook inspection, fake data, and more.
-- **No signup** — mocks live in your browser's `localStorage`, the slug is your only credential.
+- **Admin token** — manage your mock from any device: creating a mock returns a one-time admin token, and editing it, deleting it, or clearing its logs needs that token (`Authorization: Bearer`) from then on. Reading a mock, its logs, and the live inspector stay slug-only.
+- **No signup** — mocks live in your browser's `localStorage`, and the slug alone still lets anyone read a mock, its logs, and its live inspector; editing, deleting, or clearing logs needs the mock's one-time admin token.
 - **Bilingual UI** — English and Russian out of the box; more languages planned.
 
 ## Dynamic tokens
