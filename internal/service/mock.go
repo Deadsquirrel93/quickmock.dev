@@ -165,6 +165,11 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 	}
 	expires := time.Now().Add(ttl)
 
+	tokenPlain, tokenHash, err := GenerateAdminToken()
+	if err != nil {
+		return nil, fmt.Errorf("generate admin token: %w", err)
+	}
+
 	m := &model.Mock{
 		Slug:               slug,
 		Name:               strings.TrimSpace(in.Name),
@@ -182,10 +187,12 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 		CORSEnabled:        in.CORSEnabled,
 		ExpiresAt:          &expires,
 		CreatorIP:          creatorIP,
+		AdminTokenHash:     tokenHash,
 	}
 	if err := s.repo.Create(ctx, m); err != nil {
 		return nil, fmt.Errorf("insert mock: %w", err)
 	}
+	m.AdminToken = tokenPlain
 	if s.stats != nil {
 		s.stats.BumpAsync(StatMocksCreated, 1)
 	}

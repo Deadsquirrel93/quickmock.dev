@@ -76,6 +76,15 @@ type Mock struct {
 	// and answer OPTIONS preflight. The values are server-owned (see
 	// internal/handler/mock_router.go); user-set CORS headers stay stripped.
 	CORSEnabled bool
+	// AdminTokenHash mirrors the `admin_token_hash` column: the SHA-256 hex
+	// digest of the mock's admin token. Empty string means NULL — a legacy
+	// mock created before this feature, whose mutations stay slug-only
+	// until it expires.
+	AdminTokenHash string
+	// AdminToken is the one-time plaintext admin token. It is transient:
+	// populated ONLY by MockService.Create for the single response that
+	// shows it to the user, and is never read back from the database.
+	AdminToken string
 }
 
 // MockInput is what the create/update handlers accept after parsing form or

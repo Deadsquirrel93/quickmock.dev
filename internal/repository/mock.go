@@ -38,21 +38,25 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 	if m.PathSuffix != "" {
 		suffix = &m.PathSuffix
 	}
+	var tokenHash *string
+	if m.AdminTokenHash != "" {
+		tokenHash = &m.AdminTokenHash
+	}
 	return r.pool.QueryRow(ctx, `
 		INSERT INTO mocks (
 			slug, name, method, response_body, response_status,
 			response_headers, response_delay_ms, content_type,
 			path_suffix, expires_at, creator_ip,
 			response_delay_max_ms, error_rate_pct, error_response, response_sequence,
-			cors_enabled
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+			cors_enabled, admin_token_hash
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
 		RETURNING id, created_at
 	`,
 		m.Slug, m.Name, string(m.Method), m.ResponseBody, m.ResponseStatus,
 		headers, m.ResponseDelayMS, m.ContentType,
 		suffix, m.ExpiresAt, m.CreatorIP,
 		m.ResponseDelayMaxMS, m.ErrorRatePct, errResp, seq,
-		m.CORSEnabled,
+		m.CORSEnabled, tokenHash,
 	).Scan(&m.ID, &m.CreatedAt)
 }
 
@@ -65,7 +69,7 @@ func (r *MockRepo) BySlug(ctx context.Context, slug string) (*model.Mock, error)
 		       path_suffix, expires_at, created_at, request_count,
 		       last_request_at, creator_ip,
 		       response_delay_max_ms, error_rate_pct, error_response, response_sequence,
-		       cors_enabled
+		       cors_enabled, admin_token_hash
 		FROM mocks
 		WHERE slug = $1
 		  AND (expires_at IS NULL OR expires_at > now())
@@ -184,22 +188,26 @@ func (r *MockRepo) SlugExists(ctx context.Context, slug string) (bool, error) {
 
 func scanMock(row pgx.Row) (*model.Mock, error) {
 	var (
-		m       model.Mock
-		method  string
-		headers []byte
-		suffix  *string
-		errResp []byte
-		seq     []byte
+		m         model.Mock
+		method    string
+		headers   []byte
+		suffix    *string
+		errResp   []byte
+		seq       []byte
+		tokenHash *string
 	)
 	err := row.Scan(
 		&m.ID, &m.Slug, &m.Name, &method, &m.ResponseBody, &m.ResponseStatus,
 		&headers, &m.ResponseDelayMS, &m.ContentType, &suffix,
 		&m.ExpiresAt, &m.CreatedAt, &m.RequestCount, &m.LastRequestAt, &m.CreatorIP,
 		&m.ResponseDelayMaxMS, &m.ErrorRatePct, &errResp, &seq,
-		&m.CORSEnabled,
+		&m.CORSEnabled, &tokenHash,
 	)
 	if suffix != nil {
 		m.PathSuffix = *suffix
+	}
+	if tokenHash != nil {
+		m.AdminTokenHash = *tokenHash
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
