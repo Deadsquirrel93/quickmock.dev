@@ -123,6 +123,16 @@ var UseCases = []UseCase{
 }`,
 		"GET", "Origin: https://app.example.com", "",
 		"the response carries Access-Control-Allow-Origin: *\nand OPTIONS preflight answers 204 — fetch() works from any origin", false),
+
+	uc("manage-mocks-from-any-device",
+		`{
+  "method": "GET",
+  "response_status": 200,
+  "content_type": "application/json",
+  "response_body": "{\"ok\":true}"
+}`,
+		"GET", "", "",
+		"GET /m/<slug> -> 200 {\"ok\":true}  (works from any device, no token)\nPUT/DELETE /api/mocks/<slug> and DELETE .../logs need Authorization: Bearer <admin_token>\nno header -> 401 admin_token_required\nwrong token -> 403 admin_token_invalid", true),
 }
 
 // UseCaseBySlug returns the case for a /guide/<slug> request.

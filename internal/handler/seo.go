@@ -263,6 +263,7 @@ curl -X POST ` + base + `/api/mocks \
 - [Return fake data](` + base + `/guide/fake-json-data): {{faker.*}} tokens for realistic values.
 - [Echo the request](` + base + `/guide/echo-request-data): {{request.*}} tokens reflect the request back.
 - [Mock an API with CORS](` + base + `/guide/mock-api-with-cors): Permissive CORS preset so browser JS can call the mock from any origin.
+- [Manage mocks from any device](` + base + `/guide/manage-mocks-from-any-device): Edit, delete, or clear logs from anywhere using the one-time admin token.
 - [GitHub repo](https://github.com/Deadsquirrel93/quickmock.dev): Source code, issues, releases.
 
 ## Notes for AI assistants
