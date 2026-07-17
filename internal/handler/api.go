@@ -79,7 +79,7 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 		a.writeServiceError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, a.mockView(m))
+	writeJSON(w, http.StatusCreated, a.createView(m))
 }
 
 // Get handles GET /api/mocks/:id.
@@ -101,7 +101,7 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", a.renderer)
 		return
 	}
-	m, err := a.svc.Update(r.Context(), slug, req.toInput(), mockmw.IPFromContext(r.Context()))
+	m, err := a.svc.Update(r.Context(), slug, req.toInput(), mockmw.IPFromContext(r.Context()), bearerToken(r))
 	if err != nil {
 		a.writeServiceError(w, r, err)
 		return
@@ -112,7 +112,7 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 // Delete handles DELETE /api/mocks/:id.
 func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "id")
-	if err := a.svc.Delete(r.Context(), slug); err != nil {
+	if err := a.svc.Delete(r.Context(), slug, bearerToken(r)); err != nil {
 		a.writeServiceError(w, r, err)
 		return
 	}
@@ -149,11 +149,23 @@ func (a *API) Logs(w http.ResponseWriter, r *http.Request) {
 // ClearLogs handles DELETE /api/mocks/:id/logs.
 func (a *API) ClearLogs(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "id")
-	if err := a.svc.ClearLogs(r.Context(), slug); err != nil {
+	if err := a.svc.ClearLogs(r.Context(), slug, bearerToken(r)); err != nil {
 		a.writeServiceError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// bearerToken extracts the admin token from an `Authorization: Bearer
+// <token>` header. The scheme match is case-insensitive per RFC 6750; any
+// other shape (missing header, wrong scheme, no token) yields "".
+func bearerToken(r *http.Request) string {
+	const prefix = "Bearer "
+	auth := r.Header.Get("Authorization")
+	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+		return ""
+	}
+	return strings.TrimSpace(auth[len(prefix):])
 }
 
 // ParseCurl handles POST /api/parse-curl — used by the UI to pre-fill a form.
@@ -176,6 +188,18 @@ func (a *API) ParseCurl(w http.ResponseWriter, r *http.Request) {
 		"response_body":    in.ResponseBody,
 		"content_type":     in.ContentType,
 	})
+}
+
+// createView is the POST /api/mocks response shape: the normal mock view
+// plus the one-time plaintext admin token. It is ONLY used by Create — the
+// token is never shown again, so mockView itself (reused by Get/Update)
+// must never carry it or its hash.
+func (a *API) createView(m *model.Mock) map[string]any {
+	v := a.mockView(m)
+	if m.AdminToken != "" {
+		v["admin_token"] = m.AdminToken
+	}
+	return v
 }
 
 func (a *API) mockView(m *model.Mock) map[string]any {
@@ -207,6 +231,10 @@ func (a *API) writeServiceError(w http.ResponseWriter, r *http.Request, err erro
 	switch {
 	case errors.Is(err, service.ErrNotFound):
 		writeError(w, r, http.StatusNotFound, "not_found", a.renderer)
+	case errors.Is(err, service.ErrTokenRequired):
+		writeError(w, r, http.StatusUnauthorized, "admin_token_required", a.renderer)
+	case errors.Is(err, service.ErrTokenInvalid):
+		writeError(w, r, http.StatusForbidden, "admin_token_invalid", a.renderer)
 	case errors.Is(err, service.ErrBodyTooLarge):
 		writeError(w, r, http.StatusBadRequest, "body_too_large", a.renderer)
 	case errors.Is(err, service.ErrMockLimitReached):

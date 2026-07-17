@@ -112,6 +112,8 @@
   "changelog.r0517.added9": "Docker Compose стек (app + Postgres + Redis + one-shot миграционный контейнер) и bare-metal путь через systemd.",
   "changelog.r0517.added10": "EN + RU локализация, переключатель языка (cookie + Accept-Language).",
   "changelog.r0517.added11": "Privacy by design: никакого стороннего JS, никакой аналитики, никакого CDN-шрифтов; CI это проверяет на каждом билде.",
+  "errors.admin_token_invalid": "Этот admin token не подходит к этому моку.",
+  "errors.admin_token_required": "Для этого действия нужен admin token мока (заголовок Authorization: Bearer).",
   "errors.body_too_large": "Тело ответа превышает лимит в %d КБ.",
   "errors.internal": "Что-то пошло не так на нашей стороне. Попробуйте ещё раз.",
   "errors.invalid_json": "Невалидный JSON",

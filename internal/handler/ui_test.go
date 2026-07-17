@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 )
 
 func TestReadFormInputFlaky(t *testing.T) {
@@ -122,5 +124,21 @@ func TestCreateRequestToInputCORS(t *testing.T) {
 	req := createMockRequest{Method: "GET", CORSEnabled: true}
 	if !req.toInput().CORSEnabled {
 		t.Fatal("JSON cors_enabled must reach MockInput")
+	}
+}
+
+func TestBySlugViewOmitsAdminToken(t *testing.T) {
+	u := &UI{baseURL: "https://example.test"}
+	m := &model.Mock{
+		Slug:           "abc123",
+		AdminToken:     "qm_" + strings.Repeat("a", 64),
+		AdminTokenHash: strings.Repeat("b", 64),
+	}
+	v := u.bySlugView(m)
+	if _, ok := v["admin_token"]; ok {
+		t.Fatal("by-slugs view must not include admin_token")
+	}
+	if _, ok := v["admin_token_hash"]; ok {
+		t.Fatal("by-slugs view must not include admin_token_hash")
 	}
 }

@@ -21,6 +21,8 @@ var (
 	ErrMockLimitReached = errors.New("mock limit reached")
 	ErrNotFound         = errors.New("not found")
 	ErrSpamBlocked      = errors.New("content blocked by spam filter")
+	ErrTokenRequired    = errors.New("admin token required")
+	ErrTokenInvalid     = errors.New("admin token invalid")
 )
 
 // ValidationError carries the offending field name. Handlers translate the
@@ -208,10 +210,29 @@ func (s *MockService) Get(ctx context.Context, slug string) (*model.Mock, error)
 	return m, err
 }
 
+// authorize checks adminToken against m's stored hash. A mock with no hash
+// is legacy (created before this feature): it stays slug-only and
+// authorizes any caller, including an empty token, until it expires.
+func authorize(m *model.Mock, adminToken string) error {
+	if m.AdminTokenHash == "" {
+		return nil
+	}
+	if adminToken == "" {
+		return ErrTokenRequired
+	}
+	if !VerifyAdminToken(adminToken, m.AdminTokenHash) {
+		return ErrTokenInvalid
+	}
+	return nil
+}
+
 // Update applies the input to an existing mock, replacing every field.
-func (s *MockService) Update(ctx context.Context, slug string, in model.MockInput, creatorIP string) (*model.Mock, error) {
+func (s *MockService) Update(ctx context.Context, slug string, in model.MockInput, creatorIP, adminToken string) (*model.Mock, error) {
 	existing, err := s.Get(ctx, slug)
 	if err != nil {
+		return nil, err
+	}
+	if err := authorize(existing, adminToken); err != nil {
 		return nil, err
 	}
 	if err := s.validate(&in); err != nil {
@@ -247,7 +268,14 @@ func (s *MockService) Update(ctx context.Context, slug string, in model.MockInpu
 }
 
 // Delete removes a mock and its logs.
-func (s *MockService) Delete(ctx context.Context, slug string) error {
+func (s *MockService) Delete(ctx context.Context, slug, adminToken string) error {
+	m, err := s.Get(ctx, slug)
+	if err != nil {
+		return err
+	}
+	if err := authorize(m, adminToken); err != nil {
+		return err
+	}
 	if err := s.repo.DeleteBySlug(ctx, slug); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return ErrNotFound
@@ -258,9 +286,12 @@ func (s *MockService) Delete(ctx context.Context, slug string) error {
 }
 
 // ClearLogs purges the request_logs for a mock and resets the counter.
-func (s *MockService) ClearLogs(ctx context.Context, slug string) error {
+func (s *MockService) ClearLogs(ctx context.Context, slug, adminToken string) error {
 	m, err := s.Get(ctx, slug)
 	if err != nil {
+		return err
+	}
+	if err := authorize(m, adminToken); err != nil {
 		return err
 	}
 	return s.logs.DeleteByMockID(ctx, m.ID)

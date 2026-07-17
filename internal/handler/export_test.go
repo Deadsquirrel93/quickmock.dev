@@ -36,6 +36,8 @@ func TestToExportShapeAndSecrets(t *testing.T) {
 		ErrorRatePct:   25,
 		ErrorResponse:  &model.ResponseStep{Status: 503, Body: "boom"},
 		CORSEnabled:    true,
+		AdminToken:     "qm_" + strings.Repeat("a", 64),
+		AdminTokenHash: strings.Repeat("b", 64),
 	}
 	b, err := json.Marshal(toExport(m))
 	if err != nil {
@@ -51,7 +53,7 @@ func TestToExportShapeAndSecrets(t *testing.T) {
 			t.Errorf("export missing key %q", key)
 		}
 	}
-	for _, leak := range []string{"s3cr3tslug", "11111111", "192.0.2.1", "slug", "creator"} {
+	for _, leak := range []string{"s3cr3tslug", "11111111", "192.0.2.1", "slug", "creator", "admin_token", m.AdminToken, m.AdminTokenHash} {
 		if strings.Contains(s, leak) {
 			t.Errorf("export leaks %q: %s", leak, s)
 		}

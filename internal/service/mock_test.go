@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -194,6 +195,37 @@ func TestValidateDelayJitter(t *testing.T) {
 			}
 			if !c.wantErr && err != nil {
 				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// TestAuthorizeAdminToken exercises the private authorize() helper that
+// Update/Delete/ClearLogs all delegate to right after fetching the mock.
+// It is the single place the token/legacy business rule lives, so this is
+// the load-bearing test for the mutation-guard behavior.
+func TestAuthorizeAdminToken(t *testing.T) {
+	plain, hash, err := GenerateAdminToken()
+	if err != nil {
+		t.Fatalf("GenerateAdminToken: %v", err)
+	}
+
+	cases := []struct {
+		name  string
+		mock  *model.Mock
+		token string
+		want  error
+	}{
+		{"legacy mock, empty token authorized", &model.Mock{}, "", nil},
+		{"legacy mock, any token still authorized", &model.Mock{}, "qm_whatever", nil},
+		{"hashed mock, correct token authorized", &model.Mock{AdminTokenHash: hash}, plain, nil},
+		{"hashed mock, empty token rejected", &model.Mock{AdminTokenHash: hash}, "", ErrTokenRequired},
+		{"hashed mock, wrong token rejected", &model.Mock{AdminTokenHash: hash}, "qm_" + strings.Repeat("a", 64), ErrTokenInvalid},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := authorize(c.mock, c.token); !errors.Is(got, c.want) {
+				t.Fatalf("authorize() = %v, want %v", got, c.want)
 			}
 		})
 	}

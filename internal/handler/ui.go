@@ -243,19 +243,27 @@ func (u *UI) BySlugs(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
-		out = append(out, map[string]any{
-			"slug":            m.Slug,
-			"name":            m.Name,
-			"method":          m.Method,
-			"response_status": m.ResponseStatus,
-			"request_count":   m.RequestCount,
-			"created_at":      m.CreatedAt,
-			"expires_at":      m.ExpiresAt,
-			"path_suffix":     m.PathSuffix,
-			"url":             service.MockURL(m, u.baseURL),
-		})
+		out = append(out, u.bySlugView(m))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"mocks": out})
+}
+
+// bySlugView is the per-mock shape returned by BySlugs for the /my list
+// cards. It is deliberately a small, hand-picked subset of fields — never
+// admin_token or admin_token_hash, since /my is driven by a plain slug list
+// from localStorage, not an authenticated call.
+func (u *UI) bySlugView(m *model.Mock) map[string]any {
+	return map[string]any{
+		"slug":            m.Slug,
+		"name":            m.Name,
+		"method":          m.Method,
+		"response_status": m.ResponseStatus,
+		"request_count":   m.RequestCount,
+		"created_at":      m.CreatedAt,
+		"expires_at":      m.ExpiresAt,
+		"path_suffix":     m.PathSuffix,
+		"url":             service.MockURL(m, u.baseURL),
+	}
 }
 
 // Share renders GET /share/:slug — a read-only public view.

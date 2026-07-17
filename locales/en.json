@@ -112,6 +112,8 @@
   "changelog.r0517.added9": "Docker Compose stack (app + Postgres + Redis + one-shot migration container) and a bare-metal systemd path.",
   "changelog.r0517.added10": "EN + RU localization, language switcher (cookie + Accept-Language).",
   "changelog.r0517.added11": "Privacy by design: no third-party JS, no analytics, no fonts CDN; CI enforces this on every build.",
+  "errors.admin_token_invalid": "That admin token doesn't match this mock.",
+  "errors.admin_token_required": "This action requires the mock's admin token (Authorization: Bearer header).",
   "errors.body_too_large": "Response body exceeds %d KB limit.",
   "errors.internal": "Something went wrong on our side. Please try again.",
   "errors.invalid_json": "Invalid JSON",
