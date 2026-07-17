@@ -37,6 +37,7 @@ mock-api-tz.md
 /docs/superpowers/
 
 # Internal docs — kept locally, not shipped to the public repo
+/CLAUDE.md
 /API.md
 /ARCHITECTURE.md
 /BACKLOG.md
