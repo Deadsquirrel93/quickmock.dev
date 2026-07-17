@@ -96,7 +96,20 @@ func (u *UI) CreateForm(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	http.Redirect(w, r, "/mock/"+m.Slug, http.StatusSeeOther)
+	http.Redirect(w, r, mockRedirectLocation(m), http.StatusSeeOther)
+}
+
+// mockRedirectLocation builds the Post/Redirect/Get target for a freshly
+// created mock. The one-time admin token — when the mock has one — rides in
+// the URL fragment: fragments never leave the browser (no server access
+// logs, no Referer leakage), so this is the only safe channel to hand it to
+// the detail page for its one-time display.
+func mockRedirectLocation(m *model.Mock) string {
+	loc := "/mock/" + m.Slug
+	if m.AdminToken != "" {
+		loc += "#token=" + m.AdminToken
+	}
+	return loc
 }
 
 // Detail renders GET /mock/:slug — the management page.

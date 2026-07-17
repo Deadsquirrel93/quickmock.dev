@@ -2,6 +2,34 @@
 
 {{ define "content" }}
 <section class="container mock-detail" x-data="mockDetail()">
+  <div class="banner banner-warning" x-show="showTokenBanner" x-cloak role="alert">
+    <span class="banner-icon" aria-hidden="true">🔑</span>
+    <div>
+      <strong>{{ t "mock.token.banner_title" }}</strong>
+      <p>{{ t "mock.token.banner_text" }}</p>
+      <div class="url-row">
+        <input type="text" readonly :value="tokenValue" x-ref="tokenInput" class="url-input">
+        <button type="button" class="btn btn-primary"
+                @click="copy($refs.tokenInput.value, 'token')">
+          <span x-show="copied !== 'token'">{{ t "mock.token.copy" }}</span>
+          <span x-show="copied === 'token'" x-cloak>{{ t "mock.token.copied" }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" x-show="promptOpen" x-cloak>
+    <label class="label-text" for="qm-token-prompt">{{ t "mock.token.prompt_label" }}</label>
+    <div class="url-row">
+      <input type="text" id="qm-token-prompt" x-model="promptValue" class="url-input"
+             @keydown.enter="submitToken()">
+      <button type="button" class="btn btn-primary" @click="submitToken()">
+        {{ t "mock.token.prompt_submit" }}
+      </button>
+    </div>
+    <span class="form-hint form-error" x-show="promptInvalid" x-cloak>{{ t "mock.token.prompt_invalid" }}</span>
+  </div>
+
   <header class="mock-header">
     <h1>{{ if .Mock.Name }}{{ .Mock.Name }}{{ else }}{{ t "mock.detail.title" }}{{ end }}</h1>
     <div class="mock-meta">
@@ -107,6 +135,12 @@
   function mockDetail() {
     return {
       copied: '',
+      showTokenBanner: false,
+      tokenValue: '',
+      promptOpen: false,
+      promptValue: '',
+      promptInvalid: false,
+      pendingRetry: null,
       async copy(text, label) {
         try { await navigator.clipboard.writeText(text); }
         catch (e) {
@@ -117,29 +151,96 @@
         this.copied = label;
         setTimeout(() => { this.copied = ''; }, 1500);
       },
+      // getToken/setToken read and write the per-mock `token` field on the
+      // localStorage `mocks` record created in init() below.
+      getToken(slug) {
+        try {
+          const stored = JSON.parse(localStorage.getItem('mocks') || '[]');
+          const entry = stored.find(s => s.slug === slug);
+          return (entry && entry.token) || '';
+        } catch (e) { return ''; }
+      },
+      setToken(slug, token) {
+        try {
+          const stored = JSON.parse(localStorage.getItem('mocks') || '[]');
+          let entry = stored.find(s => s.slug === slug);
+          if (!entry) {
+            entry = { slug: slug, name: '', created_at: new Date().toISOString() };
+            stored.push(entry);
+          }
+          entry.token = token;
+          localStorage.setItem('mocks', JSON.stringify(stored));
+        } catch (e) {}
+      },
+      authHeaders(slug) {
+        const token = this.getToken(slug);
+        return token ? { 'Authorization': 'Bearer ' + token } : {};
+      },
+      // promptToken opens the inline paste-fallback. `retry` re-runs the
+      // action that just failed once a token is saved; `invalid` marks a
+      // 403 (wrong token) vs. a 401 (no token yet) — only the former shows
+      // the "not valid" message.
+      promptToken(retry, invalid) {
+        this.pendingRetry = retry;
+        this.promptInvalid = !!invalid;
+        this.promptOpen = true;
+      },
+      async submitToken() {
+        const token = this.promptValue.trim();
+        if (!token) return;
+        this.setToken('{{ .Mock.Slug }}', token);
+        this.promptValue = '';
+        this.promptOpen = false;
+        const retry = this.pendingRetry;
+        this.pendingRetry = null;
+        if (retry) await retry();
+      },
       async del(slug) {
         if (!confirm('{{ t "mock.detail.delete_confirm" }}')) return;
-        const r = await fetch('/api/mocks/' + slug, { method: 'DELETE' });
+        const r = await fetch('/api/mocks/' + slug, { method: 'DELETE', headers: this.authHeaders(slug) });
         if (r.ok) {
           try {
             const stored = JSON.parse(localStorage.getItem('mocks') || '[]');
             localStorage.setItem('mocks', JSON.stringify(stored.filter(s => s.slug !== slug)));
           } catch (e) {}
           window.location.href = '/';
+          return;
+        }
+        if (r.status === 401 || r.status === 403) {
+          this.promptToken(() => this.del(slug), r.status === 403);
         }
       },
       async clearLogs(slug) {
         if (!confirm('{{ t "mock.logs.clear_confirm" }}')) return;
-        await fetch('/api/mocks/' + slug + '/logs', { method: 'DELETE' });
-        document.querySelector('.logs-card [hx-get]').dispatchEvent(new Event('htmx:trigger'));
+        const r = await fetch('/api/mocks/' + slug + '/logs', { method: 'DELETE', headers: this.authHeaders(slug) });
+        if (r.ok) {
+          document.querySelector('.logs-card [hx-get]').dispatchEvent(new Event('htmx:trigger'));
+          return;
+        }
+        if (r.status === 401 || r.status === 403) {
+          this.promptToken(() => this.clearLogs(slug), r.status === 403);
+        }
       },
       init() {
+        // Parse the one-time token fragment BEFORE touching localStorage:
+        // the banner must show even when storage is unavailable (private
+        // mode), or the token would be lost silently.
+        let token = '';
+        if (location.hash.indexOf('#token=') === 0) {
+          token = decodeURIComponent(location.hash.slice('#token='.length));
+          this.tokenValue = token;
+          this.showTokenBanner = true;
+          history.replaceState(null, '', location.pathname);
+        }
         try {
           const stored = JSON.parse(localStorage.getItem('mocks') || '[]');
-          if (!stored.find(s => s.slug === '{{ .Mock.Slug }}')) {
-            stored.push({ slug: '{{ .Mock.Slug }}', name: '{{ .Mock.Name }}', created_at: new Date().toISOString() });
-            localStorage.setItem('mocks', JSON.stringify(stored));
+          let entry = stored.find(s => s.slug === '{{ .Mock.Slug }}');
+          if (!entry) {
+            entry = { slug: '{{ .Mock.Slug }}', name: '{{ .Mock.Name }}', created_at: new Date().toISOString() };
+            stored.push(entry);
           }
+          if (token) entry.token = token;
+          localStorage.setItem('mocks', JSON.stringify(stored));
         } catch (e) {}
       },
     };
