@@ -38,6 +38,8 @@ var SupportedTokens = []string{
 	"{{faker.color}}",
 	"{{faker.company}}",
 	"{{faker.city}}",
+	"{{faker.price}}",
+	"{{faker.lorem}}",
 	"{{now.iso8601}}",
 	"{{now.unix}}",
 	"{{now.unix_ms}}",
@@ -66,10 +68,22 @@ var RequestTokens = []string{
 // deliberately rejects.
 var requestTokenRe = regexp.MustCompile(`\{\{\s*request\.([A-Za-z0-9_][A-Za-z0-9_.\-]*)\s*\}\}`)
 
+// extraTokenRe matches {{random.pick:a|b|c}} and {{seq}} — a separate
+// pattern from tokenRe because the pick argument carries arbitrary text
+// (including the "|" separator) that the strict namespace.name grammar
+// rejects. It is applied in its own pass, after the faker/now pass
+// (tokenRe): a faker/now token embedded in a pick option has therefore
+// already resolved to plain text by the time this pass reads the option
+// list, and — same as every other pass here — its own output is never
+// rescanned, so a pick result that happens to look like a token is inserted
+// verbatim instead of expanding.
+var extraTokenRe = regexp.MustCompile(`\{\{\s*random\.pick:([^{}]*)\s*\}\}|\{\{\s*(seq)\s*\}\}`)
+
 // RequestData carries the parts of an incoming request that request.* tokens
-// can echo back into the response body. Header values are substituted
-// verbatim, including ones the inspector redacts in storage: nothing here is
-// persisted, and the value goes only to the caller who sent it.
+// can echo back into the response body, plus one per-hit extra unrelated to
+// the request itself: Seq. Header values are substituted verbatim, including
+// ones the inspector redacts in storage: nothing here is persisted, and the
+// value goes only to the caller who sent it.
 type RequestData struct {
 	Method string
 	Path   string
@@ -77,6 +91,12 @@ type RequestData struct {
 	Query  url.Values
 	Header http.Header
 	Body   []byte
+
+	// Seq supplies the {{seq}} token's next value. Callers wire it to the
+	// shared repository.SeqCounter already used for response-sequence
+	// stepping — nil leaves {{seq}} tokens untouched, the same fallback
+	// every other token here uses when the data it needs isn't available.
+	Seq func() uint64
 }
 
 // RenderResponseBody substitutes {{faker.*}} and {{now.*}} tokens with
@@ -115,10 +135,41 @@ func RenderResponseBodyForRequest(body string, req *RequestData) string {
 		}
 		return match
 	})
+	body = substituteExtraTokens(body, req)
 	if req == nil {
 		return body
 	}
 	return substituteRequestTokens(body, req)
+}
+
+// substituteExtraTokens resolves {{random.pick:a|b|c}} and {{seq}}. It runs
+// after the faker/now pass above, so a faker/now token embedded in a pick
+// option has already resolved to plain text by the time this pass reads the
+// option list. random.pick needs no request context, so this pass applies
+// even when req is nil; {{seq}} does need req.Seq and is left untouched
+// without it, same as any other token this package can't resolve.
+func substituteExtraTokens(body string, req *RequestData) string {
+	if !strings.Contains(body, "{{") {
+		return body
+	}
+	return extraTokenRe.ReplaceAllStringFunc(body, func(match string) string {
+		parts := extraTokenRe.FindStringSubmatch(match)
+		if parts[2] == "seq" {
+			if req == nil || req.Seq == nil {
+				return match
+			}
+			return strconv.FormatUint(req.Seq(), 10)
+		}
+		list := strings.TrimSpace(parts[1])
+		if list == "" {
+			return match
+		}
+		items := strings.Split(list, "|")
+		for i, it := range items {
+			items[i] = strings.TrimSpace(it)
+		}
+		return items[randUint32()%uint32(len(items))]
+	})
 }
 
 func substituteRequestTokens(body string, req *RequestData) string {
@@ -236,6 +287,10 @@ func fakerToken(name string) (string, bool) {
 		return pick(companies), true
 	case "city":
 		return pick(cities), true
+	case "price":
+		return fmt.Sprintf("%d.%02d", randUint32()%1000, randUint32()%100), true
+	case "lorem":
+		return fakerLorem(), true
 	}
 	return "", false
 }
@@ -276,6 +331,17 @@ func fakerSentence() string {
 	first := strings.ToUpper(parts[0][:1]) + parts[0][1:]
 	parts[0] = first
 	return strings.Join(parts, " ") + "."
+}
+
+// fakerLorem returns a short lorem-ipsum paragraph — a few faker.sentence
+// results joined together, so it reads like body copy rather than one line.
+func fakerLorem() string {
+	n := 2 + int(randUint32()%3) // 2..4 sentences
+	parts := make([]string, n)
+	for i := range parts {
+		parts[i] = fakerSentence()
+	}
+	return strings.Join(parts, " ")
 }
 
 func pick(list []string) string {

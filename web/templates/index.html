@@ -148,8 +148,17 @@
             <ul class="body-tokens-list">
               <li><code>{{`{{faker.word}}`}}</code> — {{ t "mock.create.tokens.faker_word" }}</li>
               <li><code>{{`{{faker.sentence}}`}}</code> — {{ t "mock.create.tokens.faker_sentence" }}</li>
+              <li><code>{{`{{faker.lorem}}`}}</code> — {{ t "mock.create.tokens.faker_lorem" }}</li>
               <li><code>{{`{{faker.company}}`}}</code> — {{ t "mock.create.tokens.faker_company" }}</li>
               <li><code>{{`{{faker.city}}`}}</code> — {{ t "mock.create.tokens.faker_city" }}</li>
+              <li><code>{{`{{faker.price}}`}}</code> — {{ t "mock.create.tokens.faker_price" }}</li>
+            </ul>
+          </div>
+          <div>
+            <p class="body-tokens-group">{{ t "mock.create.tokens.group_dynamic" }}</p>
+            <ul class="body-tokens-list">
+              <li><code>{{`{{random.pick:a|b|c}}`}}</code> — {{ t "mock.create.tokens.random_pick" }}</li>
+              <li><code>{{`{{seq}}`}}</code> — {{ t "mock.create.tokens.seq" }}</li>
             </ul>
           </div>
           <div>

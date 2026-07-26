@@ -1,13 +1,17 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
 )
 
 func TestRenderResponseBody_NoTokens(t *testing.T) {
@@ -273,5 +277,94 @@ func TestRenderRequest_UnknownRequestFieldLeftAsIs(t *testing.T) {
 	in := `{{request.nope}}`
 	if out := RenderResponseBodyForRequest(in, sampleRequest()); out != in {
 		t.Fatalf("expected unknown request token preserved, got %q", out)
+	}
+}
+
+func TestRenderResponseBody_RandomPickWithinSet(t *testing.T) {
+	seen := map[string]bool{}
+	for i := 0; i < 50; i++ {
+		out := RenderResponseBody(`{{random.pick:a|b|c}}`)
+		if out != "a" && out != "b" && out != "c" {
+			t.Fatalf("expected pick result in {a,b,c}, got %q", out)
+		}
+		seen[out] = true
+	}
+	for k := range seen {
+		if k != "a" && k != "b" && k != "c" {
+			t.Fatalf("pick produced a value outside the list: %q", k)
+		}
+	}
+}
+
+func TestRenderResponseBody_RandomPickEmptyListLeftAsIs(t *testing.T) {
+	in := `{{random.pick:}}`
+	if out := RenderResponseBody(in); out != in {
+		t.Fatalf("expected empty pick list preserved, got %q", out)
+	}
+}
+
+func TestRenderResponseBody_RandomPickSingleItem(t *testing.T) {
+	if out := RenderResponseBody(`{{random.pick:a}}`); out != "a" {
+		t.Fatalf("expected single-item pick to return it, got %q", out)
+	}
+}
+
+func TestRenderResponseBody_RandomPickNoRecursion(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		out := RenderResponseBody(`{{random.pick:{{faker.name}}|x}}`)
+		if strings.Contains(out, "{{") || strings.Contains(out, "}}") {
+			t.Fatalf("expected no leftover token braces, got %q", out)
+		}
+		if out != "x" && !strings.Contains(out, " ") {
+			t.Fatalf("expected either literal \"x\" or a \"first last\"-shaped faker name, got %q", out)
+		}
+	}
+}
+
+func TestRenderResponseBody_SeqIncreasesBetweenCalls(t *testing.T) {
+	// repository.SeqCounter with a nil redis client falls back to an
+	// in-process atomic — this is the exact type mock_router.go already
+	// wires up for response sequencing, reused here rather than a new
+	// counter.
+	counter := repository.NewSeqCounter(nil)
+	next := func() uint64 { return counter.Next(context.Background(), "template-test-mock") }
+
+	first := RenderResponseBodyForRequest(`{{seq}}`, &RequestData{Seq: next})
+	second := RenderResponseBodyForRequest(`{{seq}}`, &RequestData{Seq: next})
+	if first == second {
+		t.Fatalf("expected seq to increase between calls, got %q both times", first)
+	}
+	a, err := strconv.ParseUint(first, 10, 64)
+	if err != nil {
+		t.Fatalf("expected seq to render a plain integer, got %q: %v", first, err)
+	}
+	b, err := strconv.ParseUint(second, 10, 64)
+	if err != nil {
+		t.Fatalf("expected seq to render a plain integer, got %q: %v", second, err)
+	}
+	if b <= a {
+		t.Fatalf("expected second seq value %d to be greater than first %d", b, a)
+	}
+}
+
+func TestRenderResponseBody_SeqWithoutCounterLeftAsIs(t *testing.T) {
+	in := `{{seq}}`
+	if out := RenderResponseBody(in); out != in {
+		t.Fatalf("expected seq token preserved without request data, got %q", out)
+	}
+	if out := RenderResponseBodyForRequest(in, &RequestData{}); out != in {
+		t.Fatalf("expected seq token preserved without Seq set, got %q", out)
+	}
+}
+
+func TestRenderResponseBody_FakerPriceAndLorem(t *testing.T) {
+	price := RenderResponseBody(`{{faker.price}}`)
+	priceRe := regexp.MustCompile(`^\d+\.\d{2}$`)
+	if !priceRe.MatchString(price) {
+		t.Fatalf("expected an NN.NN price, got %q", price)
+	}
+	lorem := RenderResponseBody(`{{faker.lorem}}`)
+	if lorem == "" || !strings.Contains(lorem, " ") {
+		t.Fatalf("expected a non-empty multi-word lorem paragraph, got %q", lorem)
 	}
 }

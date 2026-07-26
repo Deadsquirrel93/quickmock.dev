@@ -141,6 +141,11 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Query:  r.URL.Query(),
 		Header: r.Header,
 		Body:   bodyBytes,
+		// ":tpl" keeps the {{seq}} token's counter separate from the one
+		// nextPos above uses to step through m.SequenceSteps — sharing a
+		// key would make a {{seq}} token silently skip every other
+		// sequence step by consuming a position on top of it.
+		Seq: func() uint64 { return h.seq.Next(r.Context(), m.ID+":tpl") },
 	})))
 }
 
