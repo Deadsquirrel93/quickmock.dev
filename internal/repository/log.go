@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
@@ -35,33 +34,45 @@ func (r *LogRepo) Insert(ctx context.Context, l *model.RequestLog) error {
 	return err
 }
 
+// LogFilter narrows the rows ListByMockID returns. The zero value matches
+// every row — behavior identical to calling ListByMockID before this type
+// existed.
+type LogFilter struct {
+	// Method, when non-empty, restricts results to logs with that exact
+	// HTTP method (e.g. "POST"). Empty means any method.
+	Method string
+}
+
 // ListByMockID returns up to `limit` newest logs for a mock. Optional `since`
-// filters to rows created strictly after that timestamp; zero means no filter.
-func (r *LogRepo) ListByMockID(ctx context.Context, mockID string, limit int, since time.Time) ([]model.RequestLog, error) {
+// filters to rows created strictly after that timestamp; zero means no
+// filter. `f` narrows results further (see LogFilter); its zero value is a
+// no-op. Filtering happens in SQL — filter values are always passed as query
+// parameters, never concatenated into the query text.
+func (r *LogRepo) ListByMockID(ctx context.Context, mockID string, limit int, since time.Time, f LogFilter) ([]model.RequestLog, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
-	var (
-		rows pgx.Rows
-		err  error
-	)
-	if since.IsZero() {
-		rows, err = r.pool.Query(ctx, `
-			SELECT id, mock_id, request_method, request_headers, request_body, request_ip, created_at
-			FROM request_logs
-			WHERE mock_id = $1
-			ORDER BY created_at DESC
-			LIMIT $2
-		`, mockID, limit)
-	} else {
-		rows, err = r.pool.Query(ctx, `
-			SELECT id, mock_id, request_method, request_headers, request_body, request_ip, created_at
-			FROM request_logs
-			WHERE mock_id = $1 AND created_at > $2
-			ORDER BY created_at DESC
-			LIMIT $3
-		`, mockID, since, limit)
+
+	query := `
+		SELECT id, mock_id, request_method, request_headers, request_body, request_ip, created_at
+		FROM request_logs
+		WHERE mock_id = $1
+	`
+	args := []any{mockID}
+
+	if !since.IsZero() {
+		args = append(args, since)
+		query += fmt.Sprintf(" AND created_at > $%d", len(args))
 	}
+	if f.Method != "" {
+		args = append(args, f.Method)
+		query += fmt.Sprintf(" AND request_method = $%d", len(args))
+	}
+
+	args = append(args, limit)
+	query += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d", len(args))
+
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

@@ -148,7 +148,7 @@ func (a *API) Logs(w http.ResponseWriter, r *http.Request) {
 	if s := r.URL.Query().Get("since"); s != "" {
 		since, _ = time.Parse(time.RFC3339, s)
 	}
-	logs, err := a.logs.ListByMockID(r.Context(), m.ID, limit, since)
+	logs, err := a.logs.ListByMockID(r.Context(), m.ID, limit, since, repository.LogFilter{})
 	if err != nil {
 		writeError(w, r, http.StatusInternalServerError, "internal", a.renderer)
 		return

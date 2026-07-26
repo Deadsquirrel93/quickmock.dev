@@ -120,7 +120,7 @@ func (u *UI) Detail(w http.ResponseWriter, r *http.Request) {
 		u.renderer.Render(w, r, "404", http.StatusNotFound, nil)
 		return
 	}
-	logs, _ := u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{})
+	logs, _ := u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{}, repository.LogFilter{})
 	snippets := service.GenerateSnippets(m, u.baseURL)
 	curl := service.CurlSnippet(m, u.baseURL)
 	u.renderer.Render(w, r, "mock", http.StatusOK, map[string]any{
@@ -142,7 +142,7 @@ func (u *UI) LogsPartial(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	logs, _ := u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{})
+	logs, _ := u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{}, repository.LogFilter{})
 	u.renderer.Render(w, r, "partials_logs", http.StatusOK, map[string]any{
 		"Mock": m,
 		"Logs": logs,
