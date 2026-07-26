@@ -23,6 +23,7 @@ var (
 	ErrSpamBlocked      = errors.New("content blocked by spam filter")
 	ErrTokenRequired    = errors.New("admin token required")
 	ErrTokenInvalid     = errors.New("admin token invalid")
+	ErrTTLCapReached    = errors.New("ttl cap reached")
 )
 
 // ValidationError carries the offending field name. Handlers translate the
@@ -34,9 +35,25 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string { return e.Message }
 
+// mockStore is the subset of *repository.MockRepo the service needs.
+// Declaring it as an interface (rather than storing the concrete type
+// directly) is the same DI seam GenerateSlug already uses via SlugChecker
+// above; it lets Extend's tests substitute an in-memory fake and exercise
+// the full Get -> authorize -> Update flow without a live Postgres
+// connection, while NewMockService keeps accepting the concrete
+// *repository.MockRepo callers already pass in.
+type mockStore interface {
+	Create(ctx context.Context, m *model.Mock) error
+	BySlug(ctx context.Context, slug string) (*model.Mock, error)
+	Update(ctx context.Context, m *model.Mock) error
+	DeleteBySlug(ctx context.Context, slug string) error
+	CountActiveByCreatorIP(ctx context.Context, ip string) (int, error)
+	SlugExists(ctx context.Context, slug string) (bool, error)
+}
+
 // MockService is the only object handlers should call to manipulate mocks.
 type MockService struct {
-	repo       *repository.MockRepo
+	repo       mockStore
 	logs       *repository.LogRepo
 	stats      *StatsCache
 	maxBody    int
@@ -260,6 +277,47 @@ func (s *MockService) Update(ctx context.Context, slug string, in model.MockInpu
 		t := time.Now().Add(in.TTL)
 		existing.ExpiresAt = &t
 	}
+	if err := s.repo.Update(ctx, existing); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return existing, nil
+}
+
+// Extend pushes a mock's expiry one more defaultTTL into the future,
+// capped at created_at + maxTTL. Returns ErrTTLCapReached without writing
+// to storage if the mock is already at (or past) that cap — the caller
+// keeps whatever expires_at the mock already has.
+func (s *MockService) Extend(ctx context.Context, slug, adminToken string) (*model.Mock, error) {
+	existing, err := s.Get(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+	if err := authorize(existing, adminToken); err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	newExpiry := now.Add(s.defaultTTL)
+	if s.maxTTL > 0 {
+		if ceiling := existing.CreatedAt.Add(s.maxTTL); newExpiry.After(ceiling) {
+			newExpiry = ceiling
+		}
+	}
+
+	// A nil ExpiresAt (ancient row predating the expiry column) is treated
+	// as "expires now" rather than dereferenced.
+	current := now
+	if existing.ExpiresAt != nil {
+		current = *existing.ExpiresAt
+	}
+	if !newExpiry.After(current) {
+		return nil, ErrTTLCapReached
+	}
+
+	existing.ExpiresAt = &newExpiry
 	if err := s.repo.Update(ctx, existing); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return nil, ErrNotFound

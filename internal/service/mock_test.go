@@ -1,12 +1,14 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
 )
 
 // testService returns a MockService good enough for validate(): only
@@ -263,6 +265,179 @@ func TestValidateTTLCap(t *testing.T) {
 		in.TTL = 0
 		if err := s.validate(&in); err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+// fakeMockStore is a minimal in-memory stand-in for *repository.MockRepo,
+// satisfying the mockStore interface so Extend's Get -> authorize -> Update
+// flow can be exercised without a live Postgres connection.
+type fakeMockStore struct {
+	mocks       map[string]*model.Mock
+	updateCalls int
+}
+
+func newFakeMockStore(mocks ...*model.Mock) *fakeMockStore {
+	m := make(map[string]*model.Mock, len(mocks))
+	for _, mk := range mocks {
+		m[mk.Slug] = mk
+	}
+	return &fakeMockStore{mocks: m}
+}
+
+func (f *fakeMockStore) Create(_ context.Context, m *model.Mock) error {
+	f.mocks[m.Slug] = m
+	return nil
+}
+
+func (f *fakeMockStore) BySlug(_ context.Context, slug string) (*model.Mock, error) {
+	m, ok := f.mocks[slug]
+	if !ok {
+		return nil, repository.ErrNotFound
+	}
+	cp := *m
+	return &cp, nil
+}
+
+func (f *fakeMockStore) Update(_ context.Context, m *model.Mock) error {
+	f.updateCalls++
+	if _, ok := f.mocks[m.Slug]; !ok {
+		return repository.ErrNotFound
+	}
+	cp := *m
+	f.mocks[m.Slug] = &cp
+	return nil
+}
+
+func (f *fakeMockStore) DeleteBySlug(_ context.Context, slug string) error {
+	if _, ok := f.mocks[slug]; !ok {
+		return repository.ErrNotFound
+	}
+	delete(f.mocks, slug)
+	return nil
+}
+
+func (f *fakeMockStore) CountActiveByCreatorIP(_ context.Context, _ string) (int, error) {
+	return 0, nil
+}
+
+func (f *fakeMockStore) SlugExists(_ context.Context, slug string) (bool, error) {
+	_, ok := f.mocks[slug]
+	return ok, nil
+}
+
+// TestExtend covers the five branches of MockService.Extend: success,
+// missing/wrong token, hitting the TTL cap, and the legacy no-token mock.
+func TestExtend(t *testing.T) {
+	const defaultTTL = time.Hour
+	const maxTTL = 24 * time.Hour
+
+	plain, hash, err := GenerateAdminToken()
+	if err != nil {
+		t.Fatalf("GenerateAdminToken: %v", err)
+	}
+
+	t.Run("success shifts expires_at by defaultTTL", func(t *testing.T) {
+		created := time.Now().Add(-time.Hour)
+		expires := time.Now().Add(30 * time.Minute)
+		store := newFakeMockStore(&model.Mock{
+			Slug:           "abc123",
+			CreatedAt:      created,
+			ExpiresAt:      &expires,
+			AdminTokenHash: hash,
+		})
+		s := &MockService{repo: store, defaultTTL: defaultTTL, maxTTL: maxTTL}
+
+		before := time.Now()
+		m, err := s.Extend(context.Background(), "abc123", plain)
+		if err != nil {
+			t.Fatalf("Extend() error = %v", err)
+		}
+		wantNotBefore := before.Add(defaultTTL)
+		if m.ExpiresAt == nil || m.ExpiresAt.Before(wantNotBefore) {
+			t.Fatalf("ExpiresAt = %v, want >= %v", m.ExpiresAt, wantNotBefore)
+		}
+		if store.updateCalls != 1 {
+			t.Fatalf("updateCalls = %d, want 1", store.updateCalls)
+		}
+	})
+
+	t.Run("no token on hashed mock", func(t *testing.T) {
+		expires := time.Now().Add(time.Hour)
+		store := newFakeMockStore(&model.Mock{
+			Slug:           "abc123",
+			CreatedAt:      time.Now(),
+			ExpiresAt:      &expires,
+			AdminTokenHash: hash,
+		})
+		s := &MockService{repo: store, defaultTTL: defaultTTL, maxTTL: maxTTL}
+
+		if _, err := s.Extend(context.Background(), "abc123", ""); !errors.Is(err, ErrTokenRequired) {
+			t.Fatalf("err = %v, want ErrTokenRequired", err)
+		}
+		if store.updateCalls != 0 {
+			t.Fatalf("updateCalls = %d, want 0", store.updateCalls)
+		}
+	})
+
+	t.Run("wrong token on hashed mock", func(t *testing.T) {
+		expires := time.Now().Add(time.Hour)
+		store := newFakeMockStore(&model.Mock{
+			Slug:           "abc123",
+			CreatedAt:      time.Now(),
+			ExpiresAt:      &expires,
+			AdminTokenHash: hash,
+		})
+		s := &MockService{repo: store, defaultTTL: defaultTTL, maxTTL: maxTTL}
+
+		if _, err := s.Extend(context.Background(), "abc123", "qm_"+strings.Repeat("a", 64)); !errors.Is(err, ErrTokenInvalid) {
+			t.Fatalf("err = %v, want ErrTokenInvalid", err)
+		}
+		if store.updateCalls != 0 {
+			t.Fatalf("updateCalls = %d, want 0", store.updateCalls)
+		}
+	})
+
+	t.Run("mock at the TTL cap", func(t *testing.T) {
+		created := time.Now().Add(-maxTTL)
+		expires := created.Add(maxTTL) // exactly at the cap already
+		store := newFakeMockStore(&model.Mock{
+			Slug:           "capped",
+			CreatedAt:      created,
+			ExpiresAt:      &expires,
+			AdminTokenHash: hash,
+		})
+		s := &MockService{repo: store, defaultTTL: defaultTTL, maxTTL: maxTTL}
+
+		_, err := s.Extend(context.Background(), "capped", plain)
+		if !errors.Is(err, ErrTTLCapReached) {
+			t.Fatalf("err = %v, want ErrTTLCapReached", err)
+		}
+		if store.updateCalls != 0 {
+			t.Fatalf("updateCalls = %d, want 0 (no write at the cap)", store.updateCalls)
+		}
+		got, _ := store.BySlug(context.Background(), "capped")
+		if !got.ExpiresAt.Equal(expires) {
+			t.Fatalf("ExpiresAt changed: got %v, want %v", got.ExpiresAt, expires)
+		}
+	})
+
+	t.Run("legacy mock with empty token", func(t *testing.T) {
+		expires := time.Now().Add(time.Minute)
+		store := newFakeMockStore(&model.Mock{
+			Slug:      "legacy",
+			CreatedAt: time.Now(),
+			ExpiresAt: &expires,
+			// AdminTokenHash left empty: legacy mock.
+		})
+		s := &MockService{repo: store, defaultTTL: defaultTTL, maxTTL: maxTTL}
+
+		m, err := s.Extend(context.Background(), "legacy", "")
+		if err != nil {
+			t.Fatalf("Extend() error = %v", err)
+		}
+		if !m.ExpiresAt.After(expires) {
+			t.Fatalf("ExpiresAt = %v, want after %v", m.ExpiresAt, expires)
 		}
 	})
 }
