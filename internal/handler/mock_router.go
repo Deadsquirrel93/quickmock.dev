@@ -145,7 +145,10 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// nextPos above uses to step through m.SequenceSteps — sharing a
 		// key would make a {{seq}} token silently skip every other
 		// sequence step by consuming a position on top of it.
-		Seq: func() uint64 { return h.seq.Next(r.Context(), m.ID+":tpl") },
+		// +1 because SeqCounter.Next is 0-based — it exists to index into
+		// m.SequenceSteps. {{seq}} is a user-facing hit counter instead, and
+		// API.md documents it as starting at 1.
+		Seq: func() uint64 { return h.seq.Next(r.Context(), m.ID+":tpl") + 1 },
 	})))
 }
 
