@@ -224,7 +224,14 @@
         if (r.ok) {
           const data = await r.json();
           if (this.$refs.expiresText && data.expires_at) {
-            this.$refs.expiresText.textContent = new Date(data.expires_at).toLocaleString();
+            // Match the server's fmtTime ("2006-01-02 15:04:05 MST", always
+            // UTC) — toLocaleString() would swap both the format and the
+            // timezone on click, so the same date would appear to jump.
+            const d = new Date(data.expires_at);
+            const p = (n) => String(n).padStart(2, '0');
+            this.$refs.expiresText.textContent =
+              d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) + ' ' +
+              p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds()) + ' UTC';
           }
           this.extended = true;
           setTimeout(() => { this.extended = false; }, 1500);
