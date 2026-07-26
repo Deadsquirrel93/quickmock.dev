@@ -114,6 +114,7 @@ func TestWriteServiceErrorTokenMapping(t *testing.T) {
 	}{
 		{"token required", service.ErrTokenRequired, http.StatusUnauthorized, "admin_token_required"},
 		{"token invalid", service.ErrTokenInvalid, http.StatusForbidden, "admin_token_invalid"},
+		{"ttl cap reached", service.ErrTTLCapReached, http.StatusConflict, "ttl_cap_reached"},
 	}
 	a := testAPI(t)
 	for _, c := range cases {

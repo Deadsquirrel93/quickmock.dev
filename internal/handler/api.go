@@ -109,6 +109,19 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, a.mockView(m))
 }
 
+// Extend handles POST /api/mocks/:id/extend, pushing the mock's expiry one
+// more defaultTTL into the future (capped at maxTTL). Reuses mockView so the
+// response shape matches Get/Update exactly.
+func (a *API) Extend(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "id")
+	m, err := a.svc.Extend(r.Context(), slug, bearerToken(r))
+	if err != nil {
+		a.writeServiceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, a.mockView(m))
+}
+
 // Delete handles DELETE /api/mocks/:id.
 func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "id")
@@ -241,6 +254,8 @@ func (a *API) writeServiceError(w http.ResponseWriter, r *http.Request, err erro
 		writeError(w, r, http.StatusTooManyRequests, "mock_limit_reached", a.renderer)
 	case errors.Is(err, service.ErrSpamBlocked):
 		writeError(w, r, http.StatusUnprocessableEntity, "spam_blocked", a.renderer)
+	case errors.Is(err, service.ErrTTLCapReached):
+		writeError(w, r, http.StatusConflict, "ttl_cap_reached", a.renderer)
 	case isValidationErr(err):
 		writeError(w, r, http.StatusUnprocessableEntity, "validation_failed", a.renderer)
 	default:

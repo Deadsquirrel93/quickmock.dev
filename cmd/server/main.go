@@ -255,6 +255,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 			r.Get("/mocks/by-slugs", ui.BySlugs)
 			r.Get("/mocks/{id}", api.Get)
 			r.Put("/mocks/{id}", api.Update)
+			r.Post("/mocks/{id}/extend", api.Extend)
 			r.Delete("/mocks/{id}", api.Delete)
 			r.Get("/mocks/{id}/logs", api.Logs)
 			r.Delete("/mocks/{id}/logs", api.ClearLogs)

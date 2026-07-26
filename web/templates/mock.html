@@ -35,7 +35,14 @@
     <div class="mock-meta">
       <span class="badge badge-method badge-{{ .Mock.Method }}">{{ .Mock.Method }}</span>
       <span class="badge">{{ t "mock.detail.status" }}: {{ .Mock.ResponseStatus }}</span>
-      {{ if .Mock.ExpiresAt }}<span class="muted">{{ t "mock.detail.expires" }}: {{ fmtTime .Mock.ExpiresAt }}</span>{{ end }}
+      {{ if .Mock.ExpiresAt }}
+      <span class="muted" x-show="!extendCapped">{{ t "mock.detail.expires" }}: <span x-ref="expiresText">{{ fmtTime .Mock.ExpiresAt }}</span></span>
+      <button type="button" class="btn btn-ghost" x-show="!extendCapped" @click="extend('{{ .Mock.Slug }}')">
+        <span x-show="!extended">{{ t "mock.extend.button" }}</span>
+        <span x-show="extended" x-cloak>{{ t "mock.extend.done" }}</span>
+      </button>
+      <span class="muted" x-show="extendCapped" x-cloak>{{ t "mock.extend.capped" }}</span>
+      {{ end }}
     </div>
     <a class="btn btn-ghost" href="/mock/{{ .Mock.Slug }}/export">{{ t "mock.detail.export" }}</a>
   </header>
@@ -135,6 +142,8 @@
   function mockDetail() {
     return {
       copied: '',
+      extended: false,
+      extendCapped: false,
       showTokenBanner: false,
       tokenValue: '',
       promptOpen: false,
@@ -209,6 +218,27 @@
         if (r.status === 401 || r.status === 403) {
           this.promptToken(() => this.del(slug), r.status === 403);
         }
+      },
+      async extend(slug) {
+        const r = await fetch('/api/mocks/' + slug + '/extend', { method: 'POST', headers: this.authHeaders(slug) });
+        if (r.ok) {
+          const data = await r.json();
+          if (this.$refs.expiresText && data.expires_at) {
+            this.$refs.expiresText.textContent = new Date(data.expires_at).toLocaleString();
+          }
+          this.extended = true;
+          setTimeout(() => { this.extended = false; }, 1500);
+          return;
+        }
+        if (r.status === 409) {
+          this.extendCapped = true;
+          return;
+        }
+        if (r.status === 401 || r.status === 403) {
+          this.promptToken(() => this.extend(slug), r.status === 403);
+          return;
+        }
+        alert('{{ t "mock.extend.error" }}');
       },
       async clearLogs(slug) {
         if (!confirm('{{ t "mock.logs.clear_confirm" }}')) return;
