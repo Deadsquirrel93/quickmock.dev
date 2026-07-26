@@ -19,7 +19,11 @@ import (
 // body will use other characters and won't be mangled.
 var tokenRe = regexp.MustCompile(`\{\{\s*([a-z]+)\.([a-z0-9_]+)\s*\}\}`)
 
-// SupportedTokens lists every token RenderResponseBody can substitute.
+// SupportedTokens lists the fixed-form faker/now tokens, every one of which
+// resolves with no context at all — TestRenderResponseBody_AllSupportedTokensResolve
+// asserts exactly that, so tokens needing context ({{seq}}) or carrying an
+// argument ({{random.pick:a|b|c}}) stay out of this list even though
+// RenderResponseBody substitutes them too.
 // Keep in sync with the UI tooltip and the README.
 var SupportedTokens = []string{
 	"{{faker.name}}",
