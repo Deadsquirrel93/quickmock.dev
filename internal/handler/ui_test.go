@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 )
@@ -144,6 +146,70 @@ func TestMockRedirectLocation(t *testing.T) {
 	legacy := &model.Mock{Slug: "legacy1"}
 	if got := mockRedirectLocation(legacy); got != "/mock/legacy1" {
 		t.Fatalf("location = %q, want /mock/legacy1 with no fragment", got)
+	}
+}
+
+func TestLogsPartialMethod(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{"empty means no filter", "", ""},
+		{"valid method uppercased", "post", "POST"},
+		{"valid method already upper", "GET", "GET"},
+		{"surrounding whitespace trimmed", "  put  ", "PUT"},
+		{"garbage is ignored, not rejected", "bogus", ""},
+		{"ANY is a mock's match rule, never a request method", "ANY", ""},
+		{"ANY lowercase is ignored too", "any", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := logsPartialMethod(c.raw); got != c.want {
+				t.Fatalf("logsPartialMethod(%q) = %q, want %q", c.raw, got, c.want)
+			}
+		})
+	}
+}
+
+// TestLogsPartialRendersFilteredMarkup exercises the "partials_logs"
+// template directly with the data LogsPartial builds for a ?method=POST
+// request. LogsPartial itself needs a live *service.MockService and
+// *repository.LogRepo (see log_export_test.go's note on testUI's nil
+// svc/logs) — the SQL-level filtering is already covered by
+// TestLogRepoListByMockIDMethodFilter, so here the input Logs slice stands
+// in for what that already-filtered query would return: only POST rows.
+// The rendered markup must carry no GET row, keep the POST option selected,
+// and point "download JSON" at the same filter that's on screen.
+func TestLogsPartialRendersFilteredMarkup(t *testing.T) {
+	u := testUI(t)
+	data := map[string]any{
+		"Mock": &model.Mock{Slug: "abc123"},
+		"Logs": []model.RequestLog{
+			{ID: "1", RequestMethod: "POST", RequestIP: "127.0.0.1", CreatedAt: time.Now()},
+		},
+		"Method":        "POST",
+		"FilterMethods": logFilterMethods,
+	}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/mock/abc123/logs?method=POST", nil)
+	u.renderer.Render(w, req, "partials_logs", http.StatusOK, data)
+
+	body := w.Body.String()
+	if strings.Contains(body, "badge-GET") {
+		t.Fatalf("filtered markup must not contain a GET row: %s", body)
+	}
+	if !strings.Contains(body, "badge-POST") {
+		t.Fatalf("filtered markup missing the POST row: %s", body)
+	}
+	if !strings.Contains(body, `<option value="POST" selected>`) {
+		t.Fatalf("POST option must be marked selected: %s", body)
+	}
+	if !strings.Contains(body, "/mock/abc123/logs/export?method=POST") {
+		t.Fatalf("download link must carry the same method filter: %s", body)
+	}
+	if !strings.Contains(body, `id="log-filter-method"`) {
+		t.Fatalf("filter select missing: %s", body)
 	}
 }
 

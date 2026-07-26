@@ -134,6 +134,30 @@ func (u *UI) Detail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// logFilterMethods lists the concrete HTTP methods a captured request can
+// carry. Unlike model.AllMethods (which also lists ANY — a mock's own
+// wildcard match rule, never a caller's actual verb), this drives the
+// inspector's method filter dropdown: offering ANY there would always
+// return zero rows, since no logged request ever has that method.
+var logFilterMethods = []model.Method{
+	model.MethodGET, model.MethodPOST, model.MethodPUT, model.MethodPATCH, model.MethodDELETE,
+}
+
+// logsPartialMethod normalizes the "method" query parameter for the HTMX
+// log partial. Unlike logMethodFilter (log_export.go), which answers 422 on
+// garbage input, this is a lenient, repeatedly-polled fragment: an
+// unrecognized value — including "ANY", see logFilterMethods — is treated
+// the same as "no filter" instead of failing the request.
+func logsPartialMethod(raw string) string {
+	raw = strings.ToUpper(strings.TrimSpace(raw))
+	for _, m := range logFilterMethods {
+		if string(m) == raw {
+			return raw
+		}
+	}
+	return ""
+}
+
 // LogsPartial returns just the log list — used by HTMX hx-trigger="every 2s".
 func (u *UI) LogsPartial(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
@@ -142,10 +166,13 @@ func (u *UI) LogsPartial(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	logs, _ := u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{}, repository.LogFilter{})
+	method := logsPartialMethod(r.URL.Query().Get("method"))
+	logs, _ := u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{}, repository.LogFilter{Method: method})
 	u.renderer.Render(w, r, "partials_logs", http.StatusOK, map[string]any{
-		"Mock": m,
-		"Logs": logs,
+		"Mock":          m,
+		"Logs":          logs,
+		"Method":        method,
+		"FilterMethods": logFilterMethods,
 	})
 }
 

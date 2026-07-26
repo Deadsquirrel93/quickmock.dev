@@ -1,3 +1,33 @@
 {{/* HTMX partial endpoint: GET /mock/:slug/logs.
-     Renders the log list inline. No base layout. */}}
-{{ define "partials_logs" }}{{ template "logs_inner" . }}{{ end }}
+     Renders the method filter, the "download JSON" link (carrying the same
+     ?method= as the list below it), and the log list. No base layout. */}}
+{{ define "partials_logs" }}
+<div class="card-header">
+  <select id="log-filter-method" name="method" aria-label="{{ t "logs.filter.method" }}"
+          hx-get="/mock/{{ .Mock.Slug }}/logs" hx-target="#qm-logs" hx-swap="innerHTML" hx-trigger="change">
+    <option value=""{{ if eq .Method "" }} selected{{ end }}>{{ t "logs.filter.all" }}</option>
+    {{ range .FilterMethods }}
+    <option value="{{ . }}"{{ if eq (print .) $.Method }} selected{{ end }}>{{ . }}</option>
+    {{ end }}
+  </select>
+  <a class="btn btn-ghost" href="/mock/{{ .Mock.Slug }}/logs/export{{ if .Method }}?method={{ .Method }}{{ end }}">{{ t "logs.export.button" }}</a>
+</div>
+{{ template "logs_inner" . }}
+{{/* The outer #qm-logs box (mock.html) drives both the initial "load" fetch
+     and the SSE-triggered "qm:log" refetch via its own static hx-get. Point
+     it at this select so every future request — including ones fired by a
+     live stream event — carries the currently selected filter; otherwise a
+     new row that doesn't match the filter would flash into view on the next
+     SSE-driven refresh. htmx re-reads hx-include per request, so this only
+     needs to be wired once; htmx.process() is what makes the (possibly new)
+     hx-include value take effect for the box's already-registered triggers. */}}
+<script>
+  (function () {
+    var box = document.getElementById('qm-logs');
+    if (box) {
+      box.setAttribute('hx-include', '#log-filter-method');
+      htmx.process(box);
+    }
+  })();
+</script>
+{{ end }}
