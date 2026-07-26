@@ -357,6 +357,22 @@ func (s *MockService) ClearLogs(ctx context.Context, slug, adminToken string) er
 	return s.logs.DeleteByMockID(ctx, m.ID)
 }
 
+// AuthorizeSlug fetches a mock by slug and checks adminToken against it,
+// without mutating anything. It's the same Get-then-authorize sequence
+// ClearLogs uses right above, exposed for read-only paths outside this
+// file's own mutations — namely the log export handler, which needs the
+// exact same token rule but isn't itself a MockService method.
+func (s *MockService) AuthorizeSlug(ctx context.Context, slug, adminToken string) (*model.Mock, error) {
+	m, err := s.Get(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+	if err := authorize(m, adminToken); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (s *MockService) validate(in *model.MockInput) error {
 	if in.Method == "" {
 		return &ValidationError{Field: "method", Message: "method is required"}

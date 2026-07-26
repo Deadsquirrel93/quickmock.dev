@@ -240,6 +240,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		r.Get("/mock/{slug}/logs/stream", ui.LogsStream)
 		r.Get("/mock/{slug}/summary", ui.SummaryPartial)
 		r.Get("/mock/{slug}/export", ui.Export)
+		r.Get("/mock/{slug}/logs/export", ui.LogsExport)
 		r.Get("/my", ui.MyMocks)
 		r.Get("/changelog", ui.Changelog)
 		r.Get("/guide", ui.Guide)

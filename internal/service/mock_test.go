@@ -442,6 +442,59 @@ func TestExtend(t *testing.T) {
 	})
 }
 
+// TestAuthorizeSlug exercises the Get+authorize combo that read-only paths
+// outside the CRUD mutations (like the log export handler) use to reach the
+// same token rule as Update/Extend/Delete/ClearLogs without duplicating it.
+func TestAuthorizeSlug(t *testing.T) {
+	plain, hash, err := GenerateAdminToken()
+	if err != nil {
+		t.Fatalf("GenerateAdminToken: %v", err)
+	}
+
+	t.Run("unknown slug", func(t *testing.T) {
+		s := &MockService{repo: newFakeMockStore()}
+		if _, err := s.AuthorizeSlug(context.Background(), "missing", ""); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("err = %v, want ErrNotFound", err)
+		}
+	})
+
+	t.Run("no token on hashed mock", func(t *testing.T) {
+		store := newFakeMockStore(&model.Mock{Slug: "abc123", AdminTokenHash: hash})
+		s := &MockService{repo: store}
+		if _, err := s.AuthorizeSlug(context.Background(), "abc123", ""); !errors.Is(err, ErrTokenRequired) {
+			t.Fatalf("err = %v, want ErrTokenRequired", err)
+		}
+	})
+
+	t.Run("wrong token on hashed mock", func(t *testing.T) {
+		store := newFakeMockStore(&model.Mock{Slug: "abc123", AdminTokenHash: hash})
+		s := &MockService{repo: store}
+		if _, err := s.AuthorizeSlug(context.Background(), "abc123", "qm_"+strings.Repeat("a", 64)); !errors.Is(err, ErrTokenInvalid) {
+			t.Fatalf("err = %v, want ErrTokenInvalid", err)
+		}
+	})
+
+	t.Run("correct token on hashed mock", func(t *testing.T) {
+		store := newFakeMockStore(&model.Mock{Slug: "abc123", AdminTokenHash: hash})
+		s := &MockService{repo: store}
+		m, err := s.AuthorizeSlug(context.Background(), "abc123", plain)
+		if err != nil {
+			t.Fatalf("AuthorizeSlug() error = %v", err)
+		}
+		if m.Slug != "abc123" {
+			t.Fatalf("Slug = %q, want abc123", m.Slug)
+		}
+	})
+
+	t.Run("legacy mock, empty token authorized", func(t *testing.T) {
+		store := newFakeMockStore(&model.Mock{Slug: "legacy"})
+		s := &MockService{repo: store}
+		if _, err := s.AuthorizeSlug(context.Background(), "legacy", ""); err != nil {
+			t.Fatalf("AuthorizeSlug() error = %v", err)
+		}
+	})
+}
+
 func TestCORSHeadersStayReserved(t *testing.T) {
 	// The cors_enabled toggle must NOT loosen the blacklist on user-supplied
 	// CORS headers — those stay server-owned only.
