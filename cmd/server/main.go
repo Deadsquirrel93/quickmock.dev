@@ -149,7 +149,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		logger.Error("spam filter", slog.Any("err", err))
 		return 1
 	}
-	mockSvc := service.NewMockService(mockRepo, logRepo, statsCache, cfg.MaxBody, cfg.MaxMocks, cfg.DefaultTTL, spamFilter)
+	mockSvc := service.NewMockService(mockRepo, logRepo, statsCache, cfg.MaxBody, cfg.MaxMocks, cfg.DefaultTTL, cfg.MaxTTL, spamFilter)
 	sseBroker := sse.NewBroker()
 	sseStreams := sse.NewStreamLimiter(cfg.SSEMaxConns, cfg.SSEMaxPerIP)
 	logWriter := service.NewLogWriter(logRepo, mockRepo, statsCache, 1024, logger, sseBroker)

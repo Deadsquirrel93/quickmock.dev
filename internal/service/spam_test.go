@@ -142,7 +142,7 @@ func TestNilAndEmptyFilterBlockNothing(t *testing.T) {
 
 func TestCreateRejectsSpamBeforeStorage(t *testing.T) {
 	f := testSpamFilter(t, []string{`(?i)spamword`}, nil)
-	s := NewMockService(nil, nil, nil, 1024, 10, time.Hour, f)
+	s := NewMockService(nil, nil, nil, 1024, 10, time.Hour, 720*time.Hour, f)
 	_, err := s.Create(context.Background(), model.MockInput{
 		Method:       model.MethodGET,
 		ResponseBody: "spamword",

@@ -12,7 +12,7 @@ import (
 // testService returns a MockService good enough for validate(): only
 // maxBody is read there.
 func testService() *MockService {
-	return NewMockService(nil, nil, nil, 1024, 10, time.Hour, nil)
+	return NewMockService(nil, nil, nil, 1024, 10, time.Hour, 720*time.Hour, nil)
 }
 
 func baseInput() model.MockInput {
@@ -229,6 +229,42 @@ func TestAuthorizeAdminToken(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestValidateTTLCap exercises the ttl_seconds ceiling enforced in
+// validate(). It is shared by Create and Update, so a single check here
+// covers both callers.
+func TestValidateTTLCap(t *testing.T) {
+	s := NewMockService(nil, nil, nil, 1024, 10, time.Hour, 24*time.Hour, nil)
+
+	t.Run("above cap rejected", func(t *testing.T) {
+		in := baseInput()
+		in.TTL = 25 * time.Hour
+		err := s.validate(&in)
+		var verr *ValidationError
+		if !errors.As(err, &verr) {
+			t.Fatalf("validate() = %v, want *ValidationError", err)
+		}
+		if verr.Field != "ttl_seconds" {
+			t.Fatalf("Field = %q, want %q", verr.Field, "ttl_seconds")
+		}
+	})
+
+	t.Run("exactly at cap accepted", func(t *testing.T) {
+		in := baseInput()
+		in.TTL = 24 * time.Hour
+		if err := s.validate(&in); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("zero TTL accepted (default applies later)", func(t *testing.T) {
+		in := baseInput()
+		in.TTL = 0
+		if err := s.validate(&in); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
 }
 
 func TestCORSHeadersStayReserved(t *testing.T) {

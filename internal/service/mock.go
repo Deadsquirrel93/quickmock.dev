@@ -42,10 +42,11 @@ type MockService struct {
 	maxBody    int
 	maxMocks   int
 	defaultTTL time.Duration
+	maxTTL     time.Duration
 	spam       *SpamFilter
 }
 
-func NewMockService(repo *repository.MockRepo, logs *repository.LogRepo, stats *StatsCache, maxBody, maxMocks int, defaultTTL time.Duration, spam *SpamFilter) *MockService {
+func NewMockService(repo *repository.MockRepo, logs *repository.LogRepo, stats *StatsCache, maxBody, maxMocks int, defaultTTL, maxTTL time.Duration, spam *SpamFilter) *MockService {
 	return &MockService{
 		repo:       repo,
 		logs:       logs,
@@ -53,6 +54,7 @@ func NewMockService(repo *repository.MockRepo, logs *repository.LogRepo, stats *
 		maxBody:    maxBody,
 		maxMocks:   maxMocks,
 		defaultTTL: defaultTTL,
+		maxTTL:     maxTTL,
 		spam:       spam,
 	}
 }
@@ -312,6 +314,9 @@ func (s *MockService) validate(in *model.MockInput) error {
 	}
 	if in.ResponseDelayMS < 0 || in.ResponseDelayMS > 30000 {
 		return &ValidationError{Field: "response_delay_ms", Message: "delay out of range"}
+	}
+	if s.maxTTL > 0 && in.TTL > s.maxTTL {
+		return &ValidationError{Field: "ttl_seconds", Message: "ttl exceeds maximum allowed"}
 	}
 	if len(in.ResponseBody) > s.maxBody {
 		return ErrBodyTooLarge
