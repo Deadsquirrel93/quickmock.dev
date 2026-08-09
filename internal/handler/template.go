@@ -78,7 +78,7 @@ var MockTemplates = []MockTemplate{
   "method": "GET",
   "response_status": 200,
   "content_type": "application/json",
-  "response_body": "{\"id\":\"evt_1QsErTLl2dK9Nqi7\",\"object\":\"event\",\"type\":\"payment_intent.succeeded\",\"created\":{{now.unix}},\"data\":{\"object\":{\"id\":\"pi_3QsErTLl2dK9Nqi71m2XvBnR\",\"amount\":4999,\"currency\":\"usd\",\"status\":\"succeeded\"}}}"
+  "response_body": "{\"id\":\"evt_1QsErTLl2dK9Nqi7\",\"object\":\"event\",\"type\":\"payment_intent.succeeded\",\"created\":{{now.unix}},\"data\":{\"object\":{\"id\":\"pi_3QsErTLl2dK9Nqi71m2XvBnR\",\"object\":\"payment_intent\",\"amount\":4999,\"currency\":\"usd\",\"status\":\"succeeded\"}}}"
 }`,
 		"GET", "", "",
 		"GET /m/<slug> -> 200 a Stripe-style payment_intent.succeeded event\ndata.object.amount is in minor units (cents)",
@@ -166,7 +166,7 @@ the webhook response itself is treated as a Bot API method call`,
   "response_status": 200,
   "content_type": "application/json",
   "path_suffix": ".well-known/jwks.json",
-  "response_body": "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS256\",\"kid\":\"quickmock-demo-2024\",\"n\":\"sXch2YgWJKl9m3QrTz8vNcPdEoU1bYFhGx0jRkLm4nOaQpS7iVtW2cXeYbAd_placeholder\",\"e\":\"AQAB\"}]}"
+  "response_body": "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS256\",\"kid\":\"quickmock-demo-2024\",\"n\":\"sXch2YgWJKl9m3QrTz8vNcPdEoU1bYFhGx0jRkLm4nOaQpS7iVtW2cXeYbAd8fQmZ1tRkYpVnDsWlOc3Jk-4bHxCzQd7yTaMv9uNwEgLh0iPo2sVfBrKjXn5c\",\"e\":\"AQAB\"}]}"
 }`,
 		"GET", "", "",
 		"GET /m/<slug>/.well-known/jwks.json -> 200 one RSA JWK\nthe key is illustrative only, it does not verify any real signature",
