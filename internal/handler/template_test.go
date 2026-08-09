@@ -5,9 +5,41 @@ import (
 	"log/slog"
 	"testing"
 
+	quickmock "github.com/Deadsquirrel93/quickmock.dev"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
 )
+
+// templateCommonLocaleKeys are the non-per-template keys the /templates
+// gallery pages depend on, shared across every template and the index page.
+var templateCommonLocaleKeys = []string{
+	"nav.templates",
+	"templates.title",
+	"templates.intro",
+	"templates.meta_description",
+	"templates.breadcrumb.templates",
+	"templates.category.payments",
+	"templates.category.devtools",
+	"templates.category.auth",
+	"templates.category.generic",
+	"templates.kind.payload",
+	"templates.kind.responder",
+	"templates.kind.api",
+	"templates.section.payload",
+	"templates.section.fields",
+	"templates.section.create",
+	"templates.section.call",
+	"templates.section.expect",
+	"templates.section.differences",
+	"templates.fields.col_field",
+	"templates.fields.col_meaning",
+	"templates.cta.title",
+	"templates.cta.button",
+	"templates.cta.open_in_form",
+	"templates.back",
+	"templates.related_guide",
+}
 
 func TestMockTemplatesIntegrity(t *testing.T) {
 	if len(MockTemplates) != 10 {
@@ -114,5 +146,55 @@ func TestTemplateBySlug(t *testing.T) {
 	}
 	if _, ok := TemplateBySlug("does-not-exist"); ok {
 		t.Fatal("unknown slug must miss")
+	}
+}
+
+func TestTemplateLocaleCoverage(t *testing.T) {
+	localz := i18n.New("en")
+	if err := localz.LoadFS(quickmock.LocalesFS, "locales"); err != nil {
+		t.Fatal(err)
+	}
+
+	// T falls back to the literal key when a translation is missing, so
+	// "resolves" means both non-empty and different from the key itself.
+	check := func(lang, key string) {
+		t.Helper()
+		got := localz.T(lang, key)
+		if got == "" {
+			t.Fatalf("%s: %q resolved to an empty string", lang, key)
+		}
+		if got == key {
+			t.Fatalf("%s: %q did not resolve to a translation", lang, key)
+		}
+	}
+
+	for _, lang := range localz.Supported() {
+		for _, tpl := range MockTemplates {
+			check(lang, tpl.KeyPrefix+".title")
+			check(lang, tpl.KeyPrefix+".summary")
+			check(lang, tpl.KeyPrefix+".differences")
+			for _, field := range tpl.Fields {
+				check(lang, tpl.KeyPrefix+".field."+field)
+			}
+		}
+	}
+}
+
+func TestTemplateCommonLocaleKeys(t *testing.T) {
+	localz := i18n.New("en")
+	if err := localz.LoadFS(quickmock.LocalesFS, "locales"); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, lang := range localz.Supported() {
+		for _, key := range templateCommonLocaleKeys {
+			got := localz.T(lang, key)
+			if got == "" {
+				t.Fatalf("%s: %q resolved to an empty string", lang, key)
+			}
+			if got == key {
+				t.Fatalf("%s: %q did not resolve to a translation", lang, key)
+			}
+		}
 	}
 }
