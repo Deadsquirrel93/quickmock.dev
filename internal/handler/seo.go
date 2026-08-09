@@ -154,6 +154,48 @@ func GuideCaseJSONLD(localz *i18n.Localizer, lang, baseURL string, c UseCase) te
 	return template.JS(strings.ReplaceAll(string(buf), "</", `<\/`))
 }
 
+// TemplateCaseJSONLD builds the schema.org graph for a /templates/<slug>
+// page: a HowTo (create the mock, call it) plus a BreadcrumbList. Mirrors
+// GuideCaseJSONLD's defang of "</" so the inline <script> can't be broken
+// out of.
+func TemplateCaseJSONLD(localz *i18n.Localizer, lang, baseURL string, t MockTemplate) template.JS {
+	tr := func(key string, args ...any) string { return localz.T(lang, key, args...) }
+	base := strings.TrimRight(baseURL, "/")
+	title := tr(t.KeyPrefix + ".title")
+	pageURL := base + "/templates/" + t.Slug
+
+	howTo := map[string]any{
+		"@type":       "HowTo",
+		"name":        title,
+		"description": tr(t.KeyPrefix + ".summary"),
+		"inLanguage":  lang,
+		"step": []map[string]any{
+			{"@type": "HowToStep", "position": 1, "name": tr("templates.section.create"),
+				"text": "POST " + base + "/api/mocks with the example body."},
+			{"@type": "HowToStep", "position": 2, "name": tr("templates.section.call"),
+				"text": "Call the returned " + base + "/m/<slug> URL from your client."},
+		},
+	}
+	breadcrumb := map[string]any{
+		"@type": "BreadcrumbList",
+		"itemListElement": []map[string]any{
+			{"@type": "ListItem", "position": 1, "name": tr("guide.breadcrumb.home"), "item": base + "/"},
+			{"@type": "ListItem", "position": 2, "name": tr("templates.breadcrumb.templates"), "item": base + "/templates"},
+			{"@type": "ListItem", "position": 3, "name": title, "item": pageURL},
+		},
+	}
+
+	payload := map[string]any{
+		"@context": "https://schema.org",
+		"@graph":   []map[string]any{howTo, breadcrumb},
+	}
+	buf, err := json.Marshal(payload)
+	if err != nil {
+		return template.JS("{}")
+	}
+	return template.JS(strings.ReplaceAll(string(buf), "</", `<\/`))
+}
+
 func RobotsTxt(baseURL string) http.HandlerFunc {
 	uas := []string{
 		"*",

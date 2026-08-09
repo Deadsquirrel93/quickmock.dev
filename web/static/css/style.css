@@ -1176,6 +1176,27 @@ input:focus, select:focus, textarea:focus {
 .guide-cta .btn { text-decoration: none; }
 .guide-case .guide-back, .guide-case > p:last-child { margin-top: 1.5rem; }
 
+/* Template case page: the "what kind of mock is this" plaque, and the
+   fields table that maps a JSON path to its localized meaning. */
+.templates-kind { margin: 0 0 1.5rem; }
+.templates-fields-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1.5rem;
+  font-size: 0.92rem;
+}
+.templates-fields-table th,
+.templates-fields-table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.templates-fields-table th { color: var(--fg-muted); font-weight: 600; }
+.templates-fields-table td:first-child {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+  white-space: nowrap;
+}
+
 /* Home "Common use cases" teaser — mirrors the .faq card. */
 .usecases {
   margin: 2rem auto;

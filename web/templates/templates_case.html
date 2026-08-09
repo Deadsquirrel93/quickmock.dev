@@ -1,0 +1,85 @@
+{{ define "head" }}
+<script type="application/ld+json">{{ .JSONLD }}</script>
+{{ end }}
+
+{{ define "content" }}
+<section class="guide guide-case container">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">{{ t "guide.breadcrumb.home" }}</a> ·
+    <a href="/templates">{{ t "templates.breadcrumb.templates" }}</a> ·
+    <span aria-current="page">{{ t (printf "%s.title" .Template.KeyPrefix) }}</span>
+  </nav>
+
+  <h1>{{ t (printf "%s.title" .Template.KeyPrefix) }}</h1>
+  <p class="guide-summary">{{ t (printf "%s.summary" .Template.KeyPrefix) }}</p>
+
+  <p class="badge templates-kind">{{ t (printf "templates.kind.%s" .Template.Kind) }}</p>
+
+  <h2>{{ t "templates.section.payload" }}</h2>
+  <div class="guide-code-block" x-data="{ copied: false }">
+    <button type="button" class="guide-copy"
+            @click="navigator.clipboard.writeText($refs.payloadCode.textContent).then(() => { copied = true; setTimeout(() => copied = false, 1500); })">
+      <span x-show="!copied">{{ t "common.copy" }}</span>
+      <span x-show="copied" x-cloak>{{ t "common.copied" }}</span>
+    </button>
+    <pre class="guide-code"><code x-ref="payloadCode">{{ .Template.CreateBody }}</code></pre>
+  </div>
+
+  <h2>{{ t "templates.section.fields" }}</h2>
+  <table class="templates-fields-table">
+    <thead>
+      <tr>
+        <th>{{ t "templates.fields.col_field" }}</th>
+        <th>{{ t "templates.fields.col_meaning" }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Fields }}
+      <tr>
+        <td>{{ .Path }}</td>
+        <td>{{ .Meaning }}</td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+
+  <h2>{{ t "templates.section.create" }}</h2>
+  <div class="guide-code-block" x-data="{ copied: false }">
+    <button type="button" class="guide-copy"
+            @click="navigator.clipboard.writeText($refs.createCode.textContent).then(() => { copied = true; setTimeout(() => copied = false, 1500); })">
+      <span x-show="!copied">{{ t "common.copy" }}</span>
+      <span x-show="copied" x-cloak>{{ t "common.copied" }}</span>
+    </button>
+    <pre class="guide-code"><code x-ref="createCode">{{ .CreateCurl }}</code></pre>
+  </div>
+
+  <h2>{{ t "templates.section.call" }}</h2>
+  <div class="guide-code-block" x-data="{ copied: false }">
+    <button type="button" class="guide-copy"
+            @click="navigator.clipboard.writeText($refs.callCode.textContent).then(() => { copied = true; setTimeout(() => copied = false, 1500); })">
+      <span x-show="!copied">{{ t "common.copy" }}</span>
+      <span x-show="copied" x-cloak>{{ t "common.copied" }}</span>
+    </button>
+    <pre class="guide-code"><code x-ref="callCode">{{ .CallCurl }}</code></pre>
+  </div>
+
+  <h2>{{ t "templates.section.expect" }}</h2>
+  <pre class="guide-code"><code>{{ .Template.Expect }}</code></pre>
+
+  <h2>{{ t "templates.section.differences" }}</h2>
+  <p>{{ t (printf "%s.differences" .Template.KeyPrefix) }}</p>
+
+  <div class="guide-cta card">
+    <h2>{{ t "templates.cta.title" }}</h2>
+    <form method="post" action="/templates/{{ .Template.Slug }}/create">
+      <button type="submit" class="btn btn-primary">{{ t "templates.cta.button" }}</button>
+    </form>
+    <p><a href="/?prefill_template={{ .Template.Slug }}#create">{{ t "templates.cta.open_in_form" }}</a></p>
+  </div>
+
+  {{ if .RelatedGuide }}
+  <p>{{ t "templates.related_guide" }} <a href="/guide/{{ .RelatedGuide }}">{{ t (printf "guide.case.%s.title" .RelatedGuide) }}</a></p>
+  {{ end }}
+  <p><a href="/templates">{{ t "templates.back" }}</a></p>
+</section>
+{{ end }}

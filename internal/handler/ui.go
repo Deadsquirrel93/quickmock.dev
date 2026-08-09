@@ -232,23 +232,36 @@ func (u *UI) GuideCase(w http.ResponseWriter, r *http.Request) {
 
 // guideCreateCurl renders the copy-paste create command for a case.
 func guideCreateCurl(baseURL string, c UseCase) string {
-	return fmt.Sprintf("curl -X POST %s/api/mocks \\\n  -H 'Content-Type: application/json' \\\n  -d '%s'",
-		strings.TrimRight(baseURL, "/"), c.CreateBody)
+	return createCurl(baseURL, c.CreateBody)
 }
 
 // guideCallCurl renders the command that calls the created mock. The slug is a
 // placeholder the reader replaces with the slug from the create response.
 func guideCallCurl(baseURL string, c UseCase) string {
+	return callCurl(baseURL, c.CallVerb, c.CallHeader, c.CallData)
+}
+
+// createCurl renders the copy-paste command that creates a mock from
+// createBody — shared by /guide/<slug> and /templates/<slug> case pages.
+func createCurl(baseURL, createBody string) string {
+	return fmt.Sprintf("curl -X POST %s/api/mocks \\\n  -H 'Content-Type: application/json' \\\n  -d '%s'",
+		strings.TrimRight(baseURL, "/"), createBody)
+}
+
+// callCurl renders the command that calls a created mock. The slug is a
+// placeholder the reader replaces with the slug from the create response.
+// header and data are optional ("" if unused).
+func callCurl(baseURL, verb, header, data string) string {
 	base := strings.TrimRight(baseURL, "/")
 	parts := []string{"curl"}
-	if c.CallVerb != "GET" {
-		parts = append(parts, "-X "+c.CallVerb)
+	if verb != "GET" {
+		parts = append(parts, "-X "+verb)
 	}
-	if c.CallHeader != "" {
-		parts = append(parts, "-H '"+c.CallHeader+"'")
+	if header != "" {
+		parts = append(parts, "-H '"+header+"'")
 	}
-	if c.CallData != "" {
-		parts = append(parts, "-H 'Content-Type: application/json'", "-d '"+c.CallData+"'")
+	if data != "" {
+		parts = append(parts, "-H 'Content-Type: application/json'", "-d '"+data+"'")
 	}
 	parts = append(parts, base+"/m/<slug>")
 	return strings.Join(parts, " ")
