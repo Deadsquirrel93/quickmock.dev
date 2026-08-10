@@ -43,6 +43,11 @@ func main() {
 		logger.Error("config", slog.Any("err", err))
 		os.Exit(2)
 	}
+	if stale := config.LegacyEnv(os.Environ()); len(stale) > 0 {
+		logger.Warn("ignoring environment variables with the obsolete MOCKAPI_ prefix — "+
+			"nothing reads them, so the defaults are in effect instead",
+			slog.Any("rename", stale))
+	}
 
 	cmd := ""
 	if len(os.Args) > 1 {

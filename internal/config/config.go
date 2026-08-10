@@ -7,6 +7,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -101,6 +102,35 @@ func Load() (Config, error) {
 	}
 
 	return c, nil
+}
+
+// legacyPrefix is the environment-variable prefix this service used before it
+// was renamed to Quickmock. Nothing reads it any more.
+const legacyPrefix = "MOCKAPI_"
+
+// LegacyEnv reports environment variables that still carry the pre-rename
+// MOCKAPI_ prefix, as "MOCKAPI_X -> QUICKMOCK_X" rename hints, sorted.
+//
+// Load ignores these completely, which is exactly the problem: a stale key
+// produces no error and no log line, so the server quietly runs on defaults
+// while the operator reads the value they think they set. The failure mode is
+// nastiest for QUICKMOCK_BASE_URL, which since 2026-08-10 feeds the
+// cross-site origin check — get it wrong and browser-initiated mock creation
+// stops working with nothing pointing at the cause.
+//
+// environ is os.Environ()-shaped ("KEY=VALUE"); values are never returned or
+// logged, only names.
+func LegacyEnv(environ []string) []string {
+	var out []string
+	for _, kv := range environ {
+		k, _, ok := strings.Cut(kv, "=")
+		if !ok || !strings.HasPrefix(k, legacyPrefix) {
+			continue
+		}
+		out = append(out, k+" -> QUICKMOCK_"+strings.TrimPrefix(k, legacyPrefix))
+	}
+	sort.Strings(out)
+	return out
 }
 
 func getEnv(k, def string) string {
