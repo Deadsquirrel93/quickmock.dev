@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +13,7 @@ func TestRejectCrossSite(t *testing.T) {
 
 	tests := []struct {
 		name         string
+		baseURL      string // defaults to baseURL when empty
 		secFetchSite string
 		origin       string
 		wantStatus   int
@@ -66,7 +69,34 @@ func TestRejectCrossSite(t *testing.T) {
 		},
 		{
 			name:       "trailing slash in baseURL normalizes against Origin without one",
+			baseURL:    baseURL + "/",
 			origin:     baseURL,
+			wantStatus: http.StatusOK,
+			wantCalled: true,
+		},
+		{
+			name:       "host letter-case does not decide the outcome",
+			baseURL:    "https://QuickMock.DEV",
+			origin:     "https://quickmock.dev",
+			wantStatus: http.StatusOK,
+			wantCalled: true,
+		},
+		{
+			name:       "unparseable Origin is treated as a mismatch",
+			origin:     "://evil",
+			wantStatus: http.StatusForbidden,
+			wantCalled: false,
+		},
+		{
+			name:       "unusable base URL rejects requests carrying an Origin",
+			baseURL:    "://broken",
+			origin:     baseURL,
+			wantStatus: http.StatusForbidden,
+			wantCalled: false,
+		},
+		{
+			name:       "unusable base URL still lets header-less clients through",
+			baseURL:    "://broken",
 			wantStatus: http.StatusOK,
 			wantCalled: true,
 		},
@@ -74,13 +104,14 @@ func TestRejectCrossSite(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			configuredBaseURL := baseURL
-			if tt.name == "trailing slash in baseURL normalizes against Origin without one" {
-				configuredBaseURL = baseURL + "/"
+			configuredBaseURL := tt.baseURL
+			if configuredBaseURL == "" {
+				configuredBaseURL = baseURL
 			}
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 			called := false
-			h := RejectCrossSite(configuredBaseURL)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := RejectCrossSite(configuredBaseURL, logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				called = true
 				w.WriteHeader(http.StatusOK)
 			}))
