@@ -307,6 +307,43 @@ func TestLLMsTxtIncludesTemplates(t *testing.T) {
 	}
 }
 
+// TestLLMsTxtTemplatesMatchRegistry guards against drift in either
+// direction between the hand-written "## Templates" section of llms.txt and
+// MockTemplates: a slug added to the registry but never linked from
+// llms.txt is caught (same as TestLLMsTxtIncludesTemplates above), and so is
+// a slug still linked from llms.txt after being removed from the registry —
+// which would otherwise leave a dangling link that no test notices. The
+// plain "/templates" index link (no trailing slug) must not be picked up by
+// the regexp as a slug.
+func TestLLMsTxtTemplatesMatchRegistry(t *testing.T) {
+	h := LLMsTxt("https://example.test")
+	w := httptest.NewRecorder()
+	h(w, httptest.NewRequest("GET", "/llms.txt", nil))
+	body := w.Body.String()
+
+	linkRe := regexp.MustCompile(regexp.QuoteMeta("https://example.test/templates/") + `([a-z0-9-]+)`)
+	got := make(map[string]bool)
+	for _, m := range linkRe.FindAllStringSubmatch(body, -1) {
+		got[m[1]] = true
+	}
+
+	want := make(map[string]bool, len(MockTemplates))
+	for _, tpl := range MockTemplates {
+		want[tpl.Slug] = true
+	}
+
+	for slug := range want {
+		if !got[slug] {
+			t.Errorf("llms.txt missing a link to /templates/%s (in MockTemplates)", slug)
+		}
+	}
+	for slug := range got {
+		if !want[slug] {
+			t.Errorf("llms.txt links to /templates/%s, which is not in MockTemplates (dangling link)", slug)
+		}
+	}
+}
+
 func TestTemplateCaseNoRawKeys(t *testing.T) {
 	u := testUI(t)
 	for _, tpl := range MockTemplates {
