@@ -277,6 +277,36 @@ func TestPrettyPayload(t *testing.T) {
 	}
 }
 
+func TestSitemapIncludesTemplates(t *testing.T) {
+	h := SitemapXML("https://example.test", []string{"en", "ru"}, "en")
+	w := httptest.NewRecorder()
+	h(w, httptest.NewRequest("GET", "/sitemap.xml", nil))
+	body := w.Body.String()
+	if !strings.Contains(body, "https://example.test/templates</loc>") {
+		t.Fatal("sitemap missing /templates index")
+	}
+	for _, tpl := range MockTemplates {
+		if !strings.Contains(body, "https://example.test/templates/"+tpl.Slug+"</loc>") {
+			t.Fatalf("sitemap missing /templates/%s", tpl.Slug)
+		}
+	}
+}
+
+func TestLLMsTxtIncludesTemplates(t *testing.T) {
+	h := LLMsTxt("https://example.test")
+	w := httptest.NewRecorder()
+	h(w, httptest.NewRequest("GET", "/llms.txt", nil))
+	body := w.Body.String()
+	if !strings.Contains(body, "## Templates") {
+		t.Fatal("llms.txt missing the Templates section")
+	}
+	for _, tpl := range MockTemplates {
+		if !strings.Contains(body, "https://example.test/templates/"+tpl.Slug) {
+			t.Fatalf("llms.txt missing /templates/%s", tpl.Slug)
+		}
+	}
+}
+
 func TestTemplateCaseNoRawKeys(t *testing.T) {
 	u := testUI(t)
 	for _, tpl := range MockTemplates {
