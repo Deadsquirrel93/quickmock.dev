@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"encoding/json"
 	"io/fs"
+	"regexp"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -130,4 +132,63 @@ func TestErrMsgPicksTheRightArg(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestErrMsgFormatsEveryErrorKey is the guard the hand-written table above
+// cannot be: it walks every "errors.*" string in every locale, keeps the ones
+// carrying a format verb, and checks errMsg fills it in. Add a placeholder to
+// a locale message and forget the matching case in errMsg's switch and the
+// banner renders a raw "%d" (T takes the no-args path) — or, if the switch
+// hands over the wrong number of args, an fmt artefact like "%!d(MISSING)".
+// Nothing else in the codebase notices either one. This does.
+func TestErrMsgFormatsEveryErrorKey(t *testing.T) {
+	localz := i18n.New("en")
+	if err := localz.LoadFS(quickmock.LocalesFS, "locales"); err != nil {
+		t.Fatal(err)
+	}
+
+	// The same verbs check_i18n.sh compares across locales.
+	verb := regexp.MustCompile(`%[sd]`)
+	checked := 0
+
+	for _, lang := range localz.Supported() {
+		msgs := loadLocale(t, lang)
+		for key, msg := range msgs {
+			errKey, ok := strings.CutPrefix(key, "errors.")
+			if !ok || !verb.MatchString(msg) {
+				continue
+			}
+			checked++
+			// Deliberately distinct values: whichever one the switch picks,
+			// substituting the other is visible in the output.
+			got := errMsg(localz, lang, errKey, 111, 222)
+			if v := verb.FindString(got); v != "" {
+				t.Errorf("errMsg(%q) [%s] left %q unfilled: %q — add a case to errMsg's switch",
+					errKey, lang, v, got)
+			}
+			if strings.Contains(got, "%!") {
+				t.Errorf("errMsg(%q) [%s] produced an fmt artefact: %q", errKey, lang, got)
+			}
+		}
+	}
+
+	if checked == 0 {
+		t.Fatal("no errors.* message with a format verb was checked — the walk is broken, not the locales")
+	}
+}
+
+// loadLocale reads one embedded locale catalog. The Localizer deliberately
+// exposes no way to enumerate keys (nothing in the app needs it); the test
+// goes to the JSON instead of widening that API.
+func loadLocale(t *testing.T, lang string) map[string]string {
+	t.Helper()
+	data, err := quickmock.LocalesFS.ReadFile("locales/" + lang + ".json")
+	if err != nil {
+		t.Fatalf("read locale %q: %v", lang, err)
+	}
+	var msgs map[string]string
+	if err := json.Unmarshal(data, &msgs); err != nil {
+		t.Fatalf("parse locale %q: %v", lang, err)
+	}
+	return msgs
 }
