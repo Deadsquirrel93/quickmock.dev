@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html/template"
@@ -19,6 +20,13 @@ import (
 	"github.com/Deadsquirrel93/quickmock.dev/internal/sse"
 )
 
+// writeLimiter is the sliver of repository.RateLimiter the UI needs: one
+// quota check per state-changing request. Kept narrow so the handlers can be
+// tested against a fake instead of a live Redis.
+type writeLimiter interface {
+	Allow(ctx context.Context, key string) (repository.Decision, error)
+}
+
 // UI groups the HTML-rendering handlers.
 type UI struct {
 	svc      *service.MockService
@@ -31,14 +39,33 @@ type UI struct {
 	maxMocks int
 	broker   *sse.Broker
 	streams  *sse.StreamLimiter
+	writes   writeLimiter
 }
 
-func NewUI(svc *service.MockService, logs *repository.LogRepo, stats *service.StatsCache, renderer *Renderer, localz *i18n.Localizer, baseURL string, maxBody, maxMocks int, broker *sse.Broker, streams *sse.StreamLimiter) *UI {
-	return &UI{svc: svc, logs: logs, stats: stats, renderer: renderer, localz: localz, baseURL: baseURL, maxBody: maxBody, maxMocks: maxMocks, broker: broker, streams: streams}
+func NewUI(svc *service.MockService, logs *repository.LogRepo, stats *service.StatsCache, renderer *Renderer, localz *i18n.Localizer, baseURL string, maxBody, maxMocks int, broker *sse.Broker, streams *sse.StreamLimiter, writes writeLimiter) *UI {
+	return &UI{svc: svc, logs: logs, stats: stats, renderer: renderer, localz: localz, baseURL: baseURL, maxBody: maxBody, maxMocks: maxMocks, broker: broker, streams: streams, writes: writes}
 }
 
-// Home renders GET /.
-func (u *UI) Home(w http.ResponseWriter, r *http.Request) {
+// writeAllowed consumes one unit of the state-changing-UI quota for the
+// caller's IP. A limiter error fails open, the same call mockmw.RateLimit
+// makes: Redis being unreachable must not stop people from creating mocks.
+func (u *UI) writeAllowed(r *http.Request) bool {
+	if u.writes == nil {
+		return true
+	}
+	ip := mockmw.IPFromContext(r.Context())
+	dec, err := u.writes.Allow(r.Context(), "rl:uiwrite:"+ip)
+	if err != nil {
+		return true
+	}
+	return dec.Allowed
+}
+
+// homeData builds the render data the index template needs, shared by Home
+// and by every CreateForm branch that has to re-render the form instead of
+// redirecting — so an error or a throttled submit comes back on the same
+// page the user submitted, not a thinner copy of it. extra is merged last.
+func (u *UI) homeData(r *http.Request, extra map[string]any) map[string]any {
 	lang := i18n.LangFromContext(r.Context())
 	if lang == "" {
 		lang = u.localz.Fallback()
@@ -57,6 +84,15 @@ func (u *UI) Home(w http.ResponseWriter, r *http.Request) {
 		"Stats":     stats,
 		"JSONLD":    HomeJSONLD(u.localz, lang, u.baseURL, u.localz.Supported()),
 	}
+	for k, v := range extra {
+		data[k] = v
+	}
+	return data
+}
+
+// Home renders GET /.
+func (u *UI) Home(w http.ResponseWriter, r *http.Request) {
+	data := u.homeData(r, nil)
 	// A "Create this mock" CTA on a /guide/<slug> page links here with
 	// ?prefill=<slug>; hand the create form that case's config (the registry
 	// is the single source of truth) so the Alpine form can populate itself.
@@ -104,19 +140,21 @@ func (u *UI) CreateForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
 	}
+	if !u.writeAllowed(r) {
+		u.renderer.Render(w, r, "index", http.StatusOK, u.homeData(r, map[string]any{
+			"Error": "rate_limit",
+			"Input": readFormInput(r),
+		}))
+		return
+	}
 	in := readFormInput(r)
 	ip := mockmw.IPFromContext(r.Context())
 	m, err := u.svc.Create(r.Context(), in, ip)
 	if err != nil {
-		u.renderer.Render(w, r, "index", http.StatusOK, map[string]any{
-			"Methods":   model.AllMethods,
-			"MaxBody":   u.maxBody,
-			"MaxBodyKB": u.maxBody / 1024,
-			"MaxMocks":  u.maxMocks,
-			"Stats":     u.stats.Snapshot(r.Context()),
-			"Error":     errorKey(err),
-			"Input":     in,
-		})
+		u.renderer.Render(w, r, "index", http.StatusOK, u.homeData(r, map[string]any{
+			"Error": errorKey(err),
+			"Input": in,
+		}))
 		return
 	}
 	http.Redirect(w, r, mockRedirectLocation(m), http.StatusSeeOther)

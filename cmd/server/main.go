@@ -135,6 +135,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	statsRepo := repository.NewStatsRepo(pool)
 	mockLimiter := repository.NewRateLimiter(rdb, cfg.RateIP, cfg.RateWindow)
 	apiLimiter := repository.NewRateLimiter(rdb, 600, time.Minute)
+	uiWriteLimiter := repository.NewRateLimiter(rdb, cfg.RateUIWrite, cfg.RateUIWindow)
 	seqCounter := repository.NewSeqCounter(rdb)
 
 	// Services
@@ -181,7 +182,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	secureSite := strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://")
 
 	api := handler.NewAPI(mockSvc, logRepo, mockRepo, renderer, cfg.BaseURL)
-	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks, sseBroker, sseStreams)
+	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks, sseBroker, sseStreams, uiWriteLimiter)
 	mockRouter := handler.NewMockRouter(mockSvc, logWriter, seqCounter)
 	healthHandler := handler.Health(pool, mockLimiter)
 	langHandler := handler.Lang(renderer, secureSite)

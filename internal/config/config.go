@@ -14,20 +14,22 @@ import (
 
 // Config holds the resolved runtime configuration.
 type Config struct {
-	Addr        string
-	BaseURL     string
-	PGDSN       string
-	RedisAddr   string
-	RedisDB     int
-	RateIP      int
-	RateWindow  time.Duration
-	MaxBody     int
-	MaxMocks    int
-	DefaultTTL  time.Duration
-	MaxTTL      time.Duration
-	DefaultLang string
-	SSEMaxConns int
-	SSEMaxPerIP int
+	Addr         string
+	BaseURL      string
+	PGDSN        string
+	RedisAddr    string
+	RedisDB      int
+	RateIP       int
+	RateWindow   time.Duration
+	RateUIWrite  int
+	RateUIWindow time.Duration
+	MaxBody      int
+	MaxMocks     int
+	DefaultTTL   time.Duration
+	MaxTTL       time.Duration
+	DefaultLang  string
+	SSEMaxConns  int
+	SSEMaxPerIP  int
 
 	SpamPatternsFile string
 	SpamAllowIPs     []string
@@ -59,6 +61,15 @@ func Load() (Config, error) {
 		return c, err
 	}
 	if c.RateWindow, err = getDuration("QUICKMOCK_RATE_WINDOW", 8*time.Hour); err != nil {
+		return c, err
+	}
+	// State-changing UI POSTs get their own, much tighter bucket: creating a
+	// mock is already capped at MaxMocks active per IP, so a human never
+	// approaches this, while an automated loop hits it immediately.
+	if c.RateUIWrite, err = getInt("QUICKMOCK_RATE_UI_WRITE", 60); err != nil {
+		return c, err
+	}
+	if c.RateUIWindow, err = getDuration("QUICKMOCK_RATE_UI_WINDOW", time.Hour); err != nil {
 		return c, err
 	}
 	if c.MaxBody, err = getInt("QUICKMOCK_MAX_BODY", 524288); err != nil {

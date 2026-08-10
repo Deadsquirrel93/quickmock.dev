@@ -76,6 +76,12 @@ func (u *UI) TemplateCreate(w http.ResponseWriter, r *http.Request) {
 		u.renderer.Render(w, r, "404", http.StatusNotFound, nil)
 		return
 	}
+	if !u.writeAllowed(r) {
+		data := u.templateCaseData(r, tpl)
+		data["Error"] = "rate_limit"
+		u.renderer.Render(w, r, "templates_case", http.StatusOK, data)
+		return
+	}
 	in, _ := TemplateInput(slug)
 	ip := mockmw.IPFromContext(r.Context())
 	m, err := u.svc.Create(r.Context(), in, ip)
