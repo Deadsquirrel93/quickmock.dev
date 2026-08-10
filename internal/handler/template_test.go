@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"testing"
@@ -117,6 +119,36 @@ func TestTemplateCreateBodyParses(t *testing.T) {
 		if pathSuffixSlugs[tpl.Slug] && in.PathSuffix == "" {
 			t.Fatalf("%s: PathSuffix must not be empty", tpl.Slug)
 		}
+	}
+}
+
+// TestJWKSModulusDecodes guards against a structurally invalid "n": strict
+// JOSE libraries fail to even parse a JWK whose base64url modulus doesn't
+// decode, before they ever get to checking a signature — which defeats the
+// whole point of this template (exercising a client's JWKS parsing). n must
+// decode as unpadded base64url to exactly 256 bytes (an RSA-2048 modulus).
+func TestJWKSModulusDecodes(t *testing.T) {
+	in, ok := TemplateInput("jwks-endpoint")
+	if !ok {
+		t.Fatal("jwks-endpoint template must resolve")
+	}
+	var doc struct {
+		Keys []struct {
+			N string `json:"n"`
+		} `json:"keys"`
+	}
+	if err := json.Unmarshal([]byte(in.ResponseBody), &doc); err != nil {
+		t.Fatalf("ResponseBody is not valid JSON: %v", err)
+	}
+	if len(doc.Keys) != 1 {
+		t.Fatalf("want exactly 1 key, got %d", len(doc.Keys))
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(doc.Keys[0].N)
+	if err != nil {
+		t.Fatalf("n does not decode as base64url: %v", err)
+	}
+	if len(decoded) != 256 {
+		t.Fatalf("decoded modulus is %d bytes, want 256 (RSA-2048)", len(decoded))
 	}
 }
 

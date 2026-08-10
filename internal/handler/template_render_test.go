@@ -149,6 +149,47 @@ func TestTemplateCaseRenders(t *testing.T) {
 	}
 }
 
+// callCodeRe extracts the "call the mock" curl command shown on a
+// /templates/<slug> page, the same way payloadBlockRe pulls out the payload
+// preview above.
+var callCodeRe = regexp.MustCompile(`(?s)<code x-ref="callCode">(.*?)</code>`)
+
+func callCodeBlock(t *testing.T, body string) string {
+	t.Helper()
+	m := callCodeRe.FindStringSubmatch(body)
+	if m == nil {
+		t.Fatal("page missing the call curl code block")
+	}
+	return html.UnescapeString(m[1])
+}
+
+// TestTemplateCaseCallCurlIncludesPathSuffix guards against the "how to call
+// it" curl example silently dropping a template's path_suffix: for templates
+// like openid-configuration and jwks-endpoint, the whole point is the nested
+// well-known path, and the example must match what MockURL actually serves.
+func TestTemplateCaseCallCurlIncludesPathSuffix(t *testing.T) {
+	u := testUI(t)
+
+	w := httptest.NewRecorder()
+	req := withSlug(httptest.NewRequest("GET", "/templates/openid-configuration", nil), "openid-configuration")
+	u.TemplateCase(w, req)
+	call := callCodeBlock(t, w.Body.String())
+	if !strings.Contains(call, "/m/<slug>/.well-known/openid-configuration") {
+		t.Fatalf("call curl missing the path suffix: %s", call)
+	}
+
+	w = httptest.NewRecorder()
+	req = withSlug(httptest.NewRequest("GET", "/templates/stripe-webhook", nil), "stripe-webhook")
+	u.TemplateCase(w, req)
+	call = callCodeBlock(t, w.Body.String())
+	if !strings.HasSuffix(strings.TrimSpace(call), "/m/<slug>") {
+		t.Fatalf("call curl for a suffix-less template must end on /m/<slug>: %s", call)
+	}
+	if strings.Contains(call, ".well-known") {
+		t.Fatalf("call curl for a suffix-less template must not mention .well-known: %s", call)
+	}
+}
+
 func TestTemplateCaseUnknownSlug(t *testing.T) {
 	u := testUI(t)
 	w := httptest.NewRecorder()

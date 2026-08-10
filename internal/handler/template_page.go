@@ -112,15 +112,17 @@ func (u *UI) templateCaseData(r *http.Request, tpl MockTemplate) map[string]any 
 	// address this body, not the POST /api/mocks envelope shown below in
 	// the "Create" curl example.
 	payload := tpl.CreateBody
+	pathSuffix := ""
 	if in, ok := TemplateInput(tpl.Slug); ok {
 		payload = prettyPayload(in.ResponseBody)
+		pathSuffix = in.PathSuffix
 	}
 
 	return map[string]any{
 		"Template":        tpl,
 		"Payload":         payload,
 		"CreateCurl":      createCurl(u.baseURL, tpl.CreateBody),
-		"CallCurl":        callCurl(u.baseURL, tpl.CallVerb, tpl.CallHeader, tpl.CallData),
+		"CallCurl":        callCurl(u.baseURL, tpl.CallVerb, tpl.CallHeader, tpl.CallData, pathSuffix),
 		"Fields":          fields,
 		"MetaTitle":       title + " — " + u.localz.T(lang, "app.name"),
 		"MetaDescription": u.localz.T(lang, tpl.KeyPrefix+".summary"),

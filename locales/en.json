@@ -65,7 +65,7 @@
   "changelog.section.fixed": "Fixed",
   "changelog.section.security": "Security",
   "changelog.r0809.title": "2026-08-09 — Mock template gallery",
-  "changelog.r0809.added1": "New <a href=\"/templates\">/templates</a> section: ten ready-made mock configurations across four categories (payments, developer tools, auth &amp; identity, general purpose) — Stripe and Shopify webhooks, GitHub push events, Slack's <code>url_verification</code> handshake, OAuth2/OIDC discovery and JWKS, RFC 7807 error bodies, and more.",
+  "changelog.r0809.added1": "New <a href=\"/templates\">/templates</a> section: ten ready-made mock configurations across four categories (payments, developer tools, auth &amp; identity, general purpose) — Stripe and Shopify webhooks, GitHub push events, Slack's <code>url_verification</code> handshake, OAuth2/OIDC discovery and JWKS, RFC 9457 error bodies, and more.",
   "changelog.r0809.added2": "Every template's \"Create this mock\" button creates it in one click, and the \"Open it in the mock builder to tweak first\" link opens the same config pre-filled in the regular mock form so you can adjust fields, headers, or status codes before saving.",
   "changelog.r0809.added3": "Each template page breaks down the payload's key fields and lists exactly how the mock differs from the real service it imitates — no pretending a static mock is the genuine API.",
   "changelog.r0809.fixed1": "The home page's \"you've hit the active-mock limit\" banner used to show the request-body size limit instead of the actual mock-count limit, plus a stray <code>%!(EXTRA int=…)</code> tail. It now shows the correct number with nothing extra appended.",

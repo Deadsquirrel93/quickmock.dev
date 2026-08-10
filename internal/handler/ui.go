@@ -261,7 +261,7 @@ func guideCreateCurl(baseURL string, c UseCase) string {
 // guideCallCurl renders the command that calls the created mock. The slug is a
 // placeholder the reader replaces with the slug from the create response.
 func guideCallCurl(baseURL string, c UseCase) string {
-	return callCurl(baseURL, c.CallVerb, c.CallHeader, c.CallData)
+	return callCurl(baseURL, c.CallVerb, c.CallHeader, c.CallData, "")
 }
 
 // createCurl renders the copy-paste command that creates a mock from
@@ -273,8 +273,10 @@ func createCurl(baseURL, createBody string) string {
 
 // callCurl renders the command that calls a created mock. The slug is a
 // placeholder the reader replaces with the slug from the create response.
-// header and data are optional ("" if unused).
-func callCurl(baseURL, verb, header, data string) string {
+// header and data are optional ("" if unused); pathSuffix is the mock's
+// configured path suffix ("" if none), appended after the slug the same way
+// service.MockURL does.
+func callCurl(baseURL, verb, header, data, pathSuffix string) string {
 	base := strings.TrimRight(baseURL, "/")
 	parts := []string{"curl"}
 	if verb != "GET" {
@@ -286,7 +288,11 @@ func callCurl(baseURL, verb, header, data string) string {
 	if data != "" {
 		parts = append(parts, "-H 'Content-Type: application/json'", "-d '"+data+"'")
 	}
-	parts = append(parts, base+"/m/<slug>")
+	url := base + "/m/<slug>"
+	if pathSuffix != "" {
+		url += "/" + pathSuffix
+	}
+	parts = append(parts, url)
 	return strings.Join(parts, " ")
 }
 

@@ -166,7 +166,7 @@ the webhook response itself is treated as a Bot API method call`,
   "response_status": 200,
   "content_type": "application/json",
   "path_suffix": ".well-known/jwks.json",
-  "response_body": "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS256\",\"kid\":\"quickmock-demo-2024\",\"n\":\"sXch2YgWJKl9m3QrTz8vNcPdEoU1bYFhGx0jRkLm4nOaQpS7iVtW2cXeYbAd8fQmZ1tRkYpVnDsWlOc3Jk-4bHxCzQd7yTaMv9uNwEgLh0iPo2sVfBrKjXn5c\",\"e\":\"AQAB\"}]}"
+  "response_body": "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS256\",\"kid\":\"quickmock-demo-2024\",\"n\":\"n6cS6BgeHi-qEzBkR5cS-MPBwt1dG9y-tGiSTw8Uov3jMu9Yiz6Oua5dg6xKnEhP20owo6iHI_MMSjU6Sb6iKSyIskDb5myN9DHC6exkDsoKPn5tPOIbzXeV0SaF-b3BejNwakl5nfHVHFMkbLCvx9KP985_5k3b7hD1UTdBOFYLIgHWTIlUkV1L9o5DoiGMm2GYWxww3tL_ZFllp4i4yyPP6c4D_J7kgFukBBZZBGe3Ou1QvzcNUYoaRNRK1PRBsC24xSfN1oZYBd4xpg6Kp3xmpsGR2nzWCviSWbvHatFusy_NqCq2Io1EAeup_i0eIN86t2-G7rn4Uoul27BQcQ\",\"e\":\"AQAB\"}]}"
 }`,
 		"GET", "", "",
 		"GET /m/<slug>/.well-known/jwks.json -> 200 one RSA JWK\nthe key is illustrative only, it does not verify any real signature",
