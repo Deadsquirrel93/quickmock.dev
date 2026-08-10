@@ -234,7 +234,6 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		r.Use(mockmw.UICSP())
 
 		r.Get("/", ui.Home)
-		r.Post("/", ui.CreateForm)
 		r.Get("/mock/{slug}", ui.Detail)
 		r.Get("/mock/{slug}/logs", ui.LogsPartial)
 		r.Get("/mock/{slug}/logs/stream", ui.LogsStream)
@@ -247,10 +246,17 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		r.Get("/guide/{slug}", ui.GuideCase)
 		r.Get("/templates", ui.Templates)
 		r.Get("/templates/{slug}", ui.TemplateCase)
-		r.Post("/templates/{slug}/create", ui.TemplateCreate)
 		r.Get("/share/{slug}", ui.Share)
 		r.Post("/language", langHandler)
 		r.NotFound(ui.NotFound)
+
+		// State-changing UI routes only: a third-party page cannot browser-fetch
+		// its way into creating a mock and burning the visitor's IP quota.
+		r.Group(func(r chi.Router) {
+			r.Use(mockmw.RejectCrossSite(cfg.BaseURL))
+			r.Post("/", ui.CreateForm)
+			r.Post("/templates/{slug}/create", ui.TemplateCreate)
+		})
 
 		// JSON API
 		r.Route("/api", func(r chi.Router) {
