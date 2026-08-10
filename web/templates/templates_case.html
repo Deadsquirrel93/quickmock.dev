@@ -22,7 +22,7 @@
       <span x-show="!copied">{{ t "common.copy" }}</span>
       <span x-show="copied" x-cloak>{{ t "common.copied" }}</span>
     </button>
-    <pre class="guide-code"><code x-ref="payloadCode">{{ .Template.CreateBody }}</code></pre>
+    <pre class="guide-code"><code x-ref="payloadCode">{{ .Payload }}</code></pre>
   </div>
 
   <h2>{{ t "templates.section.fields" }}</h2>

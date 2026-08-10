@@ -2,14 +2,32 @@ package handler
 
 import (
 	"encoding/json"
+	"html"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
 	quickmock "github.com/Deadsquirrel93/quickmock.dev"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
 )
+
+// payloadBlockRe extracts the contents of the payload <pre><code> block so
+// tests can assert on the response-body preview specifically, without
+// tripping over unrelated markup elsewhere on the page. html/template
+// escapes the quotes in that content (e.g. " -> &#34;), so the match is
+// unescaped back to plain text before the caller inspects it.
+var payloadBlockRe = regexp.MustCompile(`(?s)<code x-ref="payloadCode">(.*?)</code>`)
+
+func payloadBlock(t *testing.T, body string) string {
+	t.Helper()
+	m := payloadBlockRe.FindStringSubmatch(body)
+	if m == nil {
+		t.Fatal("page missing the payload code block")
+	}
+	return html.UnescapeString(m[1])
+}
 
 func TestTemplateCaseRenders(t *testing.T) {
 	u := testUI(t)
@@ -35,6 +53,22 @@ func TestTemplateCaseRenders(t *testing.T) {
 			for _, path := range tpl.Fields {
 				if !strings.Contains(body, path) {
 					t.Fatalf("page missing field path %q", path)
+				}
+			}
+			// The payload block must show the pretty-printed response body
+			// (what the Fields table's JSON paths address), not the
+			// escaped-quote string that POST /api/mocks' response_body
+			// carries.
+			block := payloadBlock(t, body)
+			if strings.Contains(block, `\"`) {
+				t.Fatalf("payload block still shows an escaped-quote string: %s", block)
+			}
+			if tpl.Slug == "stripe-webhook" {
+				if !strings.Contains(block, `"amount": 4999`) {
+					t.Fatalf("payload block missing the response body's amount field: %s", block)
+				}
+				if !strings.Contains(block, `"object": "payment_intent"`) {
+					t.Fatalf("payload block missing the response body's object field: %s", block)
 				}
 			}
 		})
@@ -69,6 +103,38 @@ func TestTemplateCaseJSONLD(t *testing.T) {
 	var v any
 	if err := json.Unmarshal([]byte(js), &v); err != nil {
 		t.Fatalf("JSON-LD is not valid JSON: %v", err)
+	}
+}
+
+func TestPrettyPayload(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "bare token as a value",
+			in:   `{"created":{{now.unix}}}`,
+			want: "{\n  \"created\": {{now.unix}}\n}",
+		},
+		{
+			name: "token inside a string",
+			in:   `{"email":"{{faker.email}}"}`,
+			want: "{\n  \"email\": \"{{faker.email}}\"\n}",
+		},
+		{
+			name: "unformattable input is returned unchanged",
+			in:   `{"a":1,}`,
+			want: `{"a":1,}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := prettyPayload(tt.in)
+			if got != tt.want {
+				t.Fatalf("prettyPayload(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
 	}
 }
 
