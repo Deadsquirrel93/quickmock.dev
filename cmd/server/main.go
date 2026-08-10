@@ -245,6 +245,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		r.Get("/changelog", ui.Changelog)
 		r.Get("/guide", ui.Guide)
 		r.Get("/guide/{slug}", ui.GuideCase)
+		r.Get("/templates", ui.Templates)
 		r.Get("/templates/{slug}", ui.TemplateCase)
 		r.Get("/share/{slug}", ui.Share)
 		r.Post("/language", langHandler)

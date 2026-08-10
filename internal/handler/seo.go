@@ -196,6 +196,46 @@ func TemplateCaseJSONLD(localz *i18n.Localizer, lang, baseURL string, t MockTemp
 	return template.JS(strings.ReplaceAll(string(buf), "</", `<\/`))
 }
 
+// TemplateIndexJSONLD builds the schema.org graph for the /templates index: an
+// ItemList of every template plus a BreadcrumbList (Home -> Templates).
+// Mirrors TemplateCaseJSONLD's defang of "</" so the inline <script> can't be
+// broken out of.
+func TemplateIndexJSONLD(localz *i18n.Localizer, lang, baseURL string) template.JS {
+	tr := func(key string, args ...any) string { return localz.T(lang, key, args...) }
+	base := strings.TrimRight(baseURL, "/")
+
+	items := make([]map[string]any, 0, len(MockTemplates))
+	for i, tpl := range MockTemplates {
+		items = append(items, map[string]any{
+			"@type":    "ListItem",
+			"position": i + 1,
+			"url":      base + "/templates/" + tpl.Slug,
+			"name":     tr(tpl.KeyPrefix + ".title"),
+		})
+	}
+	itemList := map[string]any{
+		"@type":           "ItemList",
+		"itemListElement": items,
+	}
+	breadcrumb := map[string]any{
+		"@type": "BreadcrumbList",
+		"itemListElement": []map[string]any{
+			{"@type": "ListItem", "position": 1, "name": tr("guide.breadcrumb.home"), "item": base + "/"},
+			{"@type": "ListItem", "position": 2, "name": tr("templates.breadcrumb.templates"), "item": base + "/templates"},
+		},
+	}
+
+	payload := map[string]any{
+		"@context": "https://schema.org",
+		"@graph":   []map[string]any{itemList, breadcrumb},
+	}
+	buf, err := json.Marshal(payload)
+	if err != nil {
+		return template.JS("{}")
+	}
+	return template.JS(strings.ReplaceAll(string(buf), "</", `<\/`))
+}
+
 func RobotsTxt(baseURL string) http.HandlerFunc {
 	uas := []string{
 		"*",

@@ -1,0 +1,32 @@
+{{ define "head" }}
+<script type="application/ld+json">{{ .JSONLD }}</script>
+{{ end }}
+
+{{ define "content" }}
+<section class="guide templates-index container">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">{{ t "guide.breadcrumb.home" }}</a> ·
+    <span aria-current="page">{{ t "templates.breadcrumb.templates" }}</span>
+  </nav>
+
+  <h1>{{ t "templates.title" }}</h1>
+  <p class="guide-intro">{{ t "templates.intro" }}</p>
+
+  {{ range .Sections }}
+  <section class="templates-section">
+    <h2>{{ t (printf "templates.category.%s" .Category) }}</h2>
+    <div class="guide-grid templates-grid">
+      {{ range .Templates }}
+      <a class="guide-card templates-card card" href="/templates/{{ .Slug }}">
+        <h3>{{ t (printf "%s.title" .KeyPrefix) }}</h3>
+        <p>{{ t (printf "%s.summary" .KeyPrefix) }}</p>
+        <p class="badge templates-card-kind">{{ t (printf "templates.kind.%s" .Kind) }}</p>
+      </a>
+      {{ end }}
+    </div>
+  </section>
+  {{ end }}
+
+  <p><a href="/guide">{{ t "nav.guide" }}</a></p>
+</section>
+{{ end }}

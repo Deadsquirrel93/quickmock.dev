@@ -21,6 +21,36 @@ type templateFieldRow struct {
 	Meaning string
 }
 
+// templateCategorySection groups a category with its templates, in
+// TemplateCategories order, for the /templates index.
+type templateCategorySection struct {
+	Category  TemplateCategory
+	Templates []MockTemplate
+}
+
+// Templates renders GET /templates — the gallery index, grouped by category.
+func (u *UI) Templates(w http.ResponseWriter, r *http.Request) {
+	lang := i18n.LangFromContext(r.Context())
+	if lang == "" {
+		lang = u.localz.Fallback()
+	}
+
+	sections := make([]templateCategorySection, 0, len(TemplateCategories))
+	for _, c := range TemplateCategories {
+		sections = append(sections, templateCategorySection{
+			Category:  c,
+			Templates: TemplatesByCategory(c),
+		})
+	}
+
+	u.renderer.Render(w, r, "templates_index", http.StatusOK, map[string]any{
+		"Sections":        sections,
+		"MetaTitle":       u.localz.T(lang, "templates.title") + " — " + u.localz.T(lang, "app.name"),
+		"MetaDescription": u.localz.T(lang, "templates.meta_description"),
+		"JSONLD":          TemplateIndexJSONLD(u.localz, lang, u.baseURL),
+	})
+}
+
 // TemplateCase renders GET /templates/:slug — one template detail page.
 func (u *UI) TemplateCase(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")

@@ -1192,6 +1192,20 @@ input:focus, select:focus, textarea:focus {
   border-bottom: 1px solid var(--border);
 }
 .templates-fields-table th { color: var(--fg-muted); font-weight: 600; }
+
+/* Template gallery index: one heading + card grid per category. */
+.templates-section { margin: 0 0 2rem; }
+.templates-section h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+.templates-grid { margin: 0; }
+/* templates-card reuses .guide-card's link/flex reset; only the kind plaque
+   needs its own spacing so it doesn't stretch to the card's full width. */
+.templates-card h3 { margin: 0; font-size: 1.05rem; color: var(--accent); }
+.templates-card-kind {
+  align-self: flex-start;
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
 .templates-fields-table td:first-child {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
   white-space: nowrap;

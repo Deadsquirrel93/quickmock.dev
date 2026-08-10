@@ -29,6 +29,80 @@ func payloadBlock(t *testing.T, body string) string {
 	return html.UnescapeString(m[1])
 }
 
+func TestTemplateIndexRenders(t *testing.T) {
+	u := testUI(t)
+	w := httptest.NewRecorder()
+	u.Templates(w, httptest.NewRequest("GET", "/templates", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := html.UnescapeString(w.Body.String())
+	for _, tpl := range MockTemplates {
+		if !strings.Contains(body, "/templates/"+tpl.Slug) {
+			t.Fatalf("index missing link to %s", tpl.Slug)
+		}
+	}
+	for _, c := range TemplateCategories {
+		title := u.localz.T("en", "templates.category."+string(c))
+		if !strings.Contains(body, title) {
+			t.Fatalf("index missing category heading %q", title)
+		}
+	}
+}
+
+func TestTemplateIndexJSONLD(t *testing.T) {
+	localz := i18n.New("en")
+	if err := localz.LoadFS(quickmock.LocalesFS, "locales"); err != nil {
+		t.Fatal(err)
+	}
+	js := string(TemplateIndexJSONLD(localz, "en", "https://example.test"))
+	if !strings.Contains(js, "ItemList") {
+		t.Fatalf("JSON-LD missing ItemList in %s", js)
+	}
+
+	type graphNode struct {
+		Type            string `json:"@type"`
+		ItemListElement []any  `json:"itemListElement"`
+	}
+	var payload struct {
+		Graph []graphNode `json:"@graph"`
+	}
+	if err := json.Unmarshal([]byte(js), &payload); err != nil {
+		t.Fatalf("JSON-LD is not valid JSON: %v", err)
+	}
+
+	var found bool
+	for _, node := range payload.Graph {
+		if node.Type != "ItemList" {
+			continue
+		}
+		found = true
+		if got := len(node.ItemListElement); got != len(MockTemplates) {
+			t.Fatalf("ItemList has %d ListItem entries, want %d", got, len(MockTemplates))
+		}
+	}
+	if !found {
+		t.Fatal("JSON-LD @graph missing the ItemList node")
+	}
+}
+
+func TestTemplatesByCategory(t *testing.T) {
+	total := 0
+	seen := make(map[string]TemplateCategory)
+	for _, c := range TemplateCategories {
+		for _, tpl := range TemplatesByCategory(c) {
+			if prev, ok := seen[tpl.Slug]; ok {
+				t.Fatalf("template %q appears in both %q and %q", tpl.Slug, prev, c)
+			}
+			seen[tpl.Slug] = c
+		}
+		total += len(TemplatesByCategory(c))
+	}
+	if total != len(MockTemplates) {
+		t.Fatalf("sum of category lengths = %d, want %d", total, len(MockTemplates))
+	}
+}
+
 func TestTemplateCaseRenders(t *testing.T) {
 	u := testUI(t)
 	for _, tpl := range MockTemplates {
