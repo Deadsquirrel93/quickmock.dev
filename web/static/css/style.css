@@ -106,7 +106,8 @@ a:hover { text-decoration: underline; }
 .brand:hover { text-decoration: none; }
 .nav {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
   flex: 1;
 }
 .nav a {
@@ -1226,8 +1227,23 @@ input:focus, select:focus, textarea:focus {
 
 /* ---- Mobile ---- */
 @media (max-width: 640px) {
-  .header-row { gap: 0.75rem; flex-wrap: wrap; }
-  .nav { order: 3; flex-basis: 100%; }
+  /* Two rows: brand + controls on top, the whole nav below it. The brand's
+     auto margin is what pushes the theme and language buttons to the right
+     edge — .nav carries the flex:1 that does that job on desktop, and it has
+     left this row. The nav itself wraps rather than overflowing: five items
+     no longer fit on one line at phone widths. */
+  .header-row { gap: 0.5rem 0.75rem; flex-wrap: wrap; }
+  .brand { margin-right: auto; }
+  .nav {
+    order: 3;
+    /* 0 0 100% and not flex-basis alone: the shorthand would reset the basis
+       back to auto, and an auto-width nav overflows the row instead of
+       wrapping inside it. */
+    flex: 0 0 100%;
+    gap: 0.35rem 0.9rem;
+    font-size: 0.95rem;
+  }
+  .footer-row { gap: 0.5rem; }
   .hero { padding-top: 2rem; }
   .btn { min-height: 44px; }
   .url-row { flex-direction: column; }
