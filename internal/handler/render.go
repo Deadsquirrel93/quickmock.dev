@@ -193,10 +193,36 @@ func (r *Renderer) Render(w http.ResponseWriter, req *http.Request, name string,
 	}
 }
 
+// errMsg renders the localized text for an error key from errorKey (ui.go),
+// passing along exactly the numeric argument that key's locale string has a
+// placeholder for. errors.body_too_large has one %d for the body size limit
+// (KB); errors.mock_limit_reached has one %d for the active-mocks limit;
+// every other key takes no arguments. Localizer.T (i18n.go) only swallows
+// extra args when the message has no "%" at all, so handing it two args
+// when the message format has exactly one produces a literal
+// "%!(EXTRA ...)" tail — or, since both callers' args are ints, silently
+// substitutes the wrong number instead. Keeping that per-key mapping here,
+// once, is the point: every template that shows this banner calls this
+// instead of re-deciding which limit its error key wants.
+func errMsg(localz *i18n.Localizer, lang, errKey string, maxBodyKB, maxMocks int) string {
+	key := "errors." + errKey
+	switch errKey {
+	case "body_too_large":
+		return localz.T(lang, key, maxBodyKB)
+	case "mock_limit_reached":
+		return localz.T(lang, key, maxMocks)
+	default:
+		return localz.T(lang, key)
+	}
+}
+
 func (r *Renderer) baseFuncMap(lang string) template.FuncMap {
 	return template.FuncMap{
 		"t": func(key string, args ...any) string {
 			return r.localz.T(lang, key, args...)
+		},
+		"errMsg": func(errKey string, maxBodyKB, maxMocks int) string {
+			return errMsg(r.localz, lang, errKey, maxBodyKB, maxMocks)
 		},
 		"currentLang": func() string { return lang },
 		"langName": func(code string) string {

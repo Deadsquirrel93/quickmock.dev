@@ -2,10 +2,12 @@ package handler
 
 import (
 	"io/fs"
+	"strings"
 	"testing"
 	"testing/fstest"
 
 	quickmock "github.com/Deadsquirrel93/quickmock.dev"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
 )
 
 func TestAssetVersionStableAndContentSensitive(t *testing.T) {
@@ -73,5 +75,59 @@ func TestAssetVersionFromEmbeddedFS(t *testing.T) {
 	}
 	if len(v) != 12 {
 		t.Fatalf("version length = %d, want 12 (%q)", len(v), v)
+	}
+}
+
+// TestErrMsgPicksTheRightArg covers the bug this helper exists to prevent:
+// errors.body_too_large and errors.mock_limit_reached each carry exactly one
+// %d placeholder, for different limits, but the error banner has both
+// numbers on hand. errMsg must forward only the one the key actually wants
+// (never both — that leaves an fmt "%!(EXTRA ...)" tail, or silently
+// substitutes the wrong limit since both are ints).
+func TestErrMsgPicksTheRightArg(t *testing.T) {
+	localz := i18n.New("en")
+	if err := localz.LoadFS(quickmock.LocalesFS, "locales"); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name        string
+		errKey      string
+		maxBodyKB   int
+		maxMocks    int
+		wantContain string
+	}{
+		{
+			name:        "body_too_large uses the body limit",
+			errKey:      "body_too_large",
+			maxBodyKB:   100,
+			maxMocks:    50,
+			wantContain: "100 KB",
+		},
+		{
+			name:        "mock_limit_reached uses the mock limit, not the body limit",
+			errKey:      "mock_limit_reached",
+			maxBodyKB:   100,
+			maxMocks:    50,
+			wantContain: "50 active mocks",
+		},
+		{
+			name:        "a key with no placeholder is returned as-is",
+			errKey:      "spam_blocked",
+			maxBodyKB:   100,
+			maxMocks:    50,
+			wantContain: localz.T("en", "errors.spam_blocked"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := errMsg(localz, "en", tt.errKey, tt.maxBodyKB, tt.maxMocks)
+			if strings.Contains(got, "%!(EXTRA") {
+				t.Fatalf("errMsg(%q) leaked a fmt EXTRA tail: %q", tt.errKey, got)
+			}
+			if !strings.Contains(got, tt.wantContain) {
+				t.Fatalf("errMsg(%q) = %q, want it to contain %q", tt.errKey, got, tt.wantContain)
+			}
+		})
 	}
 }

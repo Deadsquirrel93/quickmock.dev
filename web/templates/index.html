@@ -47,7 +47,7 @@
 <section class="container">
   {{ if .Error }}
     <div class="banner banner-error" role="alert">
-      {{ t (printf "errors.%s" .Error) $.MaxBodyKB $.MaxMocks }}
+      {{ errMsg .Error $.MaxBodyKB $.MaxMocks }}
     </div>
   {{ end }}
 
