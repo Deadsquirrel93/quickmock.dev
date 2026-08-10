@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
+	mockmw "github.com/Deadsquirrel93/quickmock.dev/internal/middleware"
 )
 
 // templateFieldRow pairs a JSON path from MockTemplate.Fields with its
@@ -59,6 +60,39 @@ func (u *UI) TemplateCase(w http.ResponseWriter, r *http.Request) {
 		u.renderer.Render(w, r, "404", http.StatusNotFound, nil)
 		return
 	}
+	u.renderer.Render(w, r, "templates_case", http.StatusOK, u.templateCaseData(r, tpl))
+}
+
+// TemplateCreate handles POST /templates/:slug/create — the gallery's
+// one-click "Create this mock" CTA. It builds the mock straight from the
+// template registry (TemplateInput, the same source of truth the case page
+// itself renders) and follows the same Post/Redirect/Get flow as CreateForm
+// (ui.go): redirect to the new mock's management page on success, or
+// re-render this same case page with an error banner on failure.
+func (u *UI) TemplateCreate(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	tpl, ok := TemplateBySlug(slug)
+	if !ok {
+		u.renderer.Render(w, r, "404", http.StatusNotFound, nil)
+		return
+	}
+	in, _ := TemplateInput(slug)
+	ip := mockmw.IPFromContext(r.Context())
+	m, err := u.svc.Create(r.Context(), in, ip)
+	if err != nil {
+		data := u.templateCaseData(r, tpl)
+		data["Error"] = errorKey(err)
+		u.renderer.Render(w, r, "templates_case", http.StatusOK, data)
+		return
+	}
+	http.Redirect(w, r, mockRedirectLocation(m), http.StatusSeeOther)
+}
+
+// templateCaseData builds the render data for the templates_case template,
+// shared by TemplateCase and TemplateCreate's error path so a failed
+// one-click create re-renders the exact same case page it was submitted
+// from, instead of drifting out of sync with it.
+func (u *UI) templateCaseData(r *http.Request, tpl MockTemplate) map[string]any {
 	lang := i18n.LangFromContext(r.Context())
 	if lang == "" {
 		lang = u.localz.Fallback()
@@ -78,11 +112,11 @@ func (u *UI) TemplateCase(w http.ResponseWriter, r *http.Request) {
 	// address this body, not the POST /api/mocks envelope shown below in
 	// the "Create" curl example.
 	payload := tpl.CreateBody
-	if in, ok := TemplateInput(slug); ok {
+	if in, ok := TemplateInput(tpl.Slug); ok {
 		payload = prettyPayload(in.ResponseBody)
 	}
 
-	u.renderer.Render(w, r, "templates_case", http.StatusOK, map[string]any{
+	return map[string]any{
 		"Template":        tpl,
 		"Payload":         payload,
 		"CreateCurl":      createCurl(u.baseURL, tpl.CreateBody),
@@ -92,7 +126,9 @@ func (u *UI) TemplateCase(w http.ResponseWriter, r *http.Request) {
 		"MetaDescription": u.localz.T(lang, tpl.KeyPrefix+".summary"),
 		"JSONLD":          TemplateCaseJSONLD(u.localz, lang, u.baseURL, tpl),
 		"RelatedGuide":    tpl.RelatedGuide,
-	})
+		"MaxBodyKB":       u.maxBody / 1024,
+		"MaxMocks":        u.maxMocks,
+	}
 }
 
 // payloadTokenRe matches a {{...}} templating token with no nested braces —

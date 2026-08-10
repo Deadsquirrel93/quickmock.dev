@@ -247,6 +247,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		r.Get("/guide/{slug}", ui.GuideCase)
 		r.Get("/templates", ui.Templates)
 		r.Get("/templates/{slug}", ui.TemplateCase)
+		r.Post("/templates/{slug}/create", ui.TemplateCreate)
 		r.Get("/share/{slug}", ui.Share)
 		r.Post("/language", langHandler)
 		r.NotFound(ui.NotFound)

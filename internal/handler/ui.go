@@ -43,18 +43,28 @@ func (u *UI) Home(w http.ResponseWriter, r *http.Request) {
 	if lang == "" {
 		lang = u.localz.Fallback()
 	}
+	// u.stats is nil in the render-only test fixture (no DB behind it); the
+	// real server always wires one up via NewUI.
+	stats := map[string]int64{}
+	if u.stats != nil {
+		stats = u.stats.Snapshot(r.Context())
+	}
 	data := map[string]any{
 		"Methods":   model.AllMethods,
 		"MaxBody":   u.maxBody,
 		"MaxMocks":  u.maxMocks,
 		"MaxBodyKB": u.maxBody / 1024,
-		"Stats":     u.stats.Snapshot(r.Context()),
+		"Stats":     stats,
 		"JSONLD":    HomeJSONLD(u.localz, lang, u.baseURL, u.localz.Supported()),
 	}
 	// A "Create this mock" CTA on a /guide/<slug> page links here with
 	// ?prefill=<slug>; hand the create form that case's config (the registry
 	// is the single source of truth) so the Alpine form can populate itself.
+	// A /templates/<slug> gallery card offers the same CTA via
+	// ?prefill_template=<slug>; when both are present the guide wins.
 	if prefill, ok := guidePrefill(r.URL.Query().Get("prefill")); ok {
+		data["Prefill"] = prefill
+	} else if prefill, ok := templatePrefill(r.URL.Query().Get("prefill_template")); ok {
 		data["Prefill"] = prefill
 	}
 	u.renderer.Render(w, r, "index", http.StatusOK, data)
@@ -68,6 +78,19 @@ func guidePrefill(slug string) (template.JS, bool) {
 	}
 	if c, ok := UseCaseBySlug(slug); ok {
 		return template.JS(c.CreateBody), true
+	}
+	return "", false
+}
+
+// templatePrefill returns a gallery template's create body as inline JS for
+// the home form to apply, when slug names a known /templates/<slug> entry.
+// The body is in-repo trusted content, same as guidePrefill.
+func templatePrefill(slug string) (template.JS, bool) {
+	if slug == "" {
+		return "", false
+	}
+	if tpl, ok := TemplateBySlug(slug); ok {
+		return template.JS(tpl.CreateBody), true
 	}
 	return "", false
 }

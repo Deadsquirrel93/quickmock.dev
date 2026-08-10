@@ -159,6 +159,71 @@ func TestTemplateCaseUnknownSlug(t *testing.T) {
 	}
 }
 
+// TestTemplateCreateUnknownSlug covers only the 404 branch: an unknown slug
+// never reaches u.svc.Create, so this is safe to run against testUI's
+// service-less fixture. The success path needs a real MockService (a live
+// Postgres pool behind it) and is verified manually, not in this package.
+func TestTemplateCreateUnknownSlug(t *testing.T) {
+	u := testUI(t)
+	w := httptest.NewRecorder()
+	req := withSlug(httptest.NewRequest("POST", "/templates/nope/create", nil), "nope")
+	u.TemplateCreate(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", w.Code)
+	}
+}
+
+func TestTemplatePrefill(t *testing.T) {
+	js, ok := templatePrefill("stripe-webhook")
+	if !ok {
+		t.Fatal("known slug must produce prefill")
+	}
+	if !strings.Contains(string(js), "response_body") {
+		t.Fatalf("prefill missing the template config: %s", js)
+	}
+	if _, ok := templatePrefill("does-not-exist"); ok {
+		t.Fatal("unknown slug must not produce prefill")
+	}
+	if _, ok := templatePrefill(""); ok {
+		t.Fatal("empty slug must not produce prefill")
+	}
+}
+
+func TestHomePrefillTemplateQuery(t *testing.T) {
+	u := testUI(t)
+
+	w := httptest.NewRecorder()
+	u.Home(w, httptest.NewRequest("GET", "/?prefill_template=stripe-webhook", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "payment_intent.succeeded") {
+		t.Fatal("page missing the template's prefill payload")
+	}
+
+	w = httptest.NewRecorder()
+	u.Home(w, httptest.NewRequest("GET", "/?prefill_template=does-not-exist", nil))
+	if strings.Contains(w.Body.String(), "window.__qmPrefill =") {
+		t.Fatal("unknown template slug must not set window.__qmPrefill")
+	}
+}
+
+func TestHomePrefillGuideWinsOverTemplate(t *testing.T) {
+	u := testUI(t)
+	w := httptest.NewRecorder()
+	u.Home(w, httptest.NewRequest("GET", "/?prefill=simulate-slow-api&prefill_template=stripe-webhook", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "response_delay_ms") {
+		t.Fatal("guide prefill must win when both params are present")
+	}
+	if strings.Contains(body, "payment_intent.succeeded") {
+		t.Fatal("template prefill must not appear when the guide prefill wins")
+	}
+}
+
 func TestTemplateCaseJSONLD(t *testing.T) {
 	localz := i18n.New("en")
 	if err := localz.LoadFS(quickmock.LocalesFS, "locales"); err != nil {

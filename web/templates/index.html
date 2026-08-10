@@ -458,6 +458,16 @@
         setVal('input[name=name]', p.name);
         setVal('select[name=method]', p.method);
         setVal('input[name=response_status]', p.response_status);
+        // A template/import config may carry a content_type the select's
+        // fixed option list doesn't offer (e.g. application/problem+json).
+        // Add it on the fly so setVal doesn't silently no-op and leave the
+        // server to fall back to text/plain.
+        if (p.content_type) {
+          const ctSelect = document.querySelector('select[name=content_type]');
+          if (ctSelect && !Array.from(ctSelect.options).some((o) => o.value === p.content_type)) {
+            ctSelect.appendChild(new Option(p.content_type, p.content_type));
+          }
+        }
         setVal('select[name=content_type]', p.content_type);
         setVal('input[name=response_delay_ms]', p.response_delay_ms);
         setVal('input[name=response_delay_max_ms]', p.response_delay_max_ms);

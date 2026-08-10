@@ -71,6 +71,11 @@
 
   <div class="guide-cta card">
     <h2>{{ t "templates.cta.title" }}</h2>
+    {{ if .Error }}
+    <div class="banner banner-error" role="alert">
+      {{ t (printf "errors.%s" .Error) $.MaxBodyKB $.MaxMocks }}
+    </div>
+    {{ end }}
     <form method="post" action="/templates/{{ .Template.Slug }}/create">
       <button type="submit" class="btn btn-primary">{{ t "templates.cta.button" }}</button>
     </form>
