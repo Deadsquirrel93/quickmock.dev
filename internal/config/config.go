@@ -15,25 +15,28 @@ import (
 
 // Config holds the resolved runtime configuration.
 type Config struct {
-	Addr         string
-	BaseURL      string
-	PGDSN        string
-	RedisAddr    string
-	RedisDB      int
-	RateIP       int
-	RateWindow   time.Duration
-	RateUIWrite  int
-	RateUIWindow time.Duration
-	MaxBody      int
-	MaxMocks     int
-	DefaultTTL   time.Duration
-	MaxTTL       time.Duration
-	DefaultLang  string
-	SSEMaxConns  int
-	SSEMaxPerIP  int
+	Addr             string
+	BaseURL          string
+	PGDSN            string
+	RedisAddr        string
+	RedisDB          int
+	RateIP           int
+	RateWindow       time.Duration
+	RateUIWrite      int
+	RateUIWindow     time.Duration
+	RateUIRead       int
+	RateUIReadWindow time.Duration
+	MaxBody          int
+	MaxMocks         int
+	DefaultTTL       time.Duration
+	MaxTTL           time.Duration
+	DefaultLang      string
+	SSEMaxConns      int
+	SSEMaxPerIP      int
 
 	SpamPatternsFile string
 	SpamAllowIPs     []string
+	BlockedIPs       []string
 }
 
 // Load reads configuration from the environment.
@@ -73,6 +76,12 @@ func Load() (Config, error) {
 	if c.RateUIWindow, err = getDuration("QUICKMOCK_RATE_UI_WINDOW", time.Hour); err != nil {
 		return c, err
 	}
+	if c.RateUIRead, err = getInt("QUICKMOCK_RATE_UI_READ", 300); err != nil {
+		return c, err
+	}
+	if c.RateUIReadWindow, err = getDuration("QUICKMOCK_RATE_UI_READ_WINDOW", time.Minute); err != nil {
+		return c, err
+	}
 	if c.MaxBody, err = getInt("QUICKMOCK_MAX_BODY", 524288); err != nil {
 		return c, err
 	}
@@ -97,6 +106,13 @@ func Load() (Config, error) {
 		for _, s := range strings.Split(v, ",") {
 			if s = strings.TrimSpace(s); s != "" {
 				c.SpamAllowIPs = append(c.SpamAllowIPs, s)
+			}
+		}
+	}
+	if v := os.Getenv("QUICKMOCK_BLOCK_IPS"); v != "" {
+		for _, s := range strings.Split(v, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				c.BlockedIPs = append(c.BlockedIPs, s)
 			}
 		}
 	}

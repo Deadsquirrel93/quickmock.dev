@@ -39,6 +39,10 @@ func TestDefaultPatternsBlockSpam(t *testing.T) {
 		"we sell quality backlinks for your site",
 		"Double your bitcoin in 24 hours, guaranteed profit",
 		"make $5,000 per week from home",
+		"Location: gopher://example.test/_payload",
+		"fetch http://169.254.169.254/latest/meta-data/",
+		`<add modules="FastCgiModule" scriptProcessor="php-cgi.exe" />`,
+		`Website: <a href="https://example.test/">Example</a>`,
 	}
 	for _, s := range spam {
 		in := model.MockInput{ResponseBody: s}

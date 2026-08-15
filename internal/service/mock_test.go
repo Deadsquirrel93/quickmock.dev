@@ -509,3 +509,29 @@ func TestCORSHeadersStayReserved(t *testing.T) {
 		}
 	}
 }
+
+func TestOriginAffectingHeadersStayReserved(t *testing.T) {
+	for _, h := range []string{"Service-Worker-Allowed", "service-worker-allowed"} {
+		if !IsReservedResponseHeader(h) {
+			t.Fatalf("%s must stay reserved for user input", h)
+		}
+	}
+}
+
+func TestValidateLocationScheme(t *testing.T) {
+	s := testService()
+	for _, value := range []string{"/relative", "https://example.com/next", "HTTP://example.com"} {
+		in := baseInput()
+		in.ResponseHeaders = map[string]string{"Location": value}
+		if err := s.validate(&in); err != nil {
+			t.Errorf("Location %q rejected: %v", value, err)
+		}
+	}
+	for _, value := range []string{"gopher://example.com/_payload", "javascript:alert(1)", "file:///etc/passwd"} {
+		in := baseInput()
+		in.ResponseHeaders = map[string]string{"Location": value}
+		if err := s.validate(&in); err == nil {
+			t.Errorf("unsafe Location %q accepted", value)
+		}
+	}
+}

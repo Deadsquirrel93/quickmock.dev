@@ -110,6 +110,11 @@ func runHealthcheck(cfg config.Config) int {
 func runServe(logger *slog.Logger, cfg config.Config) int {
 	rootCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	blockedIPs, err := mockmw.NewIPBlocklist(cfg.BlockedIPs)
+	if err != nil {
+		logger.Error("IP blocklist", slog.Any("err", err))
+		return 1
+	}
 
 	// Storage clients
 	pool, err := pgxpool.New(rootCtx, cfg.PGDSN)
@@ -141,6 +146,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	mockLimiter := repository.NewRateLimiter(rdb, cfg.RateIP, cfg.RateWindow)
 	apiLimiter := repository.NewRateLimiter(rdb, 600, time.Minute)
 	uiWriteLimiter := repository.NewRateLimiter(rdb, cfg.RateUIWrite, cfg.RateUIWindow)
+	uiReadLimiter := repository.NewRateLimiter(rdb, cfg.RateUIRead, cfg.RateUIReadWindow)
 	seqCounter := repository.NewSeqCounter(rdb)
 
 	// Services
@@ -210,6 +216,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	// Universal hardening headers: applied to every response, including
 	// /m/* (mock_router force-overrides the CSP it needs locally).
 	r.Use(mockmw.SecurityHeaders(secureSite))
+	r.Use(blockedIPs.Middleware)
 
 	// Static (no i18n, no rate limit, long cache)
 	r.Handle("/static/*", http.StripPrefix("/static/",
@@ -241,9 +248,9 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 
 		r.Get("/", ui.Home)
 		r.Get("/mock/{slug}", ui.Detail)
-		r.Get("/mock/{slug}/logs", ui.LogsPartial)
+		r.With(mockmw.RateLimit(uiReadLimiter, "ui-read")).Get("/mock/{slug}/logs", ui.LogsPartial)
 		r.Get("/mock/{slug}/logs/stream", ui.LogsStream)
-		r.Get("/mock/{slug}/summary", ui.SummaryPartial)
+		r.With(mockmw.RateLimit(uiReadLimiter, "ui-read")).Get("/mock/{slug}/summary", ui.SummaryPartial)
 		r.Get("/mock/{slug}/export", ui.Export)
 		r.Get("/mock/{slug}/logs/export", ui.LogsExport)
 		r.Get("/my", ui.MyMocks)

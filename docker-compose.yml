@@ -9,10 +9,17 @@
 #   docker compose up -d --build
 #   docker compose logs -f app
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER:     quickmock
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -28,6 +35,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *default-logging
     command: ["redis-server", "--save", "", "--appendonly", "no"]  # ephemeral by design
     healthcheck:
       test:     ["CMD", "redis-cli", "ping"]
@@ -46,10 +54,12 @@ services:
       QUICKMOCK_PG_DSN:     postgres://quickmock:${POSTGRES_PASSWORD}@postgres:5432/quickmock?sslmode=disable
       QUICKMOCK_REDIS_ADDR: redis:6379
     restart: "no"
+    logging: *default-logging
 
   app:
     build: .
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       postgres:
         condition: service_healthy

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -103,6 +104,7 @@ var reservedHeaders = map[string]struct{}{
 	"referrer-policy":                     {},
 	"permissions-policy":                  {},
 	"clear-site-data":                     {},
+	"service-worker-allowed":              {},
 	// CORS — granting cross-origin reads of a mock attacker controls
 	"access-control-allow-origin":      {},
 	"access-control-allow-credentials": {},
@@ -395,9 +397,12 @@ func (s *MockService) validate(in *model.MockInput) error {
 	if len(in.ResponseBody) > s.maxBody {
 		return ErrBodyTooLarge
 	}
-	for name := range in.ResponseHeaders {
+	for name, value := range in.ResponseHeaders {
 		if !headerNameRegexp.MatchString(name) {
 			return &ValidationError{Field: "response_headers", Message: "invalid header name: " + name}
+		}
+		if strings.EqualFold(strings.TrimSpace(name), "location") && !safeRedirectLocation(value) {
+			return &ValidationError{Field: "response_headers", Message: "Location only supports relative, http, or https URLs"}
 		}
 	}
 	if in.ContentType == "" {
@@ -448,13 +453,24 @@ func (s *MockService) validate(in *model.MockInput) error {
 		if len(st.Headers) == 0 {
 			st.Headers = nil
 		}
-		for name := range st.Headers {
+		for name, value := range st.Headers {
 			if !headerNameRegexp.MatchString(name) {
 				return &ValidationError{Field: "response_sequence", Message: "invalid step header name: " + name}
+			}
+			if strings.EqualFold(strings.TrimSpace(name), "location") && !safeRedirectLocation(value) {
+				return &ValidationError{Field: "response_sequence", Message: "step Location only supports relative, http, or https URLs"}
 			}
 		}
 	}
 	return nil
+}
+
+func safeRedirectLocation(raw string) bool {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Scheme == "" {
+		return err == nil
+	}
+	return strings.EqualFold(u.Scheme, "http") || strings.EqualFold(u.Scheme, "https")
 }
 
 // validateStep applies the shared rules for one alternate response. A zero

@@ -25,3 +25,15 @@
 (?i)\b(double|triple) your (bitcoin|btc|crypto|investment|money)\b
 (?i)\bguaranteed (profit|returns?|income)\b
 (?i)\bmake \$?\d[\d,]{2,} (a|per) (day|week|month) (from home|online)\b
+
+# Security-abuse payloads. These are infrastructure primitives rather than
+# useful mock response content and have been abused in public instances.
+(?i)\bgopher://
+(?i)\b(metadata\.google\.internal|169\.254\.169\.254)\b
+(?i)\bFastCgiModule\b[^\n]{0,160}\bscriptProcessor\b
+(?i)\bserviceWorker\.register\b[^\n]{0,500}\b(metadata\.google\.internal|169\.254\.169\.254|gopher://)\b
+
+# Backlink-page fingerprints rather than specific advertised domains.
+(?i)<h1>[^<]{1,100}</h1>\s*<p>\s*Visit\s+<a\s+href=["']https?://
+(?i)\bWebsite:\s*<a\s+href=["']https?://
+(?i)\bPublished on \d{4}-\d{2}-\d{2} via Quickmock\b

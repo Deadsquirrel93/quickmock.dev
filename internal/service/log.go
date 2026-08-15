@@ -58,7 +58,10 @@ func (w *LogWriter) Start(ctx context.Context) {
 				// Drain remaining items, then exit.
 				for {
 					select {
-					case l := <-w.queue:
+					case l, ok := <-w.queue:
+						if !ok {
+							return
+						}
 						w.write(context.Background(), l)
 					default:
 						return
