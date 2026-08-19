@@ -53,30 +53,65 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !methodMatches(m.Method, r.Method) {
+	// Read the body for logging up front — we drop it on the floor for
+	// the actual response, but the inspector wants to see it.
+	bodyBytes, _ := io.ReadAll(io.LimitReader(r.Body, int64(h.maxLog)+1))
+	_ = r.Body.Close()
+
+	requestPath := strings.TrimPrefix(r.URL.Path, "/m/"+slug)
+	if requestPath == "" {
+		requestPath = "/"
+	}
+	src := sourceForMock(m)
+	routeName := ""
+	if len(m.Routes) > 0 {
+		route, matchedPath, pathMatched := matchRoute(m.Routes, requestPath, r.Method)
+		if route == nil {
+			if pathMatched {
+				http.Error(w, `{"error":{"code":"method_not_allowed","message":"Method not allowed for this route"}}`, http.StatusMethodNotAllowed)
+			} else {
+				writeNotFound(w)
+			}
+			return
+		}
+		src = sourceForRoute(route)
+		routeName = matchedPath
+	} else if !methodMatches(m.Method, r.Method) {
 		w.Header().Set("Allow", allowFor(m.Method))
 		http.Error(w, `{"error":{"code":"method_not_allowed","message":"Method not allowed for this mock"}}`,
 			http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Read the body for logging up front — we drop it on the floor for
-	// the actual response, but the inspector wants to see it.
-	bodyBytes, _ := io.ReadAll(io.LimitReader(r.Body, int64(h.maxLog)+1))
-	_ = r.Body.Close()
-
 	// Submit log asynchronously. Drop on full queue, never block.
+	logBody := string(bodyBytes)
+	if !m.CaptureBody {
+		logBody = ""
+	}
+	logIP := mockmw.IPFromContext(r.Context())
+	if !m.CaptureIP {
+		logIP = ""
+	}
 	h.logs.Submit(model.RequestLog{
 		MockID:         m.ID,
 		RequestMethod:  r.Method,
 		RequestHeaders: flattenHeaders(r.Header),
-		RequestBody:    string(bodyBytes),
-		RequestIP:      mockmw.IPFromContext(r.Context()),
+		RequestBody:    logBody,
+		RequestIP:      logIP,
 	})
 
-	served := pickVariant(m, rand.IntN(100), func() uint64 {
-		return h.seq.Next(r.Context(), m.ID)
-	})
+	served, configured := pickConfiguredVariant(src, requestedVariant(r), r, bodyBytes)
+	if !configured {
+		if len(m.Routes) == 0 {
+			served = pickVariant(m, rand.IntN(100), func() uint64 {
+				return h.seq.Next(r.Context(), m.ID)
+			})
+		} else {
+			served = servedResponse{Variant: "default", Status: src.Status, Body: src.Body,
+				Headers: src.Headers, ContentType: src.ContentType}
+		}
+	}
+	served.Route = routeName
 
 	if d := effectiveDelay(m.ResponseDelayMS, m.ResponseDelayMaxMS); d > 0 {
 		select {
@@ -91,7 +126,7 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// service.IsReservedResponseHeader is a second-layer filter — the
 	// service already strips these at create/update time, but legacy rows
 	// from before that filter widened could still carry weaponised headers.
-	for k, v := range m.ResponseHeaders {
+	for k, v := range src.Headers {
 		if service.IsReservedResponseHeader(k) {
 			continue
 		}
@@ -105,14 +140,23 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set(k, v)
 	}
-	if m.ContentType != "" {
-		w.Header().Set("Content-Type", m.ContentType)
+	contentType := served.ContentType
+	if contentType == "" {
+		contentType = src.ContentType
+	}
+	if contentType != "" {
+		w.Header().Set("Content-Type", contentType)
 	}
 	if m.CORSEnabled {
 		setCORSHeaders(w)
 	}
 	w.Header().Set("X-Mockapi-Slug", m.Slug)
 	w.Header().Set("X-Mockapi-Variant", served.Variant)
+	w.Header().Set("X-Quickmock-Variant", served.Variant)
+	if served.Route != "" {
+		w.Header().Set("X-Quickmock-Route", served.Route)
+	}
+	w.Header().Set("X-Robots-Tag", "noindex, nofollow, noarchive")
 
 	// Defence against weaponising /m/:slug as a same-origin script host:
 	// nosniff stops the browser from upgrading a text/* mock to text/html

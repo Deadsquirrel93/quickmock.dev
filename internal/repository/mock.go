@@ -42,21 +42,28 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 	if m.AdminTokenHash != "" {
 		tokenHash = &m.AdminTokenHash
 	}
+	variants, rules, routes, err := marshalAdvanced(m)
+	if err != nil {
+		return err
+	}
 	return r.pool.QueryRow(ctx, `
 		INSERT INTO mocks (
 			slug, name, method, response_body, response_status,
 			response_headers, response_delay_ms, content_type,
 			path_suffix, expires_at, creator_ip,
 			response_delay_max_ms, error_rate_pct, error_response, response_sequence,
-			cors_enabled, admin_token_hash
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+			cors_enabled, admin_token_hash,
+			response_variants, response_rules, routes,
+			logs_public, capture_body, capture_ip
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
 		RETURNING id, created_at
 	`,
 		m.Slug, m.Name, string(m.Method), m.ResponseBody, m.ResponseStatus,
 		headers, m.ResponseDelayMS, m.ContentType,
 		suffix, m.ExpiresAt, m.CreatorIP,
 		m.ResponseDelayMaxMS, m.ErrorRatePct, errResp, seq,
-		m.CORSEnabled, tokenHash,
+		m.CORSEnabled, tokenHash, variants, rules, routes,
+		m.LogsPublic, m.CaptureBody, m.CaptureIP,
 	).Scan(&m.ID, &m.CreatedAt)
 }
 
@@ -69,7 +76,9 @@ func (r *MockRepo) BySlug(ctx context.Context, slug string) (*model.Mock, error)
 		       path_suffix, expires_at, created_at, request_count,
 		       last_request_at, creator_ip,
 		       response_delay_max_ms, error_rate_pct, error_response, response_sequence,
-		       cors_enabled, admin_token_hash
+		       cors_enabled, admin_token_hash,
+		       response_variants, response_rules, routes,
+		       logs_public, capture_body, capture_ip
 		FROM mocks
 		WHERE slug = $1
 		  AND (expires_at IS NULL OR expires_at > now())
@@ -92,6 +101,10 @@ func (r *MockRepo) Update(ctx context.Context, m *model.Mock) error {
 	if m.PathSuffix != "" {
 		suffix = &m.PathSuffix
 	}
+	variants, rules, routes, err := marshalAdvanced(m)
+	if err != nil {
+		return err
+	}
 	tag, err := r.pool.Exec(ctx, `
 		UPDATE mocks SET
 			name              = $2,
@@ -107,14 +120,21 @@ func (r *MockRepo) Update(ctx context.Context, m *model.Mock) error {
 			error_rate_pct        = $12,
 			error_response        = $13,
 			response_sequence     = $14,
-			cors_enabled          = $15
+			cors_enabled          = $15,
+			response_variants     = $16,
+			response_rules        = $17,
+			routes                = $18,
+			logs_public           = $19,
+			capture_body          = $20,
+			capture_ip            = $21
 		WHERE slug = $1
 		  AND (expires_at IS NULL OR expires_at > now())
 	`,
 		m.Slug, m.Name, string(m.Method), m.ResponseBody, m.ResponseStatus,
 		headers, m.ResponseDelayMS, m.ContentType, suffix, m.ExpiresAt,
 		m.ResponseDelayMaxMS, m.ErrorRatePct, errResp, seq,
-		m.CORSEnabled,
+		m.CORSEnabled, variants, rules, routes,
+		m.LogsPublic, m.CaptureBody, m.CaptureIP,
 	)
 	if err != nil {
 		return err
@@ -195,6 +215,9 @@ func scanMock(row pgx.Row) (*model.Mock, error) {
 		suffix    *string
 		errResp   []byte
 		seq       []byte
+		variants  []byte
+		rules     []byte
+		routes    []byte
 		tokenHash *string
 	)
 	err := row.Scan(
@@ -202,7 +225,8 @@ func scanMock(row pgx.Row) (*model.Mock, error) {
 		&headers, &m.ResponseDelayMS, &m.ContentType, &suffix,
 		&m.ExpiresAt, &m.CreatedAt, &m.RequestCount, &m.LastRequestAt, &m.CreatorIP,
 		&m.ResponseDelayMaxMS, &m.ErrorRatePct, &errResp, &seq,
-		&m.CORSEnabled, &tokenHash,
+		&m.CORSEnabled, &tokenHash, &variants, &rules, &routes,
+		&m.LogsPublic, &m.CaptureBody, &m.CaptureIP,
 	)
 	if name != nil {
 		m.Name = *name
@@ -232,6 +256,15 @@ func scanMock(row pgx.Row) (*model.Mock, error) {
 	if len(seq) > 0 {
 		_ = json.Unmarshal(seq, &m.SequenceSteps)
 	}
+	if len(variants) > 0 {
+		_ = json.Unmarshal(variants, &m.Variants)
+	}
+	if len(rules) > 0 {
+		_ = json.Unmarshal(rules, &m.Rules)
+	}
+	if len(routes) > 0 {
+		_ = json.Unmarshal(routes, &m.Routes)
+	}
 	return &m, nil
 }
 
@@ -249,4 +282,23 @@ func marshalFlaky(m *model.Mock) (errResp, seq []byte, err error) {
 		}
 	}
 	return errResp, seq, nil
+}
+
+func marshalAdvanced(m *model.Mock) (variants, rules, routes []byte, err error) {
+	if len(m.Variants) > 0 {
+		if variants, err = json.Marshal(m.Variants); err != nil {
+			return nil, nil, nil, fmt.Errorf("marshal variants: %w", err)
+		}
+	}
+	if len(m.Rules) > 0 {
+		if rules, err = json.Marshal(m.Rules); err != nil {
+			return nil, nil, nil, fmt.Errorf("marshal rules: %w", err)
+		}
+	}
+	if len(m.Routes) > 0 {
+		if routes, err = json.Marshal(m.Routes); err != nil {
+			return nil, nil, nil, fmt.Errorf("marshal routes: %w", err)
+		}
+	}
+	return variants, rules, routes, nil
 }

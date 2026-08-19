@@ -59,6 +59,25 @@
     </div>
   </div>
 
+  {{ if .Mock.Routes }}
+  <div class="card">
+    <div class="card-header">
+      <h2>{{ t "mock.workspace.title" }}</h2>
+      <span class="badge">{{ len .Mock.Routes }} {{ t "mock.workspace.routes" }}</span>
+    </div>
+    <p class="form-hint">{{ t "mock.workspace.hint" }}</p>
+    <ul class="workspace-route-list">
+      {{ range .Mock.Routes }}
+      <li>
+        <span class="badge badge-method badge-{{ .Method }}">{{ .Method }}</span>
+        <code>{{ .Path }}</code>
+        <span class="badge">{{ .ResponseStatus }}</span>
+        <pre class="codeblock"><code>curl -X {{ .Method }} {{ $.URL }}{{ if ne .Path "/" }}{{ .Path }}{{ end }}</code></pre>
+      </li>
+      {{ end }}
+    </ul>
+  </div>
+  {{ else }}
   <div class="card">
     <div class="card-header">
       <h2>{{ t "mock.detail.response" }}</h2>
@@ -84,6 +103,7 @@
     </div>
     <pre class="codeblock" x-ref="curlBox"><code>{{ .Curl }}</code></pre>
   </div>
+  {{ end }}
 
   <div class="card"
        hx-get="/mock/{{ .Mock.Slug }}/summary"
@@ -92,6 +112,7 @@
     {{ template "summary_inner" . }}
   </div>
 
+  {{ if not .Mock.Routes }}
   <div class="card">
     <div class="card-header">
       <h2>{{ t "mock.detail.code" }}</h2>
@@ -111,6 +132,7 @@
       {{ end }}
     </div>
   </div>
+  {{ end }}
 
   <div class="card logs-card">
     <div class="card-header">
@@ -146,7 +168,7 @@
       extendCapped: false,
       showTokenBanner: false,
       tokenValue: '',
-      promptOpen: false,
+      promptOpen: {{ if .InspectorLocked }}true{{ else }}false{{ end }},
       promptValue: '',
       promptInvalid: false,
       pendingRetry: null,
@@ -185,6 +207,20 @@
         const token = this.getToken(slug);
         return token ? { 'Authorization': 'Bearer ' + token } : {};
       },
+      async openInspectorSession(slug, token) {
+        if (!token) return false;
+        try {
+          const r = await fetch('/mock/' + slug + '/session', {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+          });
+          if (!r.ok) return false;
+          const box = document.getElementById('qm-logs');
+          if (box) htmx.trigger(box, 'qm:log');
+          this.promptOpen = false;
+          this.promptInvalid = false;
+          return true;
+        } catch (e) { return false; }
+      },
       // promptToken opens the inline paste-fallback. `retry` re-runs the
       // action that just failed once a token is saved; `invalid` marks a
       // 403 (wrong token) vs. a 401 (no token yet) — only the former shows
@@ -197,9 +233,14 @@
       async submitToken() {
         const token = this.promptValue.trim();
         if (!token) return;
+        const opened = await this.openInspectorSession('{{ .Mock.Slug }}', token);
+        if (!opened) {
+          this.promptInvalid = true;
+          this.promptOpen = true;
+          return;
+        }
         this.setToken('{{ .Mock.Slug }}', token);
         this.promptValue = '';
-        this.promptOpen = false;
         const retry = this.pendingRetry;
         this.pendingRetry = null;
         if (retry) await retry();
@@ -279,6 +320,7 @@
           if (token) entry.token = token;
           localStorage.setItem('mocks', JSON.stringify(stored));
         } catch (e) {}
+        this.openInspectorSession('{{ .Mock.Slug }}', token || this.getToken('{{ .Mock.Slug }}'));
       },
     };
   }
@@ -315,4 +357,3 @@
   })();
 </script>
 {{ end }}
-

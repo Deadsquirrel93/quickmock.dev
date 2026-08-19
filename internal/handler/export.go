@@ -27,9 +27,15 @@ type mockExport struct {
 	ErrorRatePct       int                  `json:"error_rate_pct,omitempty"`
 	ErrorResponse      *model.ResponseStep  `json:"error_response,omitempty"`
 	ResponseSequence   []model.ResponseStep `json:"response_sequence,omitempty"`
+	ResponseVariants   []model.NamedVariant `json:"response_variants,omitempty"`
+	ResponseRules      []model.ResponseRule `json:"response_rules,omitempty"`
+	Routes             []model.MockRoute    `json:"routes,omitempty"`
 	ContentType        string               `json:"content_type,omitempty"`
 	PathSuffix         string               `json:"path_suffix,omitempty"`
 	CORSEnabled        bool                 `json:"cors_enabled,omitempty"`
+	LogsPublic         bool                 `json:"logs_public,omitempty"`
+	CaptureBody        bool                 `json:"capture_body"`
+	CaptureIP          bool                 `json:"capture_ip"`
 }
 
 func toExport(m *model.Mock) mockExport {
@@ -44,9 +50,15 @@ func toExport(m *model.Mock) mockExport {
 		ErrorRatePct:       m.ErrorRatePct,
 		ErrorResponse:      m.ErrorResponse,
 		ResponseSequence:   m.SequenceSteps,
+		ResponseVariants:   m.Variants,
+		ResponseRules:      m.Rules,
+		Routes:             m.Routes,
 		ContentType:        m.ContentType,
 		PathSuffix:         m.PathSuffix,
 		CORSEnabled:        m.CORSEnabled,
+		LogsPublic:         m.LogsPublic,
+		CaptureBody:        m.CaptureBody,
+		CaptureIP:          m.CaptureIP,
 	}
 }
 

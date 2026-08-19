@@ -51,7 +51,8 @@
     </div>
   {{ end }}
 
-  <form class="create-form card" id="create" method="post" action="/" x-data="createForm()">
+  <form class="create-form card" id="create" method="post" action="/" x-data="createForm()"
+        @submit="if (!validateAdvanced()) $event.preventDefault()">
     <h2>{{ t "mock.create.title" }}</h2>
 
     <div class="form-row">
@@ -281,6 +282,62 @@
     </details>
 
     <details class="advanced">
+      <summary>{{ t "mock.create.scenarios.title" }}</summary>
+      <p class="form-hint">{{ t "mock.create.scenarios.hint" }}</p>
+      <label>
+        <span class="label-text">{{ t "mock.create.scenarios.variants" }}</span>
+        <textarea name="response_variants_json" x-model="variantsJSON" rows="7" spellcheck="false"
+                  @blur="validateAdvanced()" placeholder='[{"name":"not-found","status":404,"body":"{\"error\":\"not found\"}"}]'></textarea>
+      </label>
+      <label>
+        <span class="label-text">{{ t "mock.create.scenarios.rules" }}</span>
+        <textarea name="response_rules_json" x-model="rulesJSON" rows="8" spellcheck="false"
+                  @blur="validateAdvanced()" placeholder='[{"name":"missing user","variant":"not-found","conditions":[{"source":"query","key":"id","operator":"equals","value":"missing"}]}]'></textarea>
+      </label>
+      <p class="form-hint">{{ t "mock.create.scenarios.selector_hint" }}</p>
+    </details>
+
+    <details class="advanced">
+      <summary>{{ t "mock.create.workspace.title" }}</summary>
+      <p class="form-hint">{{ t "mock.create.workspace.hint" }}</p>
+      <label>
+        <span class="label-text">{{ t "mock.create.workspace.routes" }}</span>
+        <textarea name="routes_json" x-model="routesJSON" rows="10" spellcheck="false"
+                  @blur="validateAdvanced()" placeholder='[{"method":"GET","path":"/users/{id}","response_status":200,"content_type":"application/json","response_body":"{\"id\":\"{{`{{request.path}}`}}\"}"}]'></textarea>
+      </label>
+      <div class="workspace-import">
+        <label>
+          <span class="label-text">{{ t "mock.create.workspace.openapi" }}</span>
+          <textarea x-model="openapiInput" rows="7" spellcheck="false"
+                    placeholder='{"openapi":"3.0.3","paths":{"/users":{"get":{"responses":{"200":{"content":{"application/json":{"example":{"users":[]}}}}}}}}}'></textarea>
+        </label>
+        <button type="button" class="btn btn-secondary" @click="parseOpenAPI()">
+          {{ t "mock.create.workspace.openapi_apply" }}
+        </button>
+        <span class="form-hint form-error" role="alert" x-show="openapiError" x-text="openapiError" x-cloak></span>
+      </div>
+    </details>
+
+    <details class="advanced">
+      <summary>{{ t "mock.create.privacy.title" }}</summary>
+      <p class="form-hint">{{ t "mock.create.privacy.hint" }}</p>
+      <label class="cors-toggle">
+        <input type="checkbox" name="logs_public">
+        <span class="label-text">{{ t "mock.create.privacy.public_logs" }}</span>
+      </label>
+      <label class="cors-toggle">
+        <input type="checkbox" name="capture_body" checked>
+        <span class="label-text">{{ t "mock.create.privacy.capture_body" }}</span>
+      </label>
+      <label class="cors-toggle">
+        <input type="checkbox" name="capture_ip" checked>
+        <span class="label-text">{{ t "mock.create.privacy.capture_ip" }}</span>
+      </label>
+    </details>
+
+    <p class="form-hint form-error" role="alert" x-show="advancedError" x-text="advancedError" x-cloak></p>
+
+    <details class="advanced">
       <summary>{{ t "mock.curl_import.title" }}</summary>
       <p class="form-hint">{{ t "mock.curl_import.hint" }}</p>
       <textarea x-model="curlInput" rows="3"
@@ -428,6 +485,12 @@
       cors: false,
       steps: [],
       stepKey: 0,
+	  variantsJSON: '',
+	  rulesJSON: '',
+	  routesJSON: '',
+	  openapiInput: '',
+	  openapiError: '',
+	  advancedError: '',
       addStep() {
         if (this.steps.length >= 10) return;
         this.steps.push({ key: this.stepKey++, status: 500, body: '', headers: '' });
@@ -492,6 +555,16 @@
             headers: s.headers ? Object.entries(s.headers).map(([k, v]) => k + ': ' + v).join('\n') : '',
           }));
         }
+		if (Array.isArray(p.response_variants)) this.variantsJSON = JSON.stringify(p.response_variants, null, 2);
+		if (Array.isArray(p.response_rules)) this.rulesJSON = JSON.stringify(p.response_rules, null, 2);
+		if (Array.isArray(p.routes)) this.routesJSON = JSON.stringify(p.routes, null, 2);
+		const setChecked = (name, value) => {
+		  const el = document.querySelector('input[name=' + name + ']');
+		  if (el && typeof value === 'boolean') el.checked = value;
+		};
+		setChecked('logs_public', p.logs_public);
+		setChecked('capture_body', p.capture_body);
+		setChecked('capture_ip', p.capture_ip);
         if (typeof p.path_suffix === 'string' && p.path_suffix) {
           this.pathSuffix = p.path_suffix;
           this.onPathInput();
@@ -580,6 +653,35 @@
           this.curlError = '{{ t "mock.curl_import.error" }}';
         }
       },
+	  validateAdvanced() {
+		this.advancedError = '';
+		for (const value of [this.variantsJSON, this.rulesJSON, this.routesJSON]) {
+		  if (!value.trim()) continue;
+		  try {
+			const parsed = JSON.parse(value);
+			if (!Array.isArray(parsed)) throw new Error('array expected');
+		  } catch (e) {
+			this.advancedError = '{{ t "mock.create.scenarios.invalid" }}';
+			return false;
+		  }
+		}
+		return true;
+	  },
+	  async parseOpenAPI() {
+		this.openapiError = '';
+		try {
+		  const r = await fetch('/api/parse-openapi', {
+			method: 'POST', headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ spec: this.openapiInput })
+		  });
+		  if (!r.ok) throw new Error('parse failed');
+		  const data = await r.json();
+		  this.routesJSON = JSON.stringify(data.routes || [], null, 2);
+		  this.validateAdvanced();
+		} catch (e) {
+		  this.openapiError = '{{ t "mock.create.workspace.openapi_error" }}';
+		}
+	  },
       importFile(ev) {
         const f = ev.target.files[0];
         ev.target.value = '';

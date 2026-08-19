@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -147,7 +148,14 @@ func (u *UI) CreateForm(w http.ResponseWriter, r *http.Request) {
 		}))
 		return
 	}
-	in := readFormInput(r)
+	in, parseErr := readFormInputChecked(r)
+	if parseErr != nil {
+		u.renderer.Render(w, r, "index", http.StatusOK, u.homeData(r, map[string]any{
+			"Error": "validation_failed",
+			"Input": readFormInput(r),
+		}))
+		return
+	}
 	ip := mockmw.IPFromContext(r.Context())
 	m, err := u.svc.Create(r.Context(), in, ip)
 	if err != nil {
@@ -181,18 +189,56 @@ func (u *UI) Detail(w http.ResponseWriter, r *http.Request) {
 		u.renderer.Render(w, r, "404", http.StatusNotFound, nil)
 		return
 	}
-	logs, _ := u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{}, repository.LogFilter{})
+	inspectorAuthorized := m.LogsPublic || u.inspectorAuthorized(r, m)
+	var logs []model.RequestLog
+	if inspectorAuthorized {
+		logs, _ = u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{}, repository.LogFilter{})
+	}
 	snippets := service.GenerateSnippets(m, u.baseURL)
 	curl := service.CurlSnippet(m, u.baseURL)
 	u.renderer.Render(w, r, "mock", http.StatusOK, map[string]any{
-		"Mock":      m,
-		"URL":       service.MockURL(m, u.baseURL),
-		"Logs":      logs,
-		"Snippets":  snippets,
-		"Curl":      curl,
-		"Methods":   model.AllMethods,
-		"MaxBodyKB": u.maxBody / 1024,
+		"Mock":            m,
+		"URL":             service.MockURL(m, u.baseURL),
+		"Logs":            logs,
+		"Snippets":        snippets,
+		"Curl":            curl,
+		"Methods":         model.AllMethods,
+		"MaxBodyKB":       u.maxBody / 1024,
+		"InspectorLocked": !inspectorAuthorized,
 	})
+}
+
+// MockSession exchanges the admin token already kept in browser localStorage
+// for a short, HttpOnly, path-scoped cookie. EventSource cannot attach an
+// Authorization header, so this lets the private live inspector authenticate
+// without putting its token in a query string or server logs.
+func (u *UI) MockSession(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	m, err := u.svc.AuthorizeSlug(r.Context(), slug, bearerToken(r))
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name: "qm_inspector", Value: bearerToken(r), Path: "/mock/" + m.Slug,
+		HttpOnly: true, Secure: strings.HasPrefix(strings.ToLower(u.baseURL), "https://"),
+		SameSite: http.SameSiteStrictMode, MaxAge: 60 * 60 * 24 * 30,
+	})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (u *UI) inspectorAuthorized(r *http.Request, m *model.Mock) bool {
+	if m.LogsPublic || m.AdminTokenHash == "" {
+		return true
+	}
+	token := bearerToken(r)
+	if token == "" {
+		if cookie, err := r.Cookie("qm_inspector"); err == nil {
+			token = cookie.Value
+		}
+	}
+	_, err := u.svc.AuthorizeSlug(r.Context(), m.Slug, token)
+	return err == nil
 }
 
 // logFilterMethods lists the concrete HTTP methods a captured request can
@@ -225,6 +271,12 @@ func (u *UI) LogsPartial(w http.ResponseWriter, r *http.Request) {
 	m, err := u.svc.Get(r.Context(), slug)
 	if err != nil {
 		http.NotFound(w, r)
+		return
+	}
+	if !u.inspectorAuthorized(r, m) {
+		u.renderer.Render(w, r, "partials_logs", http.StatusOK, map[string]any{
+			"Mock": m, "InspectorLocked": true,
+		})
 		return
 	}
 	method := logsPartialMethod(r.URL.Query().Get("method"))
@@ -410,6 +462,11 @@ func (u *UI) NotFound(w http.ResponseWriter, r *http.Request) {
 }
 
 func readFormInput(r *http.Request) model.MockInput {
+	in, _ := readFormInputChecked(r)
+	return in
+}
+
+func readFormInputChecked(r *http.Request) (model.MockInput, error) {
 	status, _ := strconv.Atoi(r.FormValue("response_status"))
 	delay, _ := strconv.Atoi(r.FormValue("response_delay_ms"))
 	ttlStr := r.FormValue("ttl")
@@ -465,6 +522,24 @@ func readFormInput(r *http.Request) model.MockInput {
 		})
 	}
 
+	var variants []model.NamedVariant
+	var rules []model.ResponseRule
+	var routes []model.MockRoute
+	for _, item := range []struct {
+		raw string
+		to  any
+	}{
+		{r.FormValue("response_variants_json"), &variants},
+		{r.FormValue("response_rules_json"), &rules},
+		{r.FormValue("routes_json"), &routes},
+	} {
+		if strings.TrimSpace(item.raw) != "" {
+			if err := json.Unmarshal([]byte(item.raw), item.to); err != nil {
+				return model.MockInput{}, err
+			}
+		}
+	}
+
 	return model.MockInput{
 		Name:               r.FormValue("name"),
 		Method:             model.Method(strings.ToUpper(r.FormValue("method"))),
@@ -476,11 +551,17 @@ func readFormInput(r *http.Request) model.MockInput {
 		ErrorRatePct:       errRate,
 		ErrorResponse:      errResp,
 		SequenceSteps:      steps,
+		Variants:           variants,
+		Rules:              rules,
+		Routes:             routes,
 		ContentType:        r.FormValue("content_type"),
 		PathSuffix:         r.FormValue("path_suffix"),
 		CORSEnabled:        r.FormValue("cors_enabled") == "on",
+		LogsPublic:         r.FormValue("logs_public") == "on",
+		CaptureBody:        r.FormValue("capture_body") == "on",
+		CaptureIP:          r.FormValue("capture_ip") == "on",
 		TTL:                ttl,
-	}
+	}, nil
 }
 
 // parseHeaderLines turns a "Name: value" per-line textarea into a header

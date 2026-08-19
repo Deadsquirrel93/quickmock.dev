@@ -1,5 +1,10 @@
 {{ define "logs_inner" }}
-{{ if eq (len .Logs) 0 }}
+{{ if .InspectorLocked }}
+  <div class="empty inspector-locked" role="status">
+    <strong>{{ t "mock.logs.private_title" }}</strong>
+    <p>{{ t "mock.logs.private_body" }}</p>
+  </div>
+{{ else if eq (len .Logs) 0 }}
   <p class="empty">{{ t "mock.logs.empty" }}</p>
 {{ else }}
   <ul class="log-list">

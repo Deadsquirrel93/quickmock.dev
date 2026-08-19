@@ -41,13 +41,26 @@ type createMockRequest struct {
 	ErrorRatePct       int                  `json:"error_rate_pct"`
 	ErrorResponse      *model.ResponseStep  `json:"error_response"`
 	ResponseSequence   []model.ResponseStep `json:"response_sequence"`
+	ResponseVariants   []model.NamedVariant `json:"response_variants"`
+	ResponseRules      []model.ResponseRule `json:"response_rules"`
+	Routes             []model.MockRoute    `json:"routes"`
 	ContentType        string               `json:"content_type"`
 	PathSuffix         string               `json:"path_suffix"`
 	CORSEnabled        bool                 `json:"cors_enabled"`
+	LogsPublic         bool                 `json:"logs_public"`
+	CaptureBody        *bool                `json:"capture_body"`
+	CaptureIP          *bool                `json:"capture_ip"`
 	TTLSeconds         int                  `json:"ttl_seconds"`
 }
 
 func (req createMockRequest) toInput() model.MockInput {
+	captureBody, captureIP := true, true
+	if req.CaptureBody != nil {
+		captureBody = *req.CaptureBody
+	}
+	if req.CaptureIP != nil {
+		captureIP = *req.CaptureIP
+	}
 	return model.MockInput{
 		Name:               req.Name,
 		Method:             model.Method(strings.ToUpper(req.Method)),
@@ -59,9 +72,15 @@ func (req createMockRequest) toInput() model.MockInput {
 		ErrorRatePct:       req.ErrorRatePct,
 		ErrorResponse:      req.ErrorResponse,
 		SequenceSteps:      req.ResponseSequence,
+		Variants:           req.ResponseVariants,
+		Rules:              req.ResponseRules,
+		Routes:             req.Routes,
 		ContentType:        req.ContentType,
 		PathSuffix:         req.PathSuffix,
 		CORSEnabled:        req.CORSEnabled,
+		LogsPublic:         req.LogsPublic,
+		CaptureBody:        captureBody,
+		CaptureIP:          captureIP,
 		TTL:                time.Duration(req.TTLSeconds) * time.Second,
 	}
 }
@@ -140,6 +159,13 @@ func (a *API) Logs(w http.ResponseWriter, r *http.Request) {
 		a.writeServiceError(w, r, err)
 		return
 	}
+	if !m.LogsPublic {
+		m, err = a.svc.AuthorizeSlug(r.Context(), slug, bearerToken(r))
+		if err != nil {
+			a.writeServiceError(w, r, err)
+			return
+		}
+	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	if limit == 0 {
 		limit = 50
@@ -203,6 +229,25 @@ func (a *API) ParseCurl(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ParseOpenAPI converts an OpenAPI 3.x JSON/YAML document into the routes
+// array accepted by POST /api/mocks and the home workspace form.
+func (a *API) ParseOpenAPI(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Spec string `json:"spec"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, service.MaxOpenAPISpecBytes+4096)
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, r, http.StatusBadRequest, "invalid_request", a.renderer)
+		return
+	}
+	routes, err := service.ParseOpenAPI(body.Spec)
+	if err != nil {
+		writeError(w, r, http.StatusUnprocessableEntity, "validation_failed", a.renderer)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"routes": routes, "total": len(routes)})
+}
+
 // createView is the POST /api/mocks response shape: the normal mock view
 // plus the one-time plaintext admin token. It is ONLY used by Create — the
 // token is never shown again, so mockView itself (reused by Get/Update)
@@ -230,9 +275,15 @@ func (a *API) mockView(m *model.Mock) map[string]any {
 		"error_rate_pct":        m.ErrorRatePct,
 		"error_response":        m.ErrorResponse,
 		"response_sequence":     m.SequenceSteps,
+		"response_variants":     m.Variants,
+		"response_rules":        m.Rules,
+		"routes":                m.Routes,
 		"content_type":          m.ContentType,
 		"path_suffix":           m.PathSuffix,
 		"cors_enabled":          m.CORSEnabled,
+		"logs_public":           m.LogsPublic,
+		"capture_body":          m.CaptureBody,
+		"capture_ip":            m.CaptureIP,
 		"expires_at":            m.ExpiresAt,
 		"created_at":            m.CreatedAt,
 		"request_count":         m.RequestCount,

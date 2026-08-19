@@ -28,6 +28,30 @@
   color-scheme: light;
 }
 
+/* API docs and advanced workspace controls reuse the existing card/code
+   language while keeping long developer payloads readable on small screens. */
+.docs { max-width: 920px; }
+.docs-hero { margin-bottom: 1.5rem; }
+.docs section { scroll-margin-top: 1rem; margin: 2.25rem 0; }
+.docs-toc { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; align-items: center; }
+.docs-toc strong { flex-basis: 100%; }
+.workspace-import { margin-top: 1rem; }
+.advanced textarea[name="response_variants_json"],
+.advanced textarea[name="response_rules_json"],
+.advanced textarea[name="routes_json"],
+.workspace-import textarea { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
+.inspector-locked { padding: 1.25rem; }
+.inspector-locked p { margin-bottom: 0; }
+.workspace-route-list { list-style: none; padding: 0; margin: 1rem 0 0; }
+.workspace-route-list li { padding: 1rem 0; border-top: 1px solid var(--border); }
+.workspace-route-list li > code { margin: 0 .5rem; overflow-wrap: anywhere; }
+.workspace-route-list .codeblock { margin: .75rem 0 0; }
+
+@media (max-width: 600px) {
+  .docs-toc { display: grid; }
+  .docs .codeblock { font-size: .78rem; }
+}
+
 [data-theme="dark"] {
   --bg:        #0b1220;
   --bg-card:   #111a2e;

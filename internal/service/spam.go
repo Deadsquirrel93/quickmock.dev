@@ -127,6 +127,23 @@ func (f *SpamFilter) Blocked(in *model.MockInput, creatorIP string) bool {
 			fields = append(fields, v)
 		}
 	}
+	var appendConfig func([]model.NamedVariant, []model.MockRoute)
+	appendConfig = func(variants []model.NamedVariant, routes []model.MockRoute) {
+		for _, variant := range variants {
+			fields = append(fields, variant.Body)
+			for _, value := range variant.Headers {
+				fields = append(fields, value)
+			}
+		}
+		for _, route := range routes {
+			fields = append(fields, route.Name, route.Path, route.ResponseBody)
+			for _, value := range route.ResponseHeaders {
+				fields = append(fields, value)
+			}
+			appendConfig(route.Variants, nil)
+		}
+	}
+	appendConfig(in.Variants, in.Routes)
 	for i, re := range f.patterns {
 		for _, s := range fields {
 			if s != "" && re.MatchString(s) {

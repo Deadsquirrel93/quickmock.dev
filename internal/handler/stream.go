@@ -42,6 +42,10 @@ func (u *UI) LogsStream(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if !u.inspectorAuthorized(r, m) {
+		http.Error(w, "private inspector", http.StatusUnauthorized)
+		return
+	}
 	fl, ok := flusher(w)
 	if !ok {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)

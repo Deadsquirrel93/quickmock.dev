@@ -54,6 +54,28 @@ func TestReadFormInputFlaky(t *testing.T) {
 	}
 }
 
+func TestWorkspaceDetailRendersRouteURLs(t *testing.T) {
+	u := testUI(t)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/mock/demo", nil)
+	u.renderer.Render(w, req, "mock", http.StatusOK, map[string]any{
+		"Mock": &model.Mock{Slug: "demo", Method: model.MethodANY, Routes: []model.MockRoute{{
+			Method: model.MethodGET, Path: "/users/{id}", ResponseStatus: 200,
+		}}},
+		"URL": "https://example.test/m/demo",
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "curl -X GET https://example.test/m/demo/users/{id}") {
+		t.Fatalf("workspace route URL missing: %s", body)
+	}
+	if strings.Contains(body, u.localz.T("en", "mock.detail.response")) {
+		t.Fatal("workspace page must not show the single-response card")
+	}
+}
+
 func TestReadFormInputNoErrorResponseWhenRateZero(t *testing.T) {
 	form := url.Values{
 		"method":       {"GET"},

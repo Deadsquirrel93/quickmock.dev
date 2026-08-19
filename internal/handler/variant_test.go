@@ -1,11 +1,56 @@
 package handler
 
 import (
+	"context"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 )
+
+func TestPickConfiguredVariantExplicitAndRule(t *testing.T) {
+	src := responseSource{
+		ContentType: "application/json",
+		Variants:    []model.NamedVariant{{Name: "missing", Status: 404, Body: `{"error":"missing"}`}},
+		Rules:       []model.ResponseRule{{Name: "missing id", Variant: "missing", Conditions: []model.MatchCondition{{Source: "query", Key: "id", Operator: "equals", Value: "0"}}}},
+	}
+	r := httptest.NewRequest("GET", "/m/demo?id=0", nil)
+	got, ok := pickConfiguredVariant(src, "", r, nil)
+	if !ok || got.Status != 404 || got.Variant != "missing" {
+		t.Fatalf("rule result = %+v, %v", got, ok)
+	}
+	r.Header.Set("X-Quickmock-Variant", "missing")
+	got, ok = pickConfiguredVariant(src, requestedVariant(r), r, nil)
+	if !ok || got.Status != 404 {
+		t.Fatalf("explicit result = %+v, %v", got, ok)
+	}
+}
+
+func TestPathConditionUsesWorkspaceRelativePath(t *testing.T) {
+	r := httptest.NewRequest("GET", "/m/demo/users/42", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("slug", "demo")
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+
+	value, exists := conditionValue(model.MatchCondition{Source: "path"}, r, nil)
+	if !exists || value != "/users/42" {
+		t.Fatalf("path = %q, %v", value, exists)
+	}
+}
+
+func TestMatchRouteOpenAPIPlaceholder(t *testing.T) {
+	routes := []model.MockRoute{{Method: model.MethodGET, Path: "/users/{id}"}}
+	route, name, pathMatched := matchRoute(routes, "/users/42", "GET")
+	if route == nil || name != "/users/{id}" || !pathMatched {
+		t.Fatalf("route did not match: %+v %q %v", route, name, pathMatched)
+	}
+	if route, _, pathMatched = matchRoute(routes, "/users/42", "POST"); route != nil || !pathMatched {
+		t.Fatalf("method mismatch not detected")
+	}
+}
 
 func flakyMock() *model.Mock {
 	return &model.Mock{

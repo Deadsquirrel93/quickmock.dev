@@ -143,6 +143,13 @@ const PathSuffixMaxLen = 255
 // response is step 1 on top of these). The create-form UI mirrors this cap.
 const MaxSequenceSteps = 10
 
+const (
+	MaxNamedVariants  = 20
+	MaxResponseRules  = 20
+	MaxRuleConditions = 8
+	MaxMockRoutes     = 50
+)
+
 // normalizePathSuffix strips leading/trailing slashes and collapses runs.
 // Returns the cleaned value plus whether anything was left.
 func normalizePathSuffix(s string) string {
@@ -205,9 +212,15 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 		ErrorRatePct:       in.ErrorRatePct,
 		ErrorResponse:      in.ErrorResponse,
 		SequenceSteps:      in.SequenceSteps,
+		Variants:           in.Variants,
+		Rules:              in.Rules,
+		Routes:             in.Routes,
 		ContentType:        in.ContentType,
 		PathSuffix:         in.PathSuffix,
 		CORSEnabled:        in.CORSEnabled,
+		LogsPublic:         in.LogsPublic,
+		CaptureBody:        in.CaptureBody,
+		CaptureIP:          in.CaptureIP,
 		ExpiresAt:          &expires,
 		CreatorIP:          creatorIP,
 		AdminTokenHash:     tokenHash,
@@ -272,9 +285,15 @@ func (s *MockService) Update(ctx context.Context, slug string, in model.MockInpu
 	existing.ErrorRatePct = in.ErrorRatePct
 	existing.ErrorResponse = in.ErrorResponse
 	existing.SequenceSteps = in.SequenceSteps
+	existing.Variants = in.Variants
+	existing.Rules = in.Rules
+	existing.Routes = in.Routes
 	existing.ContentType = in.ContentType
 	existing.PathSuffix = in.PathSuffix
 	existing.CORSEnabled = in.CORSEnabled
+	existing.LogsPublic = in.LogsPublic
+	existing.CaptureBody = in.CaptureBody
+	existing.CaptureIP = in.CaptureIP
 	if in.TTL > 0 {
 		t := time.Now().Add(in.TTL)
 		existing.ExpiresAt = &t
@@ -460,6 +479,155 @@ func (s *MockService) validate(in *model.MockInput) error {
 			if strings.EqualFold(strings.TrimSpace(name), "location") && !safeRedirectLocation(value) {
 				return &ValidationError{Field: "response_sequence", Message: "step Location only supports relative, http, or https URLs"}
 			}
+		}
+	}
+	if err := s.validateResponseConfig(&in.Variants, &in.Rules, "response"); err != nil {
+		return err
+	}
+	if len(in.Routes) > MaxMockRoutes {
+		return &ValidationError{Field: "routes", Message: "too many routes"}
+	}
+	if len(in.Routes) > 0 {
+		// A workspace route already owns the suffix below /m/<slug>. Keeping
+		// the cosmetic single-mock suffix as well would produce a management
+		// URL that does not correspond to any workspace route.
+		in.PathSuffix = ""
+	}
+	seenRoutes := make(map[string]struct{}, len(in.Routes))
+	for i := range in.Routes {
+		route := &in.Routes[i]
+		route.Method = model.Method(strings.ToUpper(string(route.Method)))
+		if !model.ValidMethod(string(route.Method)) {
+			return &ValidationError{Field: "routes", Message: "route has an invalid method"}
+		}
+		route.Path = normalizeRoutePath(route.Path)
+		if !validRoutePath(route.Path) {
+			return &ValidationError{Field: "routes", Message: "route has an invalid path"}
+		}
+		key := string(route.Method) + " " + route.Path
+		if _, exists := seenRoutes[key]; exists {
+			return &ValidationError{Field: "routes", Message: "duplicate route: " + key}
+		}
+		seenRoutes[key] = struct{}{}
+		if route.ResponseStatus == 0 {
+			route.ResponseStatus = 200
+		}
+		if route.ResponseStatus < 100 || route.ResponseStatus > 599 {
+			return &ValidationError{Field: "routes", Message: "route status out of range"}
+		}
+		if len(route.ResponseBody) > s.maxBody {
+			return ErrBodyTooLarge
+		}
+		if route.ContentType == "" {
+			route.ContentType = "application/json"
+		}
+		route.ResponseHeaders = cleanHeaders(route.ResponseHeaders)
+		if err := validateHeaderMap(route.ResponseHeaders, "routes"); err != nil {
+			return err
+		}
+		if err := s.validateResponseConfig(&route.Variants, &route.Rules, "routes"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var routePathRegexp = regexp.MustCompile(`^/(?:[A-Za-z0-9._~-]+|\{[A-Za-z][A-Za-z0-9_]*\})(?:/(?:[A-Za-z0-9._~-]+|\{[A-Za-z][A-Za-z0-9_]*\}))*$|^/$`)
+
+func normalizeRoutePath(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "/"
+	}
+	if !strings.HasPrefix(s, "/") {
+		s = "/" + s
+	}
+	for strings.Contains(s, "//") {
+		s = strings.ReplaceAll(s, "//", "/")
+	}
+	if len(s) > 1 {
+		s = strings.TrimSuffix(s, "/")
+	}
+	return s
+}
+
+func validRoutePath(path string) bool {
+	return len(path) <= PathSuffixMaxLen+1 && routePathRegexp.MatchString(path)
+}
+
+func (s *MockService) validateResponseConfig(variants *[]model.NamedVariant, rules *[]model.ResponseRule, field string) error {
+	if len(*variants) > MaxNamedVariants {
+		return &ValidationError{Field: field, Message: "too many named variants"}
+	}
+	names := make(map[string]struct{}, len(*variants))
+	for i := range *variants {
+		v := &(*variants)[i]
+		v.Name = strings.TrimSpace(v.Name)
+		if !variantNameRegexp.MatchString(v.Name) {
+			return &ValidationError{Field: field, Message: "invalid variant name"}
+		}
+		if _, exists := names[v.Name]; exists {
+			return &ValidationError{Field: field, Message: "duplicate variant name"}
+		}
+		names[v.Name] = struct{}{}
+		if v.Status == 0 {
+			v.Status = 200
+		}
+		if v.Status < 100 || v.Status > 599 || len(v.Body) > s.maxBody {
+			return &ValidationError{Field: field, Message: "invalid variant response"}
+		}
+		v.Headers = cleanHeaders(v.Headers)
+		if err := validateHeaderMap(v.Headers, field); err != nil {
+			return err
+		}
+	}
+	if len(*rules) > MaxResponseRules {
+		return &ValidationError{Field: field, Message: "too many response rules"}
+	}
+	for i := range *rules {
+		rule := &(*rules)[i]
+		rule.Name = strings.TrimSpace(rule.Name)
+		if _, ok := names[rule.Variant]; !ok {
+			return &ValidationError{Field: field, Message: "rule references an unknown variant"}
+		}
+		if len(rule.Conditions) == 0 || len(rule.Conditions) > MaxRuleConditions {
+			return &ValidationError{Field: field, Message: "invalid rule condition count"}
+		}
+		for j := range rule.Conditions {
+			c := &rule.Conditions[j]
+			c.Source = strings.ToLower(strings.TrimSpace(c.Source))
+			c.Operator = strings.ToLower(strings.TrimSpace(c.Operator))
+			c.Key = strings.TrimSpace(c.Key)
+			if !oneOf(c.Source, "method", "path", "query", "header", "body") ||
+				!oneOf(c.Operator, "equals", "not_equals", "contains", "exists") {
+				return &ValidationError{Field: field, Message: "invalid rule condition"}
+			}
+			if (c.Source == "query" || c.Source == "header" || c.Source == "body") && c.Key == "" {
+				return &ValidationError{Field: field, Message: "rule condition key is required"}
+			}
+		}
+	}
+	return nil
+}
+
+var variantNameRegexp = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
+
+func oneOf(value string, allowed ...string) bool {
+	for _, candidate := range allowed {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func validateHeaderMap(headers map[string]string, field string) error {
+	for name, value := range headers {
+		if !headerNameRegexp.MatchString(name) {
+			return &ValidationError{Field: field, Message: "invalid header name: " + name}
+		}
+		if strings.EqualFold(strings.TrimSpace(name), "location") && !safeRedirectLocation(value) {
+			return &ValidationError{Field: field, Message: "Location only supports relative, http, or https URLs"}
 		}
 	}
 	return nil

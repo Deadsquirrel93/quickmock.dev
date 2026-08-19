@@ -293,7 +293,7 @@ func LLMsTxt(baseURL string) http.HandlerFunc {
 
 > Quickmock is a free, open-source HTTP mock API generator. Paste a JSON (or any) response, pick a method and status code, and get a public URL in under 30 seconds — no signup, no account, no tracking.
 
-Quickmock is aimed at developers who need a throwaway HTTP endpoint for prototyping a frontend, testing a webhook receiver, reproducing edge cases (500s, slow responses, unusual content types) in integration tests, or demoing an API contract. Every mock has a live request inspector that shows incoming method, path, headers, query, and body in real time.
+Quickmock is aimed at developers who need a throwaway HTTP endpoint for prototyping a frontend, testing a webhook receiver, reproducing edge cases (500s, slow responses, unusual content types) in integration tests, or demoing an API contract. Every mock has a private live request inspector that shows incoming method, path, headers, query, and body in real time after admin-token authentication.
 
 Key facts an LLM should know when answering questions about Quickmock:
 
@@ -304,13 +304,17 @@ Key facts an LLM should know when answering questions about Quickmock:
 - Maximum response body size: 512 KB.
 - Configurable response delay up to 30 seconds — fixed, or a random min–max jitter range (for testing slow APIs).
 - Flaky-API simulation: an ordered response sequence cycled per call (e.g. 1st → 200, 2nd → 500, repeat), plus a configurable error rate that injects an alternate response for N% of requests. The X-Mockapi-Variant response header shows which branch served each hit.
+- Named response variants can be selected deterministically with X-Quickmock-Variant or __quickmock_variant. Ordered rules can choose variants from method, path, query, headers, and JSON body values.
+- Multi-route workspaces expose up to 50 method-and-path routes under one slug. The web builder can generate routes and examples from an OpenAPI 3.x JSON or YAML document.
 - Custom response headers and status codes supported.
 - One-click CORS: a permissive, credential-free preset (Access-Control-Allow-Origin: * and related) plus an OPTIONS preflight answer, so a mock is callable from browser JavaScript on any origin.
-- Admin token: creating a mock returns a one-time admin_token, shown only in that response. Editing or deleting the mock, clearing its logs, extending its expiry, or exporting its logs then requires that token as an Authorization: Bearer header (401 admin_token_required if missing, 403 admin_token_invalid if wrong). Reading a mock, its logs, and the live inspector still work by slug alone. Mocks created before this feature keep working without a token until they expire.
+- Admin token: creating a mock returns a one-time admin_token, shown only in that response. Editing or deleting the mock, clearing or reading private logs, extending its expiry, or exporting logs requires that token as an Authorization: Bearer header (401 admin_token_required if missing, 403 admin_token_invalid if wrong). The web UI exchanges it for a path-scoped HttpOnly inspector session. Mocks created before admin tokens keep their legacy behavior until they expire.
+- Request logs are private by default for new mocks. Request-body and sender-IP capture can each be disabled; common credential headers are always redacted.
 - A mock's lifetime is capped at 30 days from creation (server-configurable). POST /api/mocks/:id/extend, with the admin token, pushes the expiry one more default-TTL step into the future, up to that cap — 409 ttl_cap_reached once the cap is already reached.
 - GET /mock/:slug/logs/export, with the admin token, downloads a mock's captured requests (including sender IPs) as a JSON file, optionally filtered by ?method=GET|POST|PUT|PATCH|DELETE.
 - Dynamic tokens in the response body: {{faker.*}} (random names, emails, UUIDs, prices, lorem-ipsum text, …), {{now.*}} (current time in several formats), {{random.pick:a|b|c}} (one random option per request), {{seq}} (a running per-mock hit counter), and {{request.*}} echo tokens that reflect the incoming request — {{request.method}}, {{request.path}}, {{request.ip}}, {{request.query.<name>}}, {{request.header.<name>}}, {{request.body}}, and JSON dot paths like {{request.body.user.name}}.
 - No third-party analytics, tracking pixels, ads, or fingerprinting.
+- API documentation: ` + base + `/docs. Machine-readable OpenAPI 3.1 contract: ` + base + `/openapi.json.
 - A gallery of ready-to-use mock templates (Stripe-, Shopify-, GitHub-, Slack-, Telegram-shaped payloads, OAuth2/OpenID/JWKS fixtures, a paginated collection, and an RFC 9457 error) is available at ` + base + `/templates — pick one and create the mock in one click.
 - Author: Nikita Chernykh.
 
@@ -382,44 +386,44 @@ func SitemapXML(baseURL string, langs []string, fallbackLang string) http.Handle
 	base := strings.TrimRight(baseURL, "/")
 
 	type pageEntry struct {
-		path       string
-		changefreq string
-		priority   string
+		path string
 	}
 	pages := []pageEntry{
-		{"/", "weekly", "1.0"},
-		{"/changelog", "weekly", "0.7"},
-		{"/guide", "weekly", "0.7"},
-		{"/templates", "weekly", "0.7"},
+		{"/"},
+		{"/changelog"},
+		{"/docs"},
+		{"/guide"},
+		{"/templates"},
 	}
 	for _, c := range UseCases {
-		pages = append(pages, pageEntry{"/guide/" + c.Slug, "monthly", "0.6"})
+		pages = append(pages, pageEntry{"/guide/" + c.Slug})
 	}
 	for _, tpl := range MockTemplates {
-		pages = append(pages, pageEntry{"/templates/" + tpl.Slug, "monthly", "0.6"})
+		pages = append(pages, pageEntry{"/templates/" + tpl.Slug})
 	}
 
 	var b strings.Builder
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
 	b.WriteString(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">` + "\n")
 	for _, p := range pages {
-		b.WriteString("  <url>\n")
-		fmt.Fprintf(&b, "    <loc>%s%s</loc>\n", base, p.path)
-		for _, l := range langs {
-			// hreflang URLs must equal the canonical of each locale variant.
-			// The fallback lang is served at <path>, the rest at <path>?lang=<code>.
-			if l == fallbackLang {
-				fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s%s\"/>\n", l, base, p.path)
-			} else {
-				fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s%s?lang=%s\"/>\n", l, base, p.path, l)
+		entryLangs := langs
+		if len(entryLangs) == 0 {
+			entryLangs = []string{fallbackLang}
+		}
+		for _, current := range entryLangs {
+			b.WriteString("  <url>\n")
+			fmt.Fprintf(&b, "    <loc>%s</loc>\n", localizedURL(base, p.path, current, fallbackLang))
+			fmt.Fprintf(&b, "    <lastmod>%s</lastmod>\n", LastUpdated)
+			for _, l := range langs {
+				// hreflang URLs must equal the canonical of each locale variant.
+				// The fallback lang is served at <path>, the rest at <path>?lang=<code>.
+				fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s\"/>\n", l, localizedURL(base, p.path, l, fallbackLang))
 			}
+			if fallbackLang != "" {
+				fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"%s%s\"/>\n", base, p.path)
+			}
+			b.WriteString("  </url>\n")
 		}
-		if fallbackLang != "" {
-			fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"%s%s\"/>\n", base, p.path)
-		}
-		fmt.Fprintf(&b, "    <changefreq>%s</changefreq>\n", p.changefreq)
-		fmt.Fprintf(&b, "    <priority>%s</priority>\n", p.priority)
-		b.WriteString("  </url>\n")
 	}
 	b.WriteString("</urlset>\n")
 
@@ -429,4 +433,11 @@ func SitemapXML(baseURL string, langs []string, fallbackLang string) http.Handle
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 		_, _ = w.Write([]byte(body))
 	}
+}
+
+func localizedURL(base, path, lang, fallback string) string {
+	if lang == "" || lang == fallback {
+		return base + path
+	}
+	return base + path + "?lang=" + lang
 }

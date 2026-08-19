@@ -1,0 +1,52 @@
+{{ define "title" }}{{ t "docs.meta_title" }}{{ end }}
+
+{{ define "content" }}
+<article class="docs container">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">{{ t "guide.breadcrumb.home" }}</a> · <span aria-current="page">{{ t "docs.title" }}</span></nav>
+  <header class="docs-hero">
+    <h1>{{ t "docs.title" }}</h1>
+    <p class="guide-intro">{{ t "docs.intro" }}</p>
+    <p><a class="btn btn-primary" href="/openapi.json">{{ t "docs.openapi" }}</a></p>
+  </header>
+
+  <nav class="docs-toc card" aria-label="{{ t "docs.toc" }}">
+    <strong>{{ t "docs.toc" }}</strong>
+    <a href="#create">{{ t "docs.create" }}</a>
+    <a href="#variants">{{ t "docs.variants" }}</a>
+    <a href="#rules">{{ t "docs.rules" }}</a>
+    <a href="#routes">{{ t "docs.routes" }}</a>
+    <a href="#privacy">{{ t "docs.privacy" }}</a>
+  </nav>
+
+  <section id="create"><h2>{{ t "docs.create" }}</h2><p>{{ t "docs.create_body" }}</p>
+<pre class="codeblock"><code>curl -X POST {{ .BaseURL }}/api/mocks \
+  -H 'Content-Type: application/json' \
+  -d '{"method":"GET","response_status":200,"content_type":"application/json","response_body":"{\"ok\":true}","ttl_seconds":604800}'</code></pre></section>
+
+  <section id="variants"><h2>{{ t "docs.variants" }}</h2><p>{{ t "docs.variants_body" }}</p>
+<pre class="codeblock"><code>"response_variants": [
+  {"name":"not-found","status":404,"body":"{\"error\":\"not found\"}"}
+]
+
+curl -H 'X-Quickmock-Variant: not-found' {{ .BaseURL }}/m/&lt;slug&gt;
+curl '{{ .BaseURL }}/m/&lt;slug&gt;?__quickmock_variant=not-found'</code></pre></section>
+
+  <section id="rules"><h2>{{ t "docs.rules" }}</h2><p>{{ t "docs.rules_body" }}</p>
+<pre class="codeblock"><code>"response_rules": [{
+  "name":"missing user",
+  "variant":"not-found",
+  "conditions":[{"source":"query","key":"id","operator":"equals","value":"missing"}]
+}]</code></pre></section>
+
+  <section id="routes"><h2>{{ t "docs.routes" }}</h2><p>{{ t "docs.routes_body" }}</p>
+<pre class="codeblock"><code>"routes": [
+  {"method":"GET","path":"/users/{id}","response_status":200,"content_type":"application/json","response_body":"{\"id\":1}"},
+  {"method":"POST","path":"/users","response_status":201,"content_type":"application/json","response_body":"{\"created\":true}"}
+]</code></pre></section>
+
+  <section id="privacy"><h2>{{ t "docs.privacy" }}</h2><p>{{ t "docs.privacy_body" }}</p>
+<pre class="codeblock"><code>"logs_public": false,
+"capture_body": true,
+"capture_ip": false</code></pre></section>
+</article>
+{{ end }}

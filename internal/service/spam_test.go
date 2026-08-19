@@ -79,6 +79,11 @@ func TestBlockedScansAllUserFields(t *testing.T) {
 		"error body":   {ErrorResponse: &model.ResponseStep{Body: "spamword"}},
 		"seq body":     {SequenceSteps: []model.ResponseStep{{Body: "spamword"}}},
 		"seq header":   {SequenceSteps: []model.ResponseStep{{Headers: map[string]string{"X": "spamword"}}}},
+		"variant body": {Variants: []model.NamedVariant{{Body: "spamword"}}},
+		"route body":   {Routes: []model.MockRoute{{ResponseBody: "spamword"}}},
+		"route variant": {Routes: []model.MockRoute{{Variants: []model.NamedVariant{{
+			Body: "spamword",
+		}}}}},
 	}
 	for field, in := range cases {
 		in := in

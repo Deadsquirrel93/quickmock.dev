@@ -42,6 +42,49 @@ type ResponseStep struct {
 	Headers map[string]string `json:"headers,omitempty"`
 }
 
+// NamedVariant is a deterministic response that can be selected explicitly
+// with X-Quickmock-Variant / __quickmock_variant, or by a ResponseRule.
+type NamedVariant struct {
+	Name        string            `json:"name"`
+	Status      int               `json:"status"`
+	Body        string            `json:"body"`
+	Headers     map[string]string `json:"headers,omitempty"`
+	ContentType string            `json:"content_type,omitempty"`
+}
+
+// MatchCondition is one safe, bounded request predicate. Regex is
+// intentionally not supported: equals/contains/exists cover the common mock
+// cases without exposing the public hot path to user-controlled regex cost.
+type MatchCondition struct {
+	Source   string `json:"source"` // method, path, query, header, body
+	Key      string `json:"key,omitempty"`
+	Operator string `json:"operator"` // equals, not_equals, contains, exists
+	Value    string `json:"value,omitempty"`
+}
+
+// ResponseRule selects a named variant when all its conditions match.
+// Rules are evaluated in order and the first match wins.
+type ResponseRule struct {
+	Name       string           `json:"name"`
+	Variant    string           `json:"variant"`
+	Conditions []MatchCondition `json:"conditions"`
+}
+
+// MockRoute is one method + path operation inside a multi-route mock
+// workspace. Paths are relative to /m/<slug>, start with '/', and may contain
+// OpenAPI-style placeholders such as /users/{id}.
+type MockRoute struct {
+	Name            string            `json:"name,omitempty"`
+	Method          Method            `json:"method"`
+	Path            string            `json:"path"`
+	ResponseStatus  int               `json:"response_status"`
+	ResponseBody    string            `json:"response_body,omitempty"`
+	ResponseHeaders map[string]string `json:"response_headers,omitempty"`
+	ContentType     string            `json:"content_type,omitempty"`
+	Variants        []NamedVariant    `json:"response_variants,omitempty"`
+	Rules           []ResponseRule    `json:"response_rules,omitempty"`
+}
+
 // Mock mirrors one row of the `mocks` table.
 type Mock struct {
 	ID              string
@@ -62,6 +105,9 @@ type Mock struct {
 	// SequenceSteps are EXTRA responses cycled after the main one:
 	// hit 1 → main response, hit 2 → SequenceSteps[0], … then loop.
 	SequenceSteps []ResponseStep
+	Variants      []NamedVariant
+	Rules         []ResponseRule
+	Routes        []MockRoute
 	ContentType   string
 	// PathSuffix is the optional readable path the user picked, stored
 	// without leading/trailing slashes (e.g. "users/123"). Cosmetic only:
@@ -85,6 +131,11 @@ type Mock struct {
 	// populated ONLY by MockService.Create for the single response that
 	// shows it to the user, and is never read back from the database.
 	AdminToken string
+	// LogsPublic controls whether the live inspector is readable with the slug
+	// alone. New mocks default private; owners authenticate with the admin token.
+	LogsPublic  bool
+	CaptureBody bool
+	CaptureIP   bool
 }
 
 // MockInput is what the create/update handlers accept after parsing form or
@@ -101,8 +152,14 @@ type MockInput struct {
 	ErrorRatePct       int
 	ErrorResponse      *ResponseStep
 	SequenceSteps      []ResponseStep
+	Variants           []NamedVariant
+	Rules              []ResponseRule
+	Routes             []MockRoute
 	ContentType        string
 	PathSuffix         string
 	CORSEnabled        bool
+	LogsPublic         bool
+	CaptureBody        bool
+	CaptureIP          bool
 	TTL                time.Duration
 }

@@ -83,6 +83,10 @@ func (u *UI) TemplateCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in, _ := TemplateInput(slug)
+	// One-click templates bypass the HTML form whose privacy checkboxes are
+	// checked by default, so apply the same capture defaults explicitly.
+	in.CaptureBody = true
+	in.CaptureIP = true
 	ip := mockmw.IPFromContext(r.Context())
 	m, err := u.svc.Create(r.Context(), in, ip)
 	if err != nil {

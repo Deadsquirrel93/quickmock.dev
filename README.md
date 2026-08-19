@@ -43,14 +43,16 @@ That's it. No account, no API key, no waiting for an email.
 - **Simulate flaky APIs** — an ordered response sequence cycled per call (1st → 200, 2nd → 500, repeat — classic retry testing) plus a configurable error rate that injects an alternate response for N% of requests.
 - **CORS toggle** — one checkbox adds a permissive, credential-free `Access-Control-*` preset and answers `OPTIONS` preflight, so a mock is callable from browser JS on any origin.
 - **Auto-expiring mocks** — TTL from 1 hour to 30 days.
-- **Live inspector & config export** — requests stream in over SSE, and any mock's config can be exported/imported as JSON.
+- **Named variants & conditional responses** — select an exact response by name, or match method, path, query, headers, and JSON body fields with ordered rules.
+- **Multi-route workspaces** — expose up to 50 method-and-path routes under one slug, or generate them by importing an OpenAPI 3.x JSON/YAML document.
+- **Private live inspector & config export** — requests stream in over SSE after admin-token authentication; config can be exported/imported as JSON. Body and sender-IP capture can be disabled independently.
 - **Copy as cURL** — one click to grab a ready-made test command.
 - **Dynamic tokens** — drop `{{faker.uuid}}`, `{{now.iso8601}}`, etc. into the body; fresh values on every hit. See [Dynamic tokens](#dynamic-tokens).
 - **Request echo** — `{{request.*}}` tokens reflect the incoming request back: method, path, IP, query params, headers, raw body, or a JSON field from the body.
 - **Use-case guides** — `/guide` has ready-to-run recipes: retry testing, flaky/slow APIs, webhook inspection, fake data, and more.
 - **Ready-made templates** — [`/templates`](https://quickmock.dev/templates) has ten one-click mock configurations (Stripe/Shopify webhooks, GitHub push events, OAuth2/OIDC discovery, JWKS, RFC 9457 errors, and more), each explaining its payload and how it differs from the real service.
-- **Admin token** — manage your mock from any device: creating a mock returns a one-time admin token, and editing it, deleting it, or clearing its logs needs that token (`Authorization: Bearer`) from then on. Reading a mock, its logs, and the live inspector stay slug-only.
-- **No signup** — mocks live in your browser's `localStorage`, and the slug alone still lets anyone read a mock, its logs, and its live inspector; editing, deleting, or clearing logs needs the mock's one-time admin token.
+- **Admin token** — manage your mock from any device: creating a mock returns a one-time admin token. Editing, deleting, clearing or viewing private logs requires it (`Authorization: Bearer`); the browser exchanges it for a path-scoped HttpOnly inspector session.
+- **No signup** — mocks and their admin tokens live in your browser's `localStorage`; the response URL stays public, while management and private request logs remain protected.
 - **Bilingual UI** — English and Russian out of the box; more languages planned.
 
 ## Dynamic tokens
@@ -87,7 +89,7 @@ The full list with descriptions also lives inside the create form under "Dynamic
 
 ## Roadmap
 
-Optional accounts, mock collections, conditional responses, webhook forwarding, a CLI, public templates.
+Optional accounts, workspace sharing controls, signed webhook forwarding, a CLI, reusable community workspaces, and richer auth simulation.
 
 ---
 
@@ -113,8 +115,8 @@ Quickmock is run on enthusiasm, not on ad revenue. It is built to be useful — 
 | --------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | Your IP, in Redis                 | Rate limiting (5000 mock hits / IP / 8 hours)     | 8 hours, then deleted                                                                      |
 | Creator IP, on each mock          | Enforce "50 active mocks per IP"                  | Until the mock is deleted or expires. Never shown in the UI.                               |
-| Requests to your mocks            | This is literally the inspector feature           | Up to 100 newest per mock; auto-deleted when the mock expires; you can clear them any time |
-| `lang` cookie                     | Remember your language choice                     | 1 year, or until you clear cookies. This is the only cookie.                               |
+| Requests to your mocks            | This is the inspector feature; body and IP capture are separately optional | Up to 100 newest per mock; auto-deleted when the mock expires; you can clear them any time |
+| `lang` and inspector cookies      | Remember language and unlock a private inspector after token verification | Language: 1 year. Inspector: up to 30 days, scoped to one mock path.                        |
 | Server-side request logs (stdout) | Operational debugging                             | systemd / Docker journal default — rotates with the OS                                     |
 
 That's the entire list.

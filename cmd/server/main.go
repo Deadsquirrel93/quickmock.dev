@@ -228,6 +228,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	r.Get("/robots.txt", handler.RobotsTxt(cfg.BaseURL))
 	r.Get("/sitemap.xml", handler.SitemapXML(cfg.BaseURL, localz.Supported(), cfg.DefaultLang))
 	r.Get("/llms.txt", handler.LLMsTxt(cfg.BaseURL))
+	r.Get("/openapi.json", handler.OpenAPISpec(cfg.BaseURL))
 
 	// Public mock router — own rate limit bucket, no i18n.
 	// Two routes share one handler: bare slug, and slug + cosmetic suffix.
@@ -247,19 +248,21 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		r.Use(mockmw.UICSP())
 
 		r.Get("/", ui.Home)
-		r.Get("/mock/{slug}", ui.Detail)
-		r.With(mockmw.RateLimit(uiReadLimiter, "ui-read")).Get("/mock/{slug}/logs", ui.LogsPartial)
-		r.Get("/mock/{slug}/logs/stream", ui.LogsStream)
-		r.With(mockmw.RateLimit(uiReadLimiter, "ui-read")).Get("/mock/{slug}/summary", ui.SummaryPartial)
-		r.Get("/mock/{slug}/export", ui.Export)
-		r.Get("/mock/{slug}/logs/export", ui.LogsExport)
-		r.Get("/my", ui.MyMocks)
+		r.Get("/mock/{slug}", noIndex(ui.Detail))
+		r.With(mockmw.RateLimit(uiReadLimiter, "ui-read")).Get("/mock/{slug}/logs", noIndex(ui.LogsPartial))
+		r.Get("/mock/{slug}/logs/stream", noIndex(ui.LogsStream))
+		r.Post("/mock/{slug}/session", noIndex(ui.MockSession))
+		r.With(mockmw.RateLimit(uiReadLimiter, "ui-read")).Get("/mock/{slug}/summary", noIndex(ui.SummaryPartial))
+		r.Get("/mock/{slug}/export", noIndex(ui.Export))
+		r.Get("/mock/{slug}/logs/export", noIndex(ui.LogsExport))
+		r.Get("/my", noIndex(ui.MyMocks))
 		r.Get("/changelog", ui.Changelog)
+		r.Get("/docs", ui.Docs)
 		r.Get("/guide", ui.Guide)
 		r.Get("/guide/{slug}", ui.GuideCase)
 		r.Get("/templates", ui.Templates)
 		r.Get("/templates/{slug}", ui.TemplateCase)
-		r.Get("/share/{slug}", ui.Share)
+		r.Get("/share/{slug}", noIndex(ui.Share))
 		r.Post("/language", langHandler)
 		r.NotFound(ui.NotFound)
 
@@ -283,6 +286,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 			r.Get("/mocks/{id}/logs", api.Logs)
 			r.Delete("/mocks/{id}/logs", api.ClearLogs)
 			r.Post("/parse-curl", api.ParseCurl)
+			r.Post("/parse-openapi", api.ParseOpenAPI)
 		})
 	})
 
@@ -334,6 +338,13 @@ func expireWorker(ctx context.Context, repo *repository.MockRepo, logger *slog.L
 				logger.Info("expired mocks removed", slog.Int64("count", n))
 			}
 		}
+	}
+}
+
+func noIndex(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Robots-Tag", "noindex, nofollow, noarchive")
+		next(w, r)
 	}
 }
 
