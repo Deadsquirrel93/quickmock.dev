@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ---------- build stage ----------
-FROM golang:1.22-alpine AS build
+FROM golang:1.27.0-alpine AS build
 
 # curl is needed by scripts/vendor-js.sh so we can embed HTMX + Alpine.
 RUN apk add --no-cache curl bash

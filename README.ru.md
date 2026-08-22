@@ -125,7 +125,7 @@ Quickmock работает на энтузиазме, а не на реклам�
 
 ## Стек
 
-- **Бэкенд:** Go 1.22+
+- **Бэкенд:** Go 1.27+
 - **Фронтенд:** HTMX + Alpine.js + Go-шаблоны (без Node.js и сборщика)
 - **Хранилище:** PostgreSQL (моки, логи запросов) + Redis (rate limiting, эфемерное состояние)
 - **Reverse proxy:** Nginx + Let's Encrypt

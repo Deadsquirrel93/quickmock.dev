@@ -125,7 +125,7 @@ That's the entire list.
 
 ## Tech stack
 
-- **Backend:** Go 1.22+
+- **Backend:** Go 1.27+
 - **Frontend:** HTMX + Alpine.js + Go templates (no Node.js, no bundler)
 - **Storage:** PostgreSQL (mocks, request logs) + Redis (rate limiting, ephemeral state)
 - **Reverse proxy:** Nginx + Let's Encrypt
