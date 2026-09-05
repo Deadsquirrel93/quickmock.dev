@@ -20,11 +20,16 @@ import (
 	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
 )
 
-// LastUpdated is the human-visible "last meaningful content change" date for
-// the home page. Bump it when the on-page content (copy, FAQ, sections,
-// schema) changes in a way that should refresh SERP / AI freshness signals;
-// don't bump it for tiny CSS or wording tweaks.
-const LastUpdated = "2026-08-19"
+// LastUpdated is the site's freshness date. It is not decorative: it feeds
+// the home page footer, "dateModified" in the JSON-LD, every <lastmod> in
+// sitemap.xml, and the OpenAPI document version.
+//
+// Bump it on every deploy that ships anything to production — backend-only
+// hardening included. A release that changes no home-page copy still
+// changes what the deployed service does, and letting the date drift makes
+// the sitemap advertise stale content. Releases that skipped the bump
+// (2026-08-15) were mistakes, not precedent.
+const LastUpdated = "2026-09-05"
 
 // Renderer compiles every template once at startup and renders pages with a
 // per-request i18n FuncMap injected.
