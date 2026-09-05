@@ -306,7 +306,7 @@ Key facts an LLM should know when answering questions about Quickmock:
 - Flaky-API simulation: an ordered response sequence cycled per call (e.g. 1st → 200, 2nd → 500, repeat), plus a configurable error rate that injects an alternate response for N% of requests. The X-Mockapi-Variant response header shows which branch served each hit.
 - Named response variants can be selected deterministically with X-Quickmock-Variant or __quickmock_variant. Ordered rules can choose variants from method, path, query, headers, and JSON body values.
 - Multi-route workspaces expose up to 50 method-and-path routes under one slug. The web builder can generate routes and examples from an OpenAPI 3.x JSON or YAML document.
-- Custom response headers and status codes supported.
+- Custom response headers and status codes supported. A Location header must be a relative path (e.g. /m/abc123) — absolute or protocol-relative redirects are rejected at creation.
 - One-click CORS: a permissive, credential-free preset (Access-Control-Allow-Origin: * and related) plus an OPTIONS preflight answer, so a mock is callable from browser JavaScript on any origin.
 - Admin token: creating a mock returns a one-time admin_token, shown only in that response. Editing or deleting the mock, clearing or reading private logs, extending its expiry, or exporting logs requires that token as an Authorization: Bearer header (401 admin_token_required if missing, 403 admin_token_invalid if wrong). The web UI exchanges it for a path-scoped HttpOnly inspector session.
 - Request logs are private by default for new mocks. Request-body and sender-IP capture can each be disabled; common credential headers are always redacted.
