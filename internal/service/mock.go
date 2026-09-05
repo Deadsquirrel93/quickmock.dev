@@ -244,13 +244,10 @@ func (s *MockService) Get(ctx context.Context, slug string) (*model.Mock, error)
 	return m, err
 }
 
-// authorize checks adminToken against m's stored hash. A mock with no hash
-// is legacy (created before this feature): it stays slug-only and
-// authorizes any caller, including an empty token, until it expires.
+// authorize checks adminToken against m's stored hash. Every mock has one:
+// the pre-token grandfather branch was dropped on 2026-09-05, after a prod
+// check confirmed the last token-less mock had expired.
 func authorize(m *model.Mock, adminToken string) error {
-	if m.AdminTokenHash == "" {
-		return nil
-	}
 	if adminToken == "" {
 		return ErrTokenRequired
 	}

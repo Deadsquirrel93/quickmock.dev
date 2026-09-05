@@ -98,8 +98,8 @@ func TestCreateViewAddsAdminTokenOnlyWhenPresent(t *testing.T) {
 		t.Fatalf("admin_token %q missing qm_ prefix", tok)
 	}
 
-	legacy := &model.Mock{Slug: "legacy1"}
-	v2 := a.createView(legacy)
+	refetched := &model.Mock{Slug: "abc123"}
+	v2 := a.createView(refetched)
 	if _, ok := v2["admin_token"]; ok {
 		t.Fatal("createView must omit admin_token when Mock.AdminToken is empty")
 	}

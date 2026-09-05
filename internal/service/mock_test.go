@@ -204,8 +204,8 @@ func TestValidateDelayJitter(t *testing.T) {
 
 // TestAuthorizeAdminToken exercises the private authorize() helper that
 // Update/Delete/ClearLogs all delegate to right after fetching the mock.
-// It is the single place the token/legacy business rule lives, so this is
-// the load-bearing test for the mutation-guard behavior.
+// It is the single place the token business rule lives, so this is the
+// load-bearing test for the mutation-guard behavior.
 func TestAuthorizeAdminToken(t *testing.T) {
 	plain, hash, err := GenerateAdminToken()
 	if err != nil {
@@ -218,8 +218,8 @@ func TestAuthorizeAdminToken(t *testing.T) {
 		token string
 		want  error
 	}{
-		{"legacy mock, empty token authorized", &model.Mock{}, "", nil},
-		{"legacy mock, any token still authorized", &model.Mock{}, "qm_whatever", nil},
+		{"hashless mock, empty token rejected", &model.Mock{}, "", ErrTokenRequired},
+		{"hashless mock, any token rejected", &model.Mock{}, "qm_whatever", ErrTokenInvalid},
 		{"hashed mock, correct token authorized", &model.Mock{AdminTokenHash: hash}, plain, nil},
 		{"hashed mock, empty token rejected", &model.Mock{AdminTokenHash: hash}, "", ErrTokenRequired},
 		{"hashed mock, wrong token rejected", &model.Mock{AdminTokenHash: hash}, "qm_" + strings.Repeat("a", 64), ErrTokenInvalid},
@@ -327,7 +327,7 @@ func (f *fakeMockStore) SlugExists(_ context.Context, slug string) (bool, error)
 }
 
 // TestExtend covers the five branches of MockService.Extend: success,
-// missing/wrong token, hitting the TTL cap, and the legacy no-token mock.
+// missing/wrong token, hitting the TTL cap, and the hashless mock.
 func TestExtend(t *testing.T) {
 	const defaultTTL = time.Hour
 	const maxTTL = 24 * time.Hour
@@ -422,22 +422,18 @@ func TestExtend(t *testing.T) {
 		}
 	})
 
-	t.Run("legacy mock with empty token", func(t *testing.T) {
+	t.Run("hashless mock is not extendable", func(t *testing.T) {
 		expires := time.Now().Add(time.Minute)
 		store := newFakeMockStore(&model.Mock{
-			Slug:      "legacy",
+			Slug:      "hashless",
 			CreatedAt: time.Now(),
 			ExpiresAt: &expires,
-			// AdminTokenHash left empty: legacy mock.
+			// AdminTokenHash left empty: no longer a free pass.
 		})
 		s := &MockService{repo: store, defaultTTL: defaultTTL, maxTTL: maxTTL}
 
-		m, err := s.Extend(context.Background(), "legacy", "")
-		if err != nil {
-			t.Fatalf("Extend() error = %v", err)
-		}
-		if !m.ExpiresAt.After(expires) {
-			t.Fatalf("ExpiresAt = %v, want after %v", m.ExpiresAt, expires)
+		if _, err := s.Extend(context.Background(), "hashless", ""); !errors.Is(err, ErrTokenRequired) {
+			t.Fatalf("Extend() error = %v, want %v", err, ErrTokenRequired)
 		}
 	})
 }
@@ -486,11 +482,12 @@ func TestAuthorizeSlug(t *testing.T) {
 		}
 	})
 
-	t.Run("legacy mock, empty token authorized", func(t *testing.T) {
-		store := newFakeMockStore(&model.Mock{Slug: "legacy"})
+	t.Run("hashless mock, empty token rejected", func(t *testing.T) {
+		store := newFakeMockStore(&model.Mock{Slug: "hashless"})
 		s := &MockService{repo: store}
-		if _, err := s.AuthorizeSlug(context.Background(), "legacy", ""); err != nil {
-			t.Fatalf("AuthorizeSlug() error = %v", err)
+		_, err := s.AuthorizeSlug(context.Background(), "hashless", "")
+		if !errors.Is(err, ErrTokenRequired) {
+			t.Fatalf("AuthorizeSlug() error = %v, want %v", err, ErrTokenRequired)
 		}
 	})
 }

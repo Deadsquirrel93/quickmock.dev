@@ -154,7 +154,8 @@ func TestCreateRequestToInputCORS(t *testing.T) {
 // TestMockRedirectLocation exercises the Post/Redirect/Get target CreateForm
 // hands to http.Redirect. It's the load-bearing check for Step 1: the token
 // must ride in the URL fragment (never a query param — those reach access
-// logs), and legacy mocks without a token must get a plain redirect.
+// logs), and a re-fetched mock (whose plaintext token is long gone) must
+// get a plain redirect.
 func TestMockRedirectLocation(t *testing.T) {
 	withToken := &model.Mock{Slug: "abc123", AdminToken: "qm_" + strings.Repeat("a", 64)}
 	loc := mockRedirectLocation(withToken)
@@ -165,9 +166,9 @@ func TestMockRedirectLocation(t *testing.T) {
 		t.Fatalf("location = %q, want a #token=qm_ fragment", loc)
 	}
 
-	legacy := &model.Mock{Slug: "legacy1"}
-	if got := mockRedirectLocation(legacy); got != "/mock/legacy1" {
-		t.Fatalf("location = %q, want /mock/legacy1 with no fragment", got)
+	refetched := &model.Mock{Slug: "abc123"}
+	if got := mockRedirectLocation(refetched); got != "/mock/abc123" {
+		t.Fatalf("location = %q, want /mock/abc123 with no fragment", got)
 	}
 }
 

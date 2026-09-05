@@ -228,7 +228,7 @@ func (u *UI) MockSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u *UI) inspectorAuthorized(r *http.Request, m *model.Mock) bool {
-	if m.LogsPublic || m.AdminTokenHash == "" {
+	if m.LogsPublic {
 		return true
 	}
 	token := bearerToken(r)

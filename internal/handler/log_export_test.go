@@ -18,9 +18,8 @@ import (
 // internal/handler has no test harness for (see testAPI/testUI: both build
 // their struct with a nil svc/logs). That end-to-end path — 401 without a
 // header, 403 on a wrong token, 200 with a JSON body and
-// Content-Disposition header, ?method=POST narrowing the rows, and a
-// legacy no-hash mock exporting without any header — is covered by manual
-// curl verification instead.
+// Content-Disposition header, and ?method=POST narrowing the rows — is
+// covered by manual curl verification instead.
 
 func TestLogMethodFilter(t *testing.T) {
 	cases := []struct {
