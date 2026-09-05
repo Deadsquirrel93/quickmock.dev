@@ -515,20 +515,127 @@ func TestOriginAffectingHeadersStayReserved(t *testing.T) {
 	}
 }
 
-func TestValidateLocationScheme(t *testing.T) {
-	s := testService()
-	for _, value := range []string{"/relative", "https://example.com/next", "HTTP://example.com"} {
-		in := baseInput()
-		in.ResponseHeaders = map[string]string{"Location": value}
-		if err := s.validate(&in); err != nil {
-			t.Errorf("Location %q rejected: %v", value, err)
+func TestSafeRedirectLocation(t *testing.T) {
+	for _, value := range []string{"/m/abc123", "/a/b?x=1", "/"} {
+		if !SafeRedirectLocation(value) {
+			t.Errorf("relative Location %q rejected", value)
 		}
 	}
-	for _, value := range []string{"gopher://example.com/_payload", "javascript:alert(1)", "file:///etc/passwd"} {
+	for _, value := range []string{
+		"//evil.com",
+		`/\evil.com`,
+		"http://evil.com",
+		"https://evil.com",
+		"HTTP://EVIL.COM",
+		"gopher://x",
+		"javascript:alert(1)",
+		"file:///etc/passwd",
+		"/x\r\nSet-Cookie: a=b",
+		"/" + strings.Repeat("a", 2048),
+	} {
+		if SafeRedirectLocation(value) {
+			t.Errorf("unsafe Location %q accepted", value)
+		}
+	}
+}
+
+func TestValidateLocationScheme(t *testing.T) {
+	s := testService()
+	in := baseInput()
+	in.ResponseHeaders = map[string]string{"Location": "/relative/path"}
+	if err := s.validate(&in); err != nil {
+		t.Errorf("relative Location rejected: %v", err)
+	}
+	for _, value := range []string{"https://example.com/next", "HTTP://example.com", "//evil.com"} {
 		in := baseInput()
 		in.ResponseHeaders = map[string]string{"Location": value}
 		if err := s.validate(&in); err == nil {
-			t.Errorf("unsafe Location %q accepted", value)
+			t.Errorf("absolute Location %q accepted", value)
 		}
+	}
+}
+
+// TestValidateLocationRejectedAtEveryHeaderSite is the regression test for
+// the actual vulnerability: Location was only checked in in.ResponseHeaders,
+// so the same absolute value placed on a named variant, a route, a route's
+// nested variant, a sequence step, or the error response sailed through
+// unvalidated. All five must reject it the same way.
+func TestValidateLocationRejectedAtEveryHeaderSite(t *testing.T) {
+	s := testService()
+	const unsafe = "https://evil.com"
+
+	sites := []struct {
+		name  string
+		setup func(in *model.MockInput)
+	}{
+		{
+			name: "response headers",
+			setup: func(in *model.MockInput) {
+				in.ResponseHeaders = map[string]string{"Location": unsafe}
+			},
+		},
+		{
+			name: "named variant",
+			setup: func(in *model.MockInput) {
+				in.Variants = []model.NamedVariant{{
+					Name:    "v1",
+					Status:  200,
+					Headers: map[string]string{"Location": unsafe},
+				}}
+			},
+		},
+		{
+			name: "route",
+			setup: func(in *model.MockInput) {
+				in.Routes = []model.MockRoute{{
+					Method:          model.MethodGET,
+					Path:            "/x",
+					ResponseHeaders: map[string]string{"Location": unsafe},
+				}}
+			},
+		},
+		{
+			name: "nested route variant",
+			setup: func(in *model.MockInput) {
+				in.Routes = []model.MockRoute{{
+					Method: model.MethodGET,
+					Path:   "/x",
+					Variants: []model.NamedVariant{{
+						Name:    "v1",
+						Status:  200,
+						Headers: map[string]string{"Location": unsafe},
+					}},
+				}}
+			},
+		},
+		{
+			name: "sequence step",
+			setup: func(in *model.MockInput) {
+				in.SequenceSteps = []model.ResponseStep{{
+					Status:  200,
+					Headers: map[string]string{"Location": unsafe},
+				}}
+			},
+		},
+		{
+			name: "error response",
+			setup: func(in *model.MockInput) {
+				in.ErrorRatePct = 10
+				in.ErrorResponse = &model.ResponseStep{
+					Status:  503,
+					Headers: map[string]string{"Location": unsafe},
+				}
+			},
+		},
+	}
+
+	for _, site := range sites {
+		t.Run(site.name, func(t *testing.T) {
+			in := baseInput()
+			site.setup(&in)
+			if err := s.validate(&in); err == nil {
+				t.Fatalf("absolute Location accepted at %s", site.name)
+			}
+		})
 	}
 }

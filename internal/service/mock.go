@@ -413,13 +413,8 @@ func (s *MockService) validate(in *model.MockInput) error {
 	if len(in.ResponseBody) > s.maxBody {
 		return ErrBodyTooLarge
 	}
-	for name, value := range in.ResponseHeaders {
-		if !headerNameRegexp.MatchString(name) {
-			return &ValidationError{Field: "response_headers", Message: "invalid header name: " + name}
-		}
-		if strings.EqualFold(strings.TrimSpace(name), "location") && !safeRedirectLocation(value) {
-			return &ValidationError{Field: "response_headers", Message: "Location only supports relative, http, or https URLs"}
-		}
+	if err := validateHeaderMap(in.ResponseHeaders, "response_headers"); err != nil {
+		return err
 	}
 	if in.ContentType == "" {
 		in.ContentType = "text/plain; charset=utf-8"
@@ -454,6 +449,9 @@ func (s *MockService) validate(in *model.MockInput) error {
 		if err := s.validateStep(in.ErrorResponse, "error_response", 500); err != nil {
 			return err
 		}
+		if err := validateHeaderMap(in.ErrorResponse.Headers, "error_response"); err != nil {
+			return err
+		}
 		// The error response inherits the mock's headers and content-type.
 		in.ErrorResponse.Headers = nil
 	}
@@ -469,13 +467,8 @@ func (s *MockService) validate(in *model.MockInput) error {
 		if len(st.Headers) == 0 {
 			st.Headers = nil
 		}
-		for name, value := range st.Headers {
-			if !headerNameRegexp.MatchString(name) {
-				return &ValidationError{Field: "response_sequence", Message: "invalid step header name: " + name}
-			}
-			if strings.EqualFold(strings.TrimSpace(name), "location") && !safeRedirectLocation(value) {
-				return &ValidationError{Field: "response_sequence", Message: "step Location only supports relative, http, or https URLs"}
-			}
+		if err := validateHeaderMap(st.Headers, "response_sequence"); err != nil {
+			return err
 		}
 	}
 	if err := s.validateResponseConfig(&in.Variants, &in.Rules, "response"); err != nil {
@@ -623,19 +616,49 @@ func validateHeaderMap(headers map[string]string, field string) error {
 		if !headerNameRegexp.MatchString(name) {
 			return &ValidationError{Field: field, Message: "invalid header name: " + name}
 		}
-		if strings.EqualFold(strings.TrimSpace(name), "location") && !safeRedirectLocation(value) {
-			return &ValidationError{Field: field, Message: "Location only supports relative, http, or https URLs"}
+		if strings.EqualFold(strings.TrimSpace(name), "location") && !SafeRedirectLocation(value) {
+			return &ValidationError{Field: field, Message: "Location must be a relative path (e.g. /m/abc123)"}
 		}
 	}
 	return nil
 }
 
-func safeRedirectLocation(raw string) bool {
-	u, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || u.Scheme == "" {
-		return err == nil
+// SafeRedirectLocation reports whether raw is safe to serve as a mock's
+// Location header. A mock is a trusted quickmock.dev URL to third-party
+// fetchers (AI agents, CI jobs, webhook validators); an absolute Location
+// turns that trust into an open redirect to any host, internal or external.
+// Only a plain relative path is accepted:
+//
+//   - exactly one leading '/' — "//host/path" and "/\host/path" are
+//     protocol-relative and backslash variants that browsers resolve to a
+//     host, so they are rejected even though url.Parse alone would not
+//     flag them;
+//   - no scheme and no host once parsed;
+//   - no control characters, DEL, or spaces, which would let the value
+//     smuggle extra response headers;
+//   - bounded length, to keep it a path rather than an encoded payload.
+//
+// Exported so the mock router can re-run the same check on the serve path
+// against rows written before this validation existed (see
+// IsReservedResponseHeader for the same defence-in-depth pattern).
+func SafeRedirectLocation(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || len(raw) > 2048 {
+		return false
 	}
-	return strings.EqualFold(u.Scheme, "http") || strings.EqualFold(u.Scheme, "https")
+	for i := 0; i < len(raw); i++ {
+		if b := raw[i]; b < 0x20 || b == 0x7f || b == ' ' {
+			return false
+		}
+	}
+	if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") || strings.HasPrefix(raw, `/\`) {
+		return false
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	return u.Scheme == "" && u.Host == ""
 }
 
 // validateStep applies the shared rules for one alternate response. A zero

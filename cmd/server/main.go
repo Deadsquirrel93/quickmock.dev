@@ -194,7 +194,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 
 	api := handler.NewAPI(mockSvc, logRepo, mockRepo, renderer, cfg.BaseURL)
 	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks, sseBroker, sseStreams, uiWriteLimiter)
-	mockRouter := handler.NewMockRouter(mockSvc, logWriter, seqCounter)
+	mockRouter := handler.NewMockRouter(mockSvc, logWriter, seqCounter, logger)
 	healthHandler := handler.Health(pool, mockLimiter)
 	langHandler := handler.Lang(renderer, secureSite)
 

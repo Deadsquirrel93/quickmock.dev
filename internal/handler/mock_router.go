@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"strings"
@@ -25,11 +26,12 @@ type MockRouter struct {
 	svc    *service.MockService
 	logs   *service.LogWriter
 	seq    *repository.SeqCounter
+	logger *slog.Logger
 	maxLog int
 }
 
-func NewMockRouter(svc *service.MockService, logs *service.LogWriter, seq *repository.SeqCounter) *MockRouter {
-	return &MockRouter{svc: svc, logs: logs, seq: seq, maxLog: 16 * 1024}
+func NewMockRouter(svc *service.MockService, logs *service.LogWriter, seq *repository.SeqCounter, logger *slog.Logger) *MockRouter {
+	return &MockRouter{svc: svc, logs: logs, seq: seq, logger: logger, maxLog: 16 * 1024}
 }
 
 // ServeHTTP matches the slug, validates the method, sleeps the configured
@@ -123,11 +125,16 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// User-controlled response headers go first; the protective headers
 	// below overwrite anything the mock owner tries to set for them.
-	// service.IsReservedResponseHeader is a second-layer filter — the
-	// service already strips these at create/update time, but legacy rows
-	// from before that filter widened could still carry weaponised headers.
+	// service.IsReservedResponseHeader and the Location re-check are a
+	// second-layer filter — the service already strips reserved headers and
+	// rejects absolute Location values at create/update time, but legacy
+	// rows from before those filters existed could still carry weaponised
+	// headers.
 	for k, v := range src.Headers {
 		if service.IsReservedResponseHeader(k) {
+			continue
+		}
+		if !h.allowResponseHeader(m.Slug, k, v) {
 			continue
 		}
 		w.Header().Set(k, v)
@@ -136,6 +143,9 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// field below still wins over both — same precedence main headers have.
 	for k, v := range served.Headers {
 		if service.IsReservedResponseHeader(k) {
+			continue
+		}
+		if !h.allowResponseHeader(m.Slug, k, v) {
 			continue
 		}
 		w.Header().Set(k, v)
@@ -194,6 +204,23 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// API.md documents it as starting at 1.
 		Seq: func() uint64 { return h.seq.Next(r.Context(), m.ID+":tpl") + 1 },
 	})))
+}
+
+// allowResponseHeader re-validates a Location header against
+// service.SafeRedirectLocation before it hits the wire. New mocks can no
+// longer store an absolute Location, but rows written before that
+// validation existed may still carry one; this is the last line of defence
+// against replaying it as an open redirect.
+func (h *MockRouter) allowResponseHeader(slug, key, value string) bool {
+	if !strings.EqualFold(key, "location") {
+		return true
+	}
+	if service.SafeRedirectLocation(value) {
+		return true
+	}
+	h.logger.Warn("dropping unsafe Location header from legacy mock",
+		slog.String("slug", slug), slog.String("value", value))
+	return false
 }
 
 func methodMatches(mockMethod model.Method, requestMethod string) bool {
