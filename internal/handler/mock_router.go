@@ -168,17 +168,7 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow, noarchive")
 
-	// Defence against weaponising /m/:slug as a same-origin script host:
-	// nosniff stops the browser from upgrading a text/* mock to text/html
-	// based on content sniffing, and a strict sandbox CSP prevents JS,
-	// forms, and popups from running when a browser navigates directly to
-	// the mock URL. Machine clients (curl, fetch, http libs) ignore CSP,
-	// so legitimate mock consumption is unaffected.
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Security-Policy",
-		"sandbox; default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
-	w.Header().Set("X-Frame-Options", "DENY")
-	w.Header().Set("Referrer-Policy", "no-referrer")
+	setMockProtectiveHeaders(w)
 
 	status := served.Status
 	if status == 0 {
@@ -204,6 +194,34 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// API.md documents it as starting at 1.
 		Seq: func() uint64 { return h.seq.Next(r.Context(), m.ID+":tpl") + 1 },
 	})))
+}
+
+// setMockProtectiveHeaders writes the headers that keep /m/:slug from being
+// weaponised. They are server-owned: every name here is in
+// service.IsReservedResponseHeader, so a mock author can never override one.
+//
+// nosniff stops the browser from upgrading a text/* mock to text/html based
+// on content sniffing, and a strict sandbox CSP prevents JS, forms, and
+// popups from running when a browser navigates directly to the mock URL.
+// Machine clients (curl, fetch, http libs) ignore CSP, so legitimate mock
+// consumption is unaffected.
+//
+// CORP closes the gap those two leave open: CSP governs the mock as a
+// *document*, not as a subresource someone else loads, so without it any
+// site could <script src> a mock and run attacker-authored JS from our
+// domain — abuse we observed in production. It is deliberately
+// unconditional rather than tied to the cors_enabled toggle: CORP only
+// blocks cross-origin *no-cors* loads (script, img, link, iframe), while
+// cors-mode fetch is governed by the CORS check instead, so mocks called
+// from browser JS keep working. Tying it to the toggle would let an author
+// restore the script-host vector by ticking a checkbox.
+func setMockProtectiveHeaders(w http.ResponseWriter) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy",
+		"sandbox; default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 }
 
 // allowResponseHeader re-validates a Location header against
