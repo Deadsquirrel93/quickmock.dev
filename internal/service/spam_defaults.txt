@@ -37,3 +37,26 @@
 (?i)<h1>[^<]{1,100}</h1>\s*<p>\s*Visit\s+<a\s+href=["']https?://
 (?i)\bWebsite:\s*<a\s+href=["']https?://
 (?i)\bPublished on \d{4}-\d{2}-\d{2} via Quickmock\b
+
+# Flag-file reads and secret-bearing environment lookups: a mocked flag-file
+# path in quotes, or an os.environ subscript/get() naming FLAG specifically —
+# never the bare word "flag" (mocks legitimately return {"flag": true}).
+(?i)["'](?:/flag(?:\.txt)?|/app/flag|/run/secrets/flag)["']
+(?i)\bos\.environ\[["']FLAG["']\]
+(?i)\bos\.environ\.get\(["']FLAG["']
+
+# Loader / reverse-shell one-liners.
+(?i)\bcurl\b[^\n]{0,80}\|\s*(sh|bash)\b
+/dev/tcp/
+(?i)\bIEX\s*\(\s*New-Object\s+Net\.WebClient\)
+(?i)\bpowershell\b[^\n]{0,20}-enc\b
+
+# Cloud metadata endpoints, path form (hostname/IP forms are above).
+(?i)/latest/meta-data/
+(?i)/computeMetadata/v1/
+
+# Cross-window abuse: deprecated same-origin bypass, and an auto-click loop
+# built from an opened window plus a timer (either order).
+(?i)\bdocument\.domain\s*=
+(?i)\bwindow\.open\b[^\n]{0,300}\bsetInterval\b
+(?i)\bsetInterval\b[^\n]{0,300}\bwindow\.open\b
