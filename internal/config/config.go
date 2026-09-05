@@ -6,6 +6,7 @@ package config
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"sort"
 	"strconv"
@@ -33,6 +34,7 @@ type Config struct {
 	DefaultLang      string
 	SSEMaxConns      int
 	SSEMaxPerIP      int
+	RealIPHeader     string
 
 	SpamPatternsFile string
 	SpamAllowIPs     []string
@@ -51,6 +53,11 @@ func Load() (Config, error) {
 		PGDSN:       os.Getenv("QUICKMOCK_PG_DSN"),
 		RedisAddr:   getEnv("QUICKMOCK_REDIS_ADDR", "127.0.0.1:6379"),
 		DefaultLang: getEnv("QUICKMOCK_DEFAULT_LANG", "en"),
+	}
+	// Canonicalized so RealIP's r.Header.Get lookup (which canonicalizes its
+	// argument internally) matches regardless of the case the operator used.
+	if h := strings.TrimSpace(os.Getenv("QUICKMOCK_REAL_IP_HEADER")); h != "" {
+		c.RealIPHeader = http.CanonicalHeaderKey(h)
 	}
 
 	if c.PGDSN == "" {

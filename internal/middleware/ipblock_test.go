@@ -12,7 +12,7 @@ func TestIPBlocklist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewIPBlocklist: %v", err)
 	}
-	h := RealIP(blocklist.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	h := RealIP("")(blocklist.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})))
 

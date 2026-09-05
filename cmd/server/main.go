@@ -211,7 +211,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	// Router
 	r := chi.NewRouter()
 	r.Use(mockmw.Recoverer(logger))
-	r.Use(mockmw.RealIP)
+	r.Use(mockmw.RealIP(cfg.RealIPHeader))
 	r.Use(mockmw.AccessLog(logger))
 	// Universal hardening headers: applied to every response, including
 	// /m/* (mock_router force-overrides the CSP it needs locally).

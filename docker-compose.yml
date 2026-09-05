@@ -69,9 +69,10 @@ services:
         condition: service_completed_successfully
     env_file: .env
     environment:
-      QUICKMOCK_PG_DSN:     postgres://quickmock:${POSTGRES_PASSWORD}@postgres:5432/quickmock?sslmode=disable
-      QUICKMOCK_REDIS_ADDR: redis:6379
-      QUICKMOCK_ADDR:       :8080
+      QUICKMOCK_PG_DSN:         postgres://quickmock:${POSTGRES_PASSWORD}@postgres:5432/quickmock?sslmode=disable
+      QUICKMOCK_REDIS_ADDR:     redis:6379
+      QUICKMOCK_ADDR:           :8080
+      QUICKMOCK_REAL_IP_HEADER: ${QUICKMOCK_REAL_IP_HEADER:-}
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:
