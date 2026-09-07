@@ -29,7 +29,7 @@ import (
 // changes what the deployed service does, and letting the date drift makes
 // the sitemap advertise stale content. Releases that skipped the bump
 // (2026-08-15) were mistakes, not precedent.
-const LastUpdated = "2026-09-05"
+const LastUpdated = "2026-09-08"
 
 // Renderer compiles every template once at startup and renders pages with a
 // per-request i18n FuncMap injected.
