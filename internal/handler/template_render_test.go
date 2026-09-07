@@ -144,8 +144,56 @@ func TestTemplateCaseRenders(t *testing.T) {
 				if !strings.Contains(block, `"object": "payment_intent"`) {
 					t.Fatalf("payload block missing the response body's object field: %s", block)
 				}
+				if !strings.Contains(body, "/templates/shopify-order-webhook") {
+					t.Fatal("page missing related template link to shopify-order-webhook")
+				}
+				if !strings.Contains(body, "/templates/github-webhook-push") {
+					t.Fatal("page missing related template link to github-webhook-push")
+				}
 			}
 		})
+	}
+}
+
+func TestMockTemplateRelatedIsWellFormed(t *testing.T) {
+	inbound := make(map[string]bool, len(MockTemplates))
+	for _, tpl := range MockTemplates {
+		t.Run(tpl.Slug, func(t *testing.T) {
+			if len(tpl.Related) < 3 {
+				t.Fatalf("Related has %d entries, want >= 3", len(tpl.Related))
+			}
+			seen := make(map[string]bool, len(tpl.Related))
+			for _, slug := range tpl.Related {
+				if slug == tpl.Slug {
+					t.Fatalf("Related contains self-link %q", slug)
+				}
+				if seen[slug] {
+					t.Fatalf("Related contains duplicate slug %q", slug)
+				}
+				seen[slug] = true
+				if _, ok := TemplateBySlug(slug); !ok {
+					t.Fatalf("Related slug %q does not resolve via TemplateBySlug", slug)
+				}
+			}
+		})
+		for _, slug := range tpl.Related {
+			inbound[slug] = true
+		}
+	}
+	for _, tpl := range MockTemplates {
+		if !inbound[tpl.Slug] {
+			t.Fatalf("template %q has no inbound Related link from any other template", tpl.Slug)
+		}
+	}
+}
+
+func TestRelatedTemplatesResolves(t *testing.T) {
+	got := RelatedTemplates("stripe-webhook")
+	if len(got) != 3 {
+		t.Fatalf("RelatedTemplates(stripe-webhook) len = %d, want 3", len(got))
+	}
+	if got := RelatedTemplates("nope"); got != nil {
+		t.Fatalf("RelatedTemplates(nope) = %v, want nil", got)
 	}
 }
 

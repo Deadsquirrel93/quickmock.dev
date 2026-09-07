@@ -53,9 +53,13 @@ type MockTemplate struct {
 	// RelatedGuide is the slug of the /guide/<slug> use case this template
 	// pairs with for cross-linking, or "" if none applies.
 	RelatedGuide string
+	// Related lists the slugs of sibling templates linked from this page's
+	// "Related templates" block. Curated, at least 3 per entry; a test
+	// enforces that every slug resolves and no template is left orphaned.
+	Related []string
 }
 
-func mt(slug string, category TemplateCategory, kind TemplateKind, createBody, verb, header, data, expect string, fields []string, relatedGuide string) MockTemplate {
+func mt(slug string, category TemplateCategory, kind TemplateKind, createBody, verb, header, data, expect string, fields []string, relatedGuide string, related []string) MockTemplate {
 	return MockTemplate{
 		Slug:         slug,
 		KeyPrefix:    "templates.case." + slug,
@@ -68,6 +72,7 @@ func mt(slug string, category TemplateCategory, kind TemplateKind, createBody, v
 		Expect:       expect,
 		Fields:       fields,
 		RelatedGuide: relatedGuide,
+		Related:      related,
 	}
 }
 
@@ -83,7 +88,8 @@ var MockTemplates = []MockTemplate{
 		"GET", "", "",
 		"GET /m/<slug> -> 200 a Stripe-style payment_intent.succeeded event\ndata.object.amount is in minor units (cents)",
 		[]string{"id", "type", "created", "data.object.amount", "data.object.status"},
-		"mock-webhook-receiver"),
+		"mock-webhook-receiver",
+		[]string{"shopify-order-webhook", "github-webhook-push", "problem-json-error"}),
 
 	mt("shopify-order-webhook", CategoryPayments, KindPayload,
 		`{
@@ -95,7 +101,8 @@ var MockTemplates = []MockTemplate{
 		"GET", "", "",
 		"GET /m/<slug> -> 200 a Shopify-style order webhook\norder_number counts up per call, total_price/customer.email are random",
 		[]string{"order_number", "total_price", "currency", "line_items", "customer.email"},
-		"mock-webhook-receiver"),
+		"mock-webhook-receiver",
+		[]string{"stripe-webhook", "paginated-collection", "github-webhook-push"}),
 
 	mt("github-webhook-push", CategoryDevtools, KindPayload,
 		`{
@@ -107,7 +114,8 @@ var MockTemplates = []MockTemplate{
 		"GET", "", "",
 		"GET /m/<slug> -> 200 a GitHub-style push event\none commit on refs/heads/main",
 		[]string{"ref", "after", "repository.full_name", "pusher.name", "commits"},
-		"mock-webhook-receiver"),
+		"mock-webhook-receiver",
+		[]string{"slack-events-api", "telegram-bot-webhook", "stripe-webhook"}),
 
 	mt("slack-events-api", CategoryDevtools, KindResponder,
 		`{
@@ -120,7 +128,8 @@ var MockTemplates = []MockTemplate{
 		`POST the url_verification payload -> 200 echoes {"challenge":"..."} back
 Slack requires this exact echo to verify the Events API endpoint`,
 		[]string{"challenge"},
-		"echo-request-data"),
+		"echo-request-data",
+		[]string{"telegram-bot-webhook", "github-webhook-push", "oauth2-token-response"}),
 
 	mt("telegram-bot-webhook", CategoryDevtools, KindResponder,
 		`{
@@ -133,7 +142,8 @@ Slack requires this exact echo to verify the Events API endpoint`,
 		`POST a Telegram Update -> 200 {"method":"sendMessage","chat_id":987654321,"text":"Thanks, got it!"}
 the webhook response itself is treated as a Bot API method call`,
 		[]string{"method", "chat_id", "text"},
-		"echo-request-data"),
+		"echo-request-data",
+		[]string{"slack-events-api", "github-webhook-push", "stripe-webhook"}),
 
 	mt("oauth2-token-response", CategoryAuth, KindAPI,
 		`{
@@ -145,7 +155,8 @@ the webhook response itself is treated as a Bot API method call`,
 		"POST", "", "",
 		"POST /m/<slug> -> 200 an RFC 6749-shaped token response\naccess_token/refresh_token are fresh UUIDs each call",
 		[]string{"access_token", "token_type", "expires_in", "refresh_token", "scope"},
-		"mock-rest-api"),
+		"mock-rest-api",
+		[]string{"openid-configuration", "jwks-endpoint", "problem-json-error"}),
 
 	mt("openid-configuration", CategoryAuth, KindAPI,
 		`{
@@ -158,7 +169,8 @@ the webhook response itself is treated as a Bot API method call`,
 		"GET", "", "",
 		"GET /m/<slug>/.well-known/openid-configuration -> 200 an OIDC discovery document\nreplace YOUR-SLUG with the mock's real slug before using it",
 		[]string{"issuer", "authorization_endpoint", "token_endpoint", "jwks_uri"},
-		"mock-rest-api"),
+		"mock-rest-api",
+		[]string{"jwks-endpoint", "oauth2-token-response", "paginated-collection"}),
 
 	mt("jwks-endpoint", CategoryAuth, KindAPI,
 		`{
@@ -171,7 +183,8 @@ the webhook response itself is treated as a Bot API method call`,
 		"GET", "", "",
 		"GET /m/<slug>/.well-known/jwks.json -> 200 one RSA JWK\nthe key is illustrative only, it does not verify any real signature",
 		[]string{"keys", "keys.0.kid", "keys.0.alg", "keys.0.n"},
-		"mock-rest-api"),
+		"mock-rest-api",
+		[]string{"openid-configuration", "oauth2-token-response", "problem-json-error"}),
 
 	mt("paginated-collection", CategoryGeneric, KindAPI,
 		`{
@@ -183,7 +196,8 @@ the webhook response itself is treated as a Bot API method call`,
 		"GET", "", "",
 		"GET /m/<slug> -> 200 a paginated list of 3 fake records\npage/per_page/total/next describe the rest of the collection",
 		[]string{"data", "page", "per_page", "total", "next"},
-		"fake-json-data"),
+		"fake-json-data",
+		[]string{"problem-json-error", "shopify-order-webhook", "openid-configuration"}),
 
 	mt("problem-json-error", CategoryGeneric, KindAPI,
 		`{
@@ -195,7 +209,8 @@ the webhook response itself is treated as a Bot API method call`,
 		"GET", "", "",
 		"GET /m/<slug> -> 422 application/problem+json\nan RFC 9457 problem document with a custom errors[] extension",
 		[]string{"type", "title", "status", "detail", "errors"},
-		"mock-error-response"),
+		"mock-error-response",
+		[]string{"paginated-collection", "oauth2-token-response", "stripe-webhook"}),
 }
 
 // TemplateCategories orders the sections on the /templates index.
@@ -228,6 +243,26 @@ func TemplateBySlug(slug string) (MockTemplate, bool) {
 		}
 	}
 	return MockTemplate{}, false
+}
+
+// RelatedTemplates resolves the curated Related slugs of the template
+// identified by slug into their full MockTemplate records, in the order
+// they were listed. An unknown slug within Related is skipped rather than
+// surfaced as an error, so a typo in the registry degrades to a shorter
+// list instead of a broken page; an unknown slug (no such template)
+// returns nil.
+func RelatedTemplates(slug string) []MockTemplate {
+	tpl, ok := TemplateBySlug(slug)
+	if !ok {
+		return nil
+	}
+	var out []MockTemplate
+	for _, related := range tpl.Related {
+		if rt, ok := TemplateBySlug(related); ok {
+			out = append(out, rt)
+		}
+	}
+	return out
 }
 
 // TemplateInput returns the parsed model.MockInput for slug, built once at

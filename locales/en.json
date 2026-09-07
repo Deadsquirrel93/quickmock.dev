@@ -494,6 +494,7 @@
   "templates.cta.open_in_form": "Open it in the mock builder to tweak first",
   "templates.back": "← All templates",
   "templates.related_guide": "Pairs well with this guide:",
+  "templates.related.title": "Related templates",
   "templates.case.stripe-webhook.title": "Mock a Stripe webhook payload",
   "templates.case.stripe-webhook.summary": "A GET mock that returns a Stripe-shaped payment_intent.succeeded event, ready to feed into your webhook handler.",
   "templates.case.stripe-webhook.differences": "This is a static event trimmed down from a real Stripe payload — no Stripe-Signature header, no live objects behind the IDs. Use it to shape your handler's parsing logic, not to test signature verification.",

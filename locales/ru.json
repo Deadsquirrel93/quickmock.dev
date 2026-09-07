@@ -494,6 +494,7 @@
   "templates.cta.open_in_form": "Открыть в конструкторе моков и сначала поправить",
   "templates.back": "← Все шаблоны",
   "templates.related_guide": "Хорошо сочетается с гайдом:",
+  "templates.related.title": "Похожие шаблоны",
   "templates.case.stripe-webhook.title": "Замокать вебхук Stripe",
   "templates.case.stripe-webhook.summary": "GET-мок, который отдаёт событие payment_intent.succeeded в духе Stripe — готовое для разбора вашим обработчиком вебхуков.",
   "templates.case.stripe-webhook.differences": "Это статичное событие, урезанное относительно настоящего payload Stripe — без заголовка Stripe-Signature и без реальных объектов за этими ID. Используйте его, чтобы отладить парсинг в обработчике, а не проверку подписи.",

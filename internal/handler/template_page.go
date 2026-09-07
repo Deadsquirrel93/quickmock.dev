@@ -138,6 +138,7 @@ func (u *UI) templateCaseData(r *http.Request, tpl MockTemplate) map[string]any 
 		"MetaDescription": u.localz.T(lang, tpl.KeyPrefix+".summary"),
 		"JSONLD":          TemplateCaseJSONLD(u.localz, lang, u.baseURL, tpl),
 		"RelatedGuide":    tpl.RelatedGuide,
+		"Related":         RelatedTemplates(tpl.Slug),
 		"MaxBodyKB":       u.maxBody / 1024,
 		"MaxMocks":        u.maxMocks,
 	}
