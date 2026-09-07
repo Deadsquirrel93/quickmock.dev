@@ -390,7 +390,19 @@
 <section class="usecases container" aria-labelledby="usecases-title">
   <h2 id="usecases-title">{{ t "home.usecases.title" }}</h2>
   <p>{{ t "home.usecases.body" }}</p>
+  <ul class="home-links">
+    {{ range .FeaturedGuides }}<li><a href="/guide/{{ .Slug }}">{{ t (printf "%s.title" .KeyPrefix) }}</a></li>{{ end }}
+  </ul>
   <p><a href="/guide">{{ t "home.usecases.link" }}</a></p>
+</section>
+
+<section class="usecases container" aria-labelledby="home-templates-title">
+  <h2 id="home-templates-title">{{ t "home.templates.title" }}</h2>
+  <p>{{ t "home.templates.body" }}</p>
+  <ul class="home-links">
+    {{ range .FeaturedTemplates }}<li><a href="/templates/{{ .Slug }}">{{ t (printf "%s.title" .KeyPrefix) }}</a></li>{{ end }}
+  </ul>
+  <p><a href="/templates">{{ t "home.templates.link" }}</a></p>
 </section>
 
 <section class="faq container" aria-labelledby="faq-title">

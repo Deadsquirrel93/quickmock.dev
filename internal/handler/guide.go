@@ -161,6 +161,22 @@ func UseCaseBySlug(slug string) (UseCase, bool) {
 	return UseCase{}, false
 }
 
+// FeaturedGuideSlugs is the curated pick shown on the home page.
+var FeaturedGuideSlugs = []string{"mock-rest-api", "mock-webhook-receiver", "test-retry-logic", "simulate-slow-api", "fake-json-data"}
+
+// FeaturedGuides resolves FeaturedGuideSlugs into their full UseCase records,
+// in the order they were listed. An unknown slug is skipped rather than
+// surfaced as an error.
+func FeaturedGuides() []UseCase {
+	var out []UseCase
+	for _, slug := range FeaturedGuideSlugs {
+		if c, ok := UseCaseBySlug(slug); ok {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // RelatedUseCases resolves the curated Related slugs of the case identified
 // by slug into their full UseCase records, in the order they were listed.
 // An unknown slug within Related is skipped rather than surfaced as an

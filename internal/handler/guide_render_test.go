@@ -149,3 +149,48 @@ func TestGuideCaseNotFound(t *testing.T) {
 		t.Fatalf("status = %d, want 404", w.Code)
 	}
 }
+
+func TestHomeLinksIntoGuidesAndTemplates(t *testing.T) {
+	u := testUI(t)
+	w := httptest.NewRecorder()
+	u.Home(w, httptest.NewRequest("GET", "/", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	for _, want := range []string{
+		"/guide/mock-rest-api",
+		"/guide/mock-webhook-receiver",
+		"/templates/stripe-webhook",
+		"/templates/oauth2-token-response",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("home page missing link to %s", want)
+		}
+	}
+	if !strings.Contains(body, `href="/templates"`) {
+		t.Fatal("home page missing the templates hub link")
+	}
+}
+
+func TestFeaturedSlugsResolve(t *testing.T) {
+	guides := FeaturedGuides()
+	if len(guides) != len(FeaturedGuideSlugs) {
+		t.Fatalf("FeaturedGuides() len = %d, want %d", len(guides), len(FeaturedGuideSlugs))
+	}
+	for _, slug := range FeaturedGuideSlugs {
+		if _, ok := UseCaseBySlug(slug); !ok {
+			t.Fatalf("FeaturedGuideSlugs entry %q does not resolve via UseCaseBySlug", slug)
+		}
+	}
+
+	templates := FeaturedTemplates()
+	if len(templates) != len(FeaturedTemplateSlugs) {
+		t.Fatalf("FeaturedTemplates() len = %d, want %d", len(templates), len(FeaturedTemplateSlugs))
+	}
+	for _, slug := range FeaturedTemplateSlugs {
+		if _, ok := TemplateBySlug(slug); !ok {
+			t.Fatalf("FeaturedTemplateSlugs entry %q does not resolve via TemplateBySlug", slug)
+		}
+	}
+}

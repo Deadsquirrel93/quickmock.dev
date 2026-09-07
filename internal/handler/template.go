@@ -245,6 +245,22 @@ func TemplateBySlug(slug string) (MockTemplate, bool) {
 	return MockTemplate{}, false
 }
 
+// FeaturedTemplateSlugs is the curated pick shown on the home page.
+var FeaturedTemplateSlugs = []string{"stripe-webhook", "github-webhook-push", "slack-events-api", "oauth2-token-response", "problem-json-error"}
+
+// FeaturedTemplates resolves FeaturedTemplateSlugs into their full
+// MockTemplate records, in the order they were listed. An unknown slug is
+// skipped rather than surfaced as an error.
+func FeaturedTemplates() []MockTemplate {
+	var out []MockTemplate
+	for _, slug := range FeaturedTemplateSlugs {
+		if t, ok := TemplateBySlug(slug); ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 // RelatedTemplates resolves the curated Related slugs of the template
 // identified by slug into their full MockTemplate records, in the order
 // they were listed. An unknown slug within Related is skipped rather than

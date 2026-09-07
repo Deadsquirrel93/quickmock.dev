@@ -78,12 +78,14 @@ func (u *UI) homeData(r *http.Request, extra map[string]any) map[string]any {
 		stats = u.stats.Snapshot(r.Context())
 	}
 	data := map[string]any{
-		"Methods":   model.AllMethods,
-		"MaxBody":   u.maxBody,
-		"MaxMocks":  u.maxMocks,
-		"MaxBodyKB": u.maxBody / 1024,
-		"Stats":     stats,
-		"JSONLD":    HomeJSONLD(u.localz, lang, u.baseURL, u.localz.Supported()),
+		"Methods":           model.AllMethods,
+		"MaxBody":           u.maxBody,
+		"MaxMocks":          u.maxMocks,
+		"MaxBodyKB":         u.maxBody / 1024,
+		"Stats":             stats,
+		"JSONLD":            HomeJSONLD(u.localz, lang, u.baseURL, u.localz.Supported()),
+		"FeaturedGuides":    FeaturedGuides(),
+		"FeaturedTemplates": FeaturedTemplates(),
 	}
 	for k, v := range extra {
 		data[k] = v
