@@ -303,10 +303,16 @@ func (u *UI) SummaryPartial(w http.ResponseWriter, r *http.Request) {
 }
 
 // Changelog renders GET /changelog — a curated technical changelog. The
-// page is fully static; the entries live in the template, hand-picked from
-// the git history.
+// entries are fully static, hand-picked from the git history and living in
+// the template; the schema.org markup is computed from LastUpdated.
 func (u *UI) Changelog(w http.ResponseWriter, r *http.Request) {
-	u.renderer.Render(w, r, "changelog", http.StatusOK, nil)
+	lang := i18n.LangFromContext(r.Context())
+	if lang == "" {
+		lang = u.localz.Fallback()
+	}
+	u.renderer.Render(w, r, "changelog", http.StatusOK, map[string]any{
+		"JSONLD": ChangelogJSONLD(u.localz, lang, u.baseURL),
+	})
 }
 
 // Guide renders GET /guide — the use-case index.
@@ -319,6 +325,7 @@ func (u *UI) Guide(w http.ResponseWriter, r *http.Request) {
 		"Cases":           UseCases,
 		"MetaTitle":       u.localz.T(lang, "guide.title") + " — " + u.localz.T(lang, "app.name"),
 		"MetaDescription": u.localz.T(lang, "guide.meta_description"),
+		"JSONLD":          GuideIndexJSONLD(u.localz, lang, u.baseURL),
 	})
 }
 

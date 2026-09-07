@@ -16,6 +16,7 @@ func (u *UI) Docs(w http.ResponseWriter, r *http.Request) {
 	u.renderer.Render(w, r, "docs", http.StatusOK, map[string]any{
 		"MetaTitle":       u.localz.T(lang, "docs.meta_title"),
 		"MetaDescription": u.localz.T(lang, "docs.meta_description"),
+		"JSONLD":          DocsJSONLD(u.localz, lang, u.baseURL),
 	})
 }
 

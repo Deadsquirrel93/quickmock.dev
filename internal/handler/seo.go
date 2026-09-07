@@ -236,6 +236,118 @@ func TemplateIndexJSONLD(localz *i18n.Localizer, lang, baseURL string) template.
 	return template.JS(strings.ReplaceAll(string(buf), "</", `<\/`))
 }
 
+// GuideIndexJSONLD builds the schema.org graph for the /guide index: an
+// ItemList of every use case plus a BreadcrumbList (Home -> Guides). Mirrors
+// TemplateIndexJSONLD's defang of "</" so the inline <script> can't be
+// broken out of.
+func GuideIndexJSONLD(localz *i18n.Localizer, lang, baseURL string) template.JS {
+	tr := func(key string, args ...any) string { return localz.T(lang, key, args...) }
+	base := strings.TrimRight(baseURL, "/")
+
+	items := make([]map[string]any, 0, len(UseCases))
+	for i, c := range UseCases {
+		items = append(items, map[string]any{
+			"@type":    "ListItem",
+			"position": i + 1,
+			"url":      base + "/guide/" + c.Slug,
+			"name":     tr(c.KeyPrefix + ".title"),
+		})
+	}
+	itemList := map[string]any{
+		"@type":           "ItemList",
+		"itemListElement": items,
+	}
+	breadcrumb := map[string]any{
+		"@type": "BreadcrumbList",
+		"itemListElement": []map[string]any{
+			{"@type": "ListItem", "position": 1, "name": tr("guide.breadcrumb.home"), "item": base + "/"},
+			{"@type": "ListItem", "position": 2, "name": tr("guide.breadcrumb.guide"), "item": base + "/guide"},
+		},
+	}
+
+	payload := map[string]any{
+		"@context": "https://schema.org",
+		"@graph":   []map[string]any{itemList, breadcrumb},
+	}
+	buf, err := json.Marshal(payload)
+	if err != nil {
+		return template.JS("{}")
+	}
+	return template.JS(strings.ReplaceAll(string(buf), "</", `<\/`))
+}
+
+// DocsJSONLD builds the schema.org graph for the /docs page: a TechArticle
+// plus a BreadcrumbList (Home -> Docs). Mirrors GuideIndexJSONLD's defang of
+// "</" so the inline <script> can't be broken out of.
+func DocsJSONLD(localz *i18n.Localizer, lang, baseURL string) template.JS {
+	tr := func(key string, args ...any) string { return localz.T(lang, key, args...) }
+	base := strings.TrimRight(baseURL, "/")
+
+	article := map[string]any{
+		"@type":        "TechArticle",
+		"headline":     tr("docs.title"),
+		"description":  tr("docs.meta_description"),
+		"inLanguage":   lang,
+		"dateModified": LastUpdated,
+		"url":          base + "/docs",
+	}
+	breadcrumb := map[string]any{
+		"@type": "BreadcrumbList",
+		"itemListElement": []map[string]any{
+			{"@type": "ListItem", "position": 1, "name": tr("guide.breadcrumb.home"), "item": base + "/"},
+			{"@type": "ListItem", "position": 2, "name": tr("docs.title"), "item": base + "/docs"},
+		},
+	}
+
+	payload := map[string]any{
+		"@context": "https://schema.org",
+		"@graph":   []map[string]any{article, breadcrumb},
+	}
+	buf, err := json.Marshal(payload)
+	if err != nil {
+		return template.JS("{}")
+	}
+	return template.JS(strings.ReplaceAll(string(buf), "</", `<\/`))
+}
+
+// ChangelogJSONLD builds the schema.org graph for the /changelog page: a
+// SoftwareApplication (versioned off LastUpdated, the same freshness date
+// the sitemap uses) plus a BreadcrumbList (Home -> Changelog). Mirrors
+// DocsJSONLD's defang of "</" so the inline <script> can't be broken out of.
+func ChangelogJSONLD(localz *i18n.Localizer, lang, baseURL string) template.JS {
+	tr := func(key string, args ...any) string { return localz.T(lang, key, args...) }
+	base := strings.TrimRight(baseURL, "/")
+
+	app := map[string]any{
+		"@type":               "SoftwareApplication",
+		"name":                tr("app.name"),
+		"applicationCategory": "DeveloperApplication",
+		"operatingSystem":     "Any",
+		"softwareVersion":     LastUpdated,
+		"dateModified":        LastUpdated,
+		"releaseNotes":        base + "/changelog",
+		"url":                 base + "/",
+		"isAccessibleForFree": true,
+	}
+	breadcrumb := map[string]any{
+		"@type": "BreadcrumbList",
+		"itemListElement": []map[string]any{
+			{"@type": "ListItem", "position": 1, "name": tr("guide.breadcrumb.home"), "item": base + "/"},
+			{"@type": "ListItem", "position": 2, "name": tr("changelog.title"), "item": base + "/changelog"},
+		},
+	}
+
+	payload := map[string]any{
+		"@context": "https://schema.org",
+		"@graph":   []map[string]any{app, breadcrumb},
+	}
+	buf, err := json.Marshal(payload)
+	if err != nil {
+		return template.JS("{}")
+	}
+	return template.JS(strings.ReplaceAll(string(buf), "</", `<\/`))
+}
+
 func RobotsTxt(baseURL string) http.HandlerFunc {
 	uas := []string{
 		"*",

@@ -1,3 +1,7 @@
+{{ define "head" }}
+<script type="application/ld+json">{{ .JSONLD }}</script>
+{{ end }}
+
 {{ define "title" }}{{ t "changelog.title" }} — {{ t "app.name" }}{{ end }}
 
 {{ define "content" }}
