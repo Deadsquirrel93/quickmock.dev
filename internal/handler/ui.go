@@ -334,12 +334,14 @@ func (u *UI) GuideCase(w http.ResponseWriter, r *http.Request) {
 	}
 	title := u.localz.T(lang, c.KeyPrefix+".title")
 	u.renderer.Render(w, r, "guide_case", http.StatusOK, map[string]any{
-		"Case":            c,
-		"CreateCurl":      guideCreateCurl(u.baseURL, c),
-		"CallCurl":        guideCallCurl(u.baseURL, c),
-		"MetaTitle":       title + " — " + u.localz.T(lang, "app.name"),
-		"MetaDescription": u.localz.T(lang, c.KeyPrefix+".summary"),
-		"JSONLD":          GuideCaseJSONLD(u.localz, lang, u.baseURL, c),
+		"Case":             c,
+		"CreateCurl":       guideCreateCurl(u.baseURL, c),
+		"CallCurl":         guideCallCurl(u.baseURL, c),
+		"MetaTitle":        title + " — " + u.localz.T(lang, "app.name"),
+		"MetaDescription":  u.localz.T(lang, c.KeyPrefix+".summary"),
+		"JSONLD":           GuideCaseJSONLD(u.localz, lang, u.baseURL, c),
+		"Related":          RelatedUseCases(c.Slug),
+		"RelatedTemplates": TemplatesForGuide(c.Slug),
 	})
 }
 

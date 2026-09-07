@@ -45,6 +45,22 @@
     <a class="btn btn-primary" href="/?prefill={{ .Case.Slug }}#create">{{ t "guide.cta.button" }}</a>
   </div>
 
+  {{ if .RelatedTemplates }}
+  <p>{{ t "guide.related_templates" }}
+    {{ range $i, $tpl := .RelatedTemplates }}{{ if $i }}, {{ end }}<a href="/templates/{{ $tpl.Slug }}">{{ t (printf "%s.title" $tpl.KeyPrefix) }}</a>{{ end }}
+  </p>
+  {{ end }}
+
+  {{ if .Related }}
+  <h2>{{ t "guide.related.title" }}</h2>
+  <ul class="guide-related">
+    {{ range .Related }}
+    <li><a href="/guide/{{ .Slug }}">{{ t (printf "%s.title" .KeyPrefix) }}</a>
+      <span class="guide-related-summary">{{ t (printf "%s.summary" .KeyPrefix) }}</span></li>
+    {{ end }}
+  </ul>
+  {{ end }}
+
   <p><a href="/guide">{{ t "guide.back" }}</a></p>
 </section>
 {{ end }}

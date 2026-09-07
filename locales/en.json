@@ -12,6 +12,8 @@
   "guide.inspector_note": "Open the mock page and paste its admin token to watch incoming method, headers, query, and body in the private live inspector.",
   "guide.cta.title": "Build your own",
   "guide.cta.button": "Create a mock",
+  "guide.related.title": "Related guides",
+  "guide.related_templates": "Ready-made templates for this:",
   "guide.back": "← All guides",
   "home.usecases.title": "What can you use a mock API for?",
   "home.usecases.body": "Not sure where to start? See ready-to-run recipes for retry testing, flaky APIs, webhooks, and more.",
