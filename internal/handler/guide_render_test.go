@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -192,5 +193,26 @@ func TestFeaturedSlugsResolve(t *testing.T) {
 		if _, ok := TemplateBySlug(slug); !ok {
 			t.Fatalf("FeaturedTemplateSlugs entry %q does not resolve via TemplateBySlug", slug)
 		}
+	}
+}
+
+var titleTagRe = regexp.MustCompile(`(?s)<title>(.*?)</title>`)
+
+// TestHubMetaTitlesCarryKeywords ensures the /guide and /templates hub pages
+// front-load their target keywords in <title>, instead of a generic phrase
+// concatenated with the app name.
+func TestHubMetaTitlesCarryKeywords(t *testing.T) {
+	u := testUI(t)
+
+	guideW := httptest.NewRecorder()
+	u.Guide(guideW, httptest.NewRequest("GET", "/guide", nil))
+	if m := titleTagRe.FindStringSubmatch(guideW.Body.String()); m == nil || !strings.Contains(m[1], "Mock API Examples") {
+		t.Fatalf("guide <title> = %q, want it to contain %q", m, "Mock API Examples")
+	}
+
+	templatesW := httptest.NewRecorder()
+	u.Templates(templatesW, httptest.NewRequest("GET", "/templates", nil))
+	if m := titleTagRe.FindStringSubmatch(templatesW.Body.String()); m == nil || !strings.Contains(m[1], "Mock API Templates") {
+		t.Fatalf("templates <title> = %q, want it to contain %q", m, "Mock API Templates")
 	}
 }

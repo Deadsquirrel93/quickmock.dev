@@ -323,7 +323,7 @@ func (u *UI) Guide(w http.ResponseWriter, r *http.Request) {
 	}
 	u.renderer.Render(w, r, "guide", http.StatusOK, map[string]any{
 		"Cases":           UseCases,
-		"MetaTitle":       u.localz.T(lang, "guide.title") + " — " + u.localz.T(lang, "app.name"),
+		"MetaTitle":       u.localz.T(lang, "guide.meta_title"),
 		"MetaDescription": u.localz.T(lang, "guide.meta_description"),
 		"JSONLD":          GuideIndexJSONLD(u.localz, lang, u.baseURL),
 	})

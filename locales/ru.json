@@ -1,6 +1,7 @@
 {
   "nav.guide": "Гайды",
-  "guide.title": "Сценарии и гайды",
+  "guide.title": "Примеры и сценарии mock API",
+  "guide.meta_title": "Примеры и сценарии mock API — 10 готовых рецептов",
   "guide.intro": "Практичные рецепты для частых задач мокинга. Каждый — готовый пример: скопируй curl, получи публичный URL, направь на него код.",
   "guide.meta_description": "Сценарии Quickmock: замокать REST API, протестировать ретраи, имитировать нестабильный или медленный API, ловить вебхуки, отдавать фейковые данные. Готовые curl-примеры, бесплатно, без регистрации.",
   "guide.breadcrumb.home": "Главная",
@@ -473,7 +474,8 @@
   "validation.method_required": "Метод обязателен.",
   "validation.status_range": "Статус должен быть в диапазоне от 100 до 599.",
   "nav.templates": "Шаблоны",
-  "templates.title": "Шаблоны моков",
+  "templates.title": "Шаблоны mock API",
+  "templates.meta_title": "Шаблоны mock API — payload'ы Stripe, GitHub, Slack и OAuth",
   "templates.intro": "Готовые конфигурации моков, повторяющие форму известного вебхука, API или эндпоинта авторизации. Выберите подходящий и создайте его одним кликом — либо сначала откройте в конструкторе, чтобы подправить. В любом случае рабочий URL готов за секунды.",
   "templates.meta_description": "Готовые шаблоны Quickmock: вебхуки Stripe, Shopify, GitHub, Slack и Telegram, эндпоинты OAuth2/OpenID/JWKS, постраничный API, ответ с ошибкой. Бесплатно, без регистрации.",
   "templates.breadcrumb.templates": "Шаблоны",

@@ -46,7 +46,7 @@ func (u *UI) Templates(w http.ResponseWriter, r *http.Request) {
 
 	u.renderer.Render(w, r, "templates_index", http.StatusOK, map[string]any{
 		"Sections":        sections,
-		"MetaTitle":       u.localz.T(lang, "templates.title") + " — " + u.localz.T(lang, "app.name"),
+		"MetaTitle":       u.localz.T(lang, "templates.meta_title"),
 		"MetaDescription": u.localz.T(lang, "templates.meta_description"),
 		"JSONLD":          TemplateIndexJSONLD(u.localz, lang, u.baseURL),
 	})

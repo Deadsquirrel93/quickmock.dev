@@ -1,6 +1,7 @@
 {
   "nav.guide": "Guides",
-  "guide.title": "Use cases & guides",
+  "guide.title": "Mock API examples & use cases",
+  "guide.meta_title": "Mock API Examples & Use Cases — 10 Ready-to-Run Recipes",
   "guide.intro": "Practical recipes for common mocking tasks. Each one is a ready-to-run example — copy the curl, get a public URL, point your code at it.",
   "guide.meta_description": "Quickmock use cases: mock a REST API, test retry logic, simulate flaky or slow APIs, inspect webhooks, return fake data. Ready-to-run curl examples, free, no signup.",
   "guide.breadcrumb.home": "Home",
@@ -473,7 +474,8 @@
   "validation.method_required": "Method is required.",
   "validation.status_range": "Status must be between 100 and 599.",
   "nav.templates": "Templates",
-  "templates.title": "Mock templates",
+  "templates.title": "Mock API templates",
+  "templates.meta_title": "Mock API Templates — Stripe, GitHub, Slack & OAuth Payloads",
   "templates.intro": "Ready-to-use mock configurations that reproduce the shape of a well-known webhook, API, or auth endpoint. Pick one and create it with a single click, or open it in the builder first to tweak it — either way, you get a working URL in seconds.",
   "templates.meta_description": "Ready-to-use Quickmock templates: Stripe, Shopify, GitHub, Slack, and Telegram webhooks, OAuth2/OpenID/JWKS endpoints, a paginated API, an error response. Free, no signup.",
   "templates.breadcrumb.templates": "Templates",
