@@ -56,7 +56,11 @@ type MockTemplate struct {
 	// Expect is a neutral snippet describing the response / behaviour.
 	Expect string
 	// Fields lists the JSON paths worth calling out in the response body,
-	// at most 5, in the order they should be highlighted.
+	// at most 5, in the order they should be highlighted. A KindResponder
+	// entry echoes part of the caller's request, so its response body — and
+	// therefore this list — is legitimately short; the publication threshold
+	// accounts for that rather than inviting padding with paths the shown
+	// payload does not contain.
 	Fields []string
 	// RelatedGuide is the slug of the /guide/<slug> use case this template
 	// pairs with for cross-linking, or "" if none applies.
@@ -98,9 +102,20 @@ func mt(slug string, category TemplateCategory, kind TemplateKind, createBody, v
 	}
 }
 
+// withDepth attaches the answer paragraph flag, the FAQ key suffixes and the
+// primary sources to the record mt() built. A wrapper rather than more
+// positional parameters on mt(): the constructor already takes eleven, and a
+// twelfth would make every call site harder to read than the data it carries.
+func withDepth(t MockTemplate, faq []string, sources []Source) MockTemplate {
+	t.HasAnswer = true
+	t.FAQ = faq
+	t.Sources = sources
+	return t
+}
+
 // MockTemplates is the ordered set shown on /templates. Order = display order.
 var MockTemplates = []MockTemplate{
-	mt("stripe-webhook", CategoryPayments, KindPayload,
+	withDepth(mt("stripe-webhook", CategoryPayments, KindPayload,
 		`{
   "method": "GET",
   "response_status": 200,
@@ -112,8 +127,14 @@ var MockTemplates = []MockTemplate{
 		[]string{"id", "type", "created", "data.object.amount", "data.object.status"},
 		"mock-webhook-receiver",
 		[]string{"shopify-order-webhook", "github-webhook-push", "problem-json-error"}),
+		[]string{"real", "signature", "other"},
+		[]Source{
+			{URL: "https://docs.stripe.com/api/events/types#event_types-payment_intent.succeeded", Title: "Stripe: the payment_intent.succeeded event"},
+			{URL: "https://docs.stripe.com/webhooks", Title: "Stripe: webhook endpoints and delivery"},
+			{URL: "https://docs.stripe.com/webhooks/signature", Title: "Stripe: verifying webhook signatures"},
+		}),
 
-	mt("shopify-order-webhook", CategoryPayments, KindPayload,
+	withDepth(mt("shopify-order-webhook", CategoryPayments, KindPayload,
 		`{
   "method": "GET",
   "response_status": 200,
@@ -125,8 +146,13 @@ var MockTemplates = []MockTemplate{
 		[]string{"order_number", "total_price", "currency", "line_items", "customer.email"},
 		"mock-webhook-receiver",
 		[]string{"stripe-webhook", "paginated-collection", "github-webhook-push"}),
+		[]string{"real", "increment", "total"},
+		[]Source{
+			{URL: "https://shopify.dev/docs/api/webhooks", Title: "Shopify: webhook topics and payloads"},
+			{URL: "https://shopify.dev/docs/api/admin-rest/latest/resources/order", Title: "Shopify: the Order resource"},
+		}),
 
-	mt("github-webhook-push", CategoryDevtools, KindPayload,
+	withDepth(mt("github-webhook-push", CategoryDevtools, KindPayload,
 		`{
   "method": "GET",
   "response_status": 200,
@@ -138,8 +164,13 @@ var MockTemplates = []MockTemplate{
 		[]string{"ref", "after", "repository.full_name", "pusher.name", "commits"},
 		"mock-webhook-receiver",
 		[]string{"slack-events-api", "telegram-bot-webhook", "stripe-webhook"}),
+		[]string{"real", "branch", "tag"},
+		[]Source{
+			{URL: "https://docs.github.com/en/webhooks/webhook-events-and-payloads#push", Title: "GitHub: the push event payload"},
+			{URL: "https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries", Title: "GitHub: validating webhook deliveries"},
+		}),
 
-	mt("slack-events-api", CategoryDevtools, KindResponder,
+	withDepth(mt("slack-events-api", CategoryDevtools, KindResponder,
 		`{
   "method": "POST",
   "response_status": 200,
@@ -152,8 +183,13 @@ Slack requires this exact echo to verify the Events API endpoint`,
 		[]string{"challenge"},
 		"echo-request-data",
 		[]string{"telegram-bot-webhook", "github-webhook-push", "oauth2-token-response"}),
+		[]string{"why", "signature", "events"},
+		[]Source{
+			{URL: "https://api.slack.com/apis/connections/events-api", Title: "Slack: the Events API"},
+			{URL: "https://api.slack.com/authentication/verifying-requests-from-slack", Title: "Slack: verifying requests from Slack"},
+		}),
 
-	mt("telegram-bot-webhook", CategoryDevtools, KindResponder,
+	withDepth(mt("telegram-bot-webhook", CategoryDevtools, KindResponder,
 		`{
   "method": "POST",
   "response_status": 200,
@@ -166,8 +202,13 @@ the webhook response itself is treated as a Bot API method call`,
 		[]string{"method", "chat_id", "text"},
 		"echo-request-data",
 		[]string{"slack-events-api", "github-webhook-push", "stripe-webhook"}),
+		[]string{"reply", "token", "chat"},
+		[]Source{
+			{URL: "https://core.telegram.org/bots/api#setwebhook", Title: "Telegram: setWebhook"},
+			{URL: "https://core.telegram.org/bots/api#making-requests-when-getting-updates", Title: "Telegram: replying in the webhook response"},
+		}),
 
-	mt("oauth2-token-response", CategoryAuth, KindAPI,
+	withDepth(mt("oauth2-token-response", CategoryAuth, KindAPI,
 		`{
   "method": "POST",
   "response_status": 200,
@@ -179,8 +220,13 @@ the webhook response itself is treated as a Bot API method call`,
 		[]string{"access_token", "token_type", "expires_in", "refresh_token", "scope"},
 		"mock-rest-api",
 		[]string{"openid-configuration", "jwks-endpoint", "problem-json-error"}),
+		[]string{"real", "grant", "expiry"},
+		[]Source{
+			{URL: "https://www.rfc-editor.org/rfc/rfc6749#section-5.1", Title: "RFC 6749 §5.1: successful token response"},
+			{URL: "https://www.rfc-editor.org/rfc/rfc6749#section-5.2", Title: "RFC 6749 §5.2: error response"},
+		}),
 
-	mt("openid-configuration", CategoryAuth, KindAPI,
+	withDepth(mt("openid-configuration", CategoryAuth, KindAPI,
 		`{
   "method": "GET",
   "response_status": 200,
@@ -193,8 +239,13 @@ the webhook response itself is treated as a Bot API method call`,
 		[]string{"issuer", "authorization_endpoint", "token_endpoint", "jwks_uri"},
 		"mock-rest-api",
 		[]string{"jwks-endpoint", "oauth2-token-response", "paginated-collection"}),
+		[]string{"replace", "issuer", "flow"},
+		[]Source{
+			{URL: "https://openid.net/specs/openid-connect-discovery-1_0.html", Title: "OpenID Connect Discovery 1.0"},
+			{URL: "https://www.rfc-editor.org/rfc/rfc8414", Title: "RFC 8414: OAuth 2.0 Authorization Server Metadata"},
+		}),
 
-	mt("jwks-endpoint", CategoryAuth, KindAPI,
+	withDepth(mt("jwks-endpoint", CategoryAuth, KindAPI,
 		`{
   "method": "GET",
   "response_status": 200,
@@ -207,8 +258,13 @@ the webhook response itself is treated as a Bot API method call`,
 		[]string{"keys", "keys.0.kid", "keys.0.alg", "keys.0.n"},
 		"mock-rest-api",
 		[]string{"openid-configuration", "oauth2-token-response", "problem-json-error"}),
+		[]string{"verify", "rotation", "kid"},
+		[]Source{
+			{URL: "https://www.rfc-editor.org/rfc/rfc7517", Title: "RFC 7517: JSON Web Key (JWK)"},
+			{URL: "https://www.rfc-editor.org/rfc/rfc7515", Title: "RFC 7515: JSON Web Signature (JWS)"},
+		}),
 
-	mt("paginated-collection", CategoryGeneric, KindAPI,
+	withDepth(mt("paginated-collection", CategoryGeneric, KindAPI,
 		`{
   "method": "GET",
   "response_status": 200,
@@ -220,8 +276,13 @@ the webhook response itself is treated as a Bot API method call`,
 		[]string{"data", "page", "per_page", "total", "next"},
 		"fake-json-data",
 		[]string{"problem-json-error", "shopify-order-webhook", "openid-configuration"}),
+		[]string{"next", "page2", "stable"},
+		[]Source{
+			{URL: "https://www.rfc-editor.org/rfc/rfc8288", Title: "RFC 8288: Web Linking"},
+			{URL: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link", Title: "MDN: the Link header"},
+		}),
 
-	mt("problem-json-error", CategoryGeneric, KindAPI,
+	withDepth(mt("problem-json-error", CategoryGeneric, KindAPI,
 		`{
   "method": "GET",
   "response_status": 422,
@@ -233,6 +294,11 @@ the webhook response itself is treated as a Bot API method call`,
 		[]string{"type", "title", "status", "detail", "errors"},
 		"mock-error-response",
 		[]string{"paginated-collection", "oauth2-token-response", "stripe-webhook"}),
+		[]string{"what", "status", "errors"},
+		[]Source{
+			{URL: "https://www.rfc-editor.org/rfc/rfc9457", Title: "RFC 9457: Problem Details for HTTP APIs"},
+			{URL: "https://www.rfc-editor.org/rfc/rfc9457#name-extension-members", Title: "RFC 9457: extension members"},
+		}),
 }
 
 // TemplateCategories orders the sections on the /templates index.
