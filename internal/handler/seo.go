@@ -10,31 +10,45 @@ import (
 	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
 )
 
+// faqPair is one already-resolved question/answer, ready to render as a
+// schema.org Question inside a FAQPage node.
+type faqPair struct{ Q, A string }
+
+// faqNode builds the schema.org FAQPage node for pairs, or nil when pairs is
+// empty so callers can omit the node entirely rather than emit an empty one.
+// Callers resolve their own locale keys into pairs first: the key shapes
+// differ per caller (home page: seo.faq.q1..q5/a1..a5; leaf pages:
+// <KeyPrefix>.faq.<suffix>.q/.a) and can't be unified here.
+func faqNode(pairs []faqPair) map[string]any {
+	if len(pairs) == 0 {
+		return nil
+	}
+	mainEntity := make([]map[string]any, 0, len(pairs))
+	for _, p := range pairs {
+		mainEntity = append(mainEntity, map[string]any{
+			"@type": "Question",
+			"name":  p.Q,
+			"acceptedAnswer": map[string]any{
+				"@type": "Answer",
+				"text":  p.A,
+			},
+		})
+	}
+	return map[string]any{
+		"@type":      "FAQPage",
+		"mainEntity": mainEntity,
+	}
+}
+
 func HomeJSONLD(localz *i18n.Localizer, lang, baseURL string, supportedLangs []string) template.JS {
 	t := func(key string, args ...any) string { return localz.T(lang, key, args...) }
 
-	type qa struct {
-		Q string
-		A string
-	}
-	faqs := []qa{
+	faqs := []faqPair{
 		{t("seo.faq.q1"), t("seo.faq.a1")},
 		{t("seo.faq.q2"), t("seo.faq.a2")},
 		{t("seo.faq.q3"), t("seo.faq.a3")},
 		{t("seo.faq.q4"), t("seo.faq.a4")},
 		{t("seo.faq.q5"), t("seo.faq.a5")},
-	}
-
-	mainEntity := make([]map[string]any, 0, len(faqs))
-	for _, f := range faqs {
-		mainEntity = append(mainEntity, map[string]any{
-			"@type": "Question",
-			"name":  f.Q,
-			"acceptedAnswer": map[string]any{
-				"@type": "Answer",
-				"text":  f.A,
-			},
-		})
 	}
 
 	base := strings.TrimRight(baseURL, "/")
@@ -93,10 +107,7 @@ func HomeJSONLD(localz *i18n.Localizer, lang, baseURL string, supportedLangs []s
 			"inLanguage": lang,
 			"step":       howToSteps,
 		},
-		{
-			"@type":      "FAQPage",
-			"mainEntity": mainEntity,
-		},
+		faqNode(faqs),
 	}
 
 	payload := map[string]any{
@@ -123,10 +134,11 @@ func GuideCaseJSONLD(localz *i18n.Localizer, lang, baseURL string, c UseCase) te
 	pageURL := base + "/guide/" + c.Slug
 
 	howTo := map[string]any{
-		"@type":       "HowTo",
-		"name":        title,
-		"description": t(c.KeyPrefix + ".summary"),
-		"inLanguage":  lang,
+		"@type":        "HowTo",
+		"name":         title,
+		"description":  t(c.KeyPrefix + ".summary"),
+		"inLanguage":   lang,
+		"dateModified": LastUpdated,
 		"step": []map[string]any{
 			{"@type": "HowToStep", "position": 1, "name": t("guide.section.create"),
 				"text": "POST " + base + "/api/mocks with the example body."},
@@ -143,9 +155,21 @@ func GuideCaseJSONLD(localz *i18n.Localizer, lang, baseURL string, c UseCase) te
 		},
 	}
 
+	graph := []map[string]any{howTo, breadcrumb}
+	faqs := make([]faqPair, 0, len(c.FAQ))
+	for _, key := range c.FAQ {
+		faqs = append(faqs, faqPair{
+			Q: t(c.KeyPrefix + ".faq." + key + ".q"),
+			A: t(c.KeyPrefix + ".faq." + key + ".a"),
+		})
+	}
+	if faq := faqNode(faqs); faq != nil {
+		graph = append(graph, faq)
+	}
+
 	payload := map[string]any{
 		"@context": "https://schema.org",
-		"@graph":   []map[string]any{howTo, breadcrumb},
+		"@graph":   graph,
 	}
 	buf, err := json.Marshal(payload)
 	if err != nil {
@@ -164,17 +188,30 @@ func TemplateCaseJSONLD(localz *i18n.Localizer, lang, baseURL string, t MockTemp
 	title := tr(t.KeyPrefix + ".title")
 	pageURL := base + "/templates/" + t.Slug
 
+	citation := make([]map[string]any, 0, len(t.Sources))
+	for _, src := range t.Sources {
+		citation = append(citation, map[string]any{
+			"@type": "CreativeWork",
+			"name":  src.Title,
+			"url":   src.URL,
+		})
+	}
+
 	howTo := map[string]any{
-		"@type":       "HowTo",
-		"name":        title,
-		"description": tr(t.KeyPrefix + ".summary"),
-		"inLanguage":  lang,
+		"@type":        "HowTo",
+		"name":         title,
+		"description":  tr(t.KeyPrefix + ".summary"),
+		"inLanguage":   lang,
+		"dateModified": LastUpdated,
 		"step": []map[string]any{
 			{"@type": "HowToStep", "position": 1, "name": tr("templates.section.create"),
 				"text": "POST " + base + "/api/mocks with the example body."},
 			{"@type": "HowToStep", "position": 2, "name": tr("templates.section.call"),
 				"text": "Call the returned " + base + "/m/<slug> URL from your client."},
 		},
+	}
+	if len(citation) > 0 {
+		howTo["citation"] = citation
 	}
 	breadcrumb := map[string]any{
 		"@type": "BreadcrumbList",
@@ -185,9 +222,21 @@ func TemplateCaseJSONLD(localz *i18n.Localizer, lang, baseURL string, t MockTemp
 		},
 	}
 
+	graph := []map[string]any{howTo, breadcrumb}
+	faqs := make([]faqPair, 0, len(t.FAQ))
+	for _, key := range t.FAQ {
+		faqs = append(faqs, faqPair{
+			Q: tr(t.KeyPrefix + ".faq." + key + ".q"),
+			A: tr(t.KeyPrefix + ".faq." + key + ".a"),
+		})
+	}
+	if faq := faqNode(faqs); faq != nil {
+		graph = append(graph, faq)
+	}
+
 	payload := map[string]any{
 		"@context": "https://schema.org",
-		"@graph":   []map[string]any{howTo, breadcrumb},
+		"@graph":   graph,
 	}
 	buf, err := json.Marshal(payload)
 	if err != nil {
