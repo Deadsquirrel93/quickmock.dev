@@ -14,14 +14,15 @@
   <p class="guide-summary">{{ t (printf "%s.summary" .Case.KeyPrefix) }}</p>
 
   {{ if .Case.Sections }}
+  <p class="guide-answer">{{ t (printf "%s.answer" .Case.KeyPrefix) }}</p>
   {{ range .Case.Sections }}
   {{ if eq .Kind "mistakes" }}
   <div class="guide-mistakes">
-    <h3>{{ t (printf "%s.sec.%s.title" $.Case.KeyPrefix .Key) }}</h3>
+    <h2>{{ t (printf "%s.sec.%s.title" $.Case.KeyPrefix .Key) }}</h2>
     <p>{{ tHTML (printf "%s.sec.%s.body" $.Case.KeyPrefix .Key) }}</p>
   </div>
   {{ else }}
-  <h3>{{ t (printf "%s.sec.%s.title" $.Case.KeyPrefix .Key) }}</h3>
+  <h2>{{ t (printf "%s.sec.%s.title" $.Case.KeyPrefix .Key) }}</h2>
   <p>{{ tHTML (printf "%s.sec.%s.body" $.Case.KeyPrefix .Key) }}</p>
   {{ end }}
   {{ end }}

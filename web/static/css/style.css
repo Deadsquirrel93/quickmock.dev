@@ -1154,6 +1154,9 @@ input:focus, select:focus, textarea:focus {
 
 /* Case page */
 .guide-summary { font-size: 1.1rem; color: var(--fg-muted); margin: 0 0 1.5rem; }
+/* Standalone answer paragraph directly under the summary, extractable
+   whole by AI engines: more prominent than body copy but not a heading. */
+.guide-answer { font-size: 1.05rem; color: var(--fg); margin: 0 0 1.5rem; }
 .guide-case h2 { font-size: 1.05rem; margin: 1.75rem 0 0.6rem; }
 .guide-case > p { line-height: 1.6; }
 /* "Related guides" / "Related templates" list at the foot of a case page.
@@ -1175,7 +1178,7 @@ input:focus, select:focus, textarea:focus {
   padding: 1rem 1.25rem;
   margin: 1rem 0;
 }
-.guide-mistakes h3 { margin-top: 0; }
+.guide-mistakes h2 { margin-top: 0; }
 .guide-mistakes p:last-child { margin-bottom: 0; }
 .guide-faq { margin: 0 0 1.5rem; }
 .guide-faq dt { font-weight: 600; margin-top: 1rem; }
