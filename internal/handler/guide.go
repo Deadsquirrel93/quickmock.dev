@@ -68,9 +68,19 @@ func uc(slug, createBody, verb, header, data, expect string, inspector bool, rel
 	}
 }
 
+// longForm attaches the long-form content of a deepened guide to the record
+// uc() built. Keeping it a wrapper rather than more positional parameters on
+// uc() means the seven short entries read exactly as they did before, and a
+// guide becomes long-form by gaining Sections rather than by a flag.
+func longForm(c UseCase, sections []GuideSection, faq []string) UseCase {
+	c.Sections = sections
+	c.FAQ = faq
+	return c
+}
+
 // UseCases is the ordered set shown on /guide. Order = display order.
 var UseCases = []UseCase{
-	uc("mock-rest-api",
+	longForm(uc("mock-rest-api",
 		`{
   "method": "GET",
   "response_status": 200,
@@ -80,8 +90,15 @@ var UseCases = []UseCase{
 		"GET", "", "",
 		`{"users":[{"id":1,"name":"Ada"}]}`, false,
 		[]string{"fake-json-data", "mock-api-with-cors", "mock-error-response"}),
+		[]GuideSection{
+			{Key: "shape", Kind: SectionProse},
+			{Key: "status", Kind: SectionProse},
+			{Key: "swap", Kind: SectionProse},
+			{Key: "mistakes", Kind: SectionMistakes},
+		},
+		[]string{"signup", "howlong", "dynamic"}),
 
-	uc("test-retry-logic",
+	longForm(uc("test-retry-logic",
 		`{
   "method": "GET",
   "response_status": 500,
@@ -94,6 +111,13 @@ var UseCases = []UseCase{
 		"GET", "", "",
 		"1st call  -> 500  (X-Mockapi-Variant: seq-1/2)\n2nd call  -> 200  (seq-2/2)\n...then it cycles", false,
 		[]string{"simulate-flaky-api", "simulate-slow-api", "mock-error-response"}),
+		[]GuideSection{
+			{Key: "sequence", Kind: SectionProse},
+			{Key: "backoff", Kind: SectionProse},
+			{Key: "which", Kind: SectionProse},
+			{Key: "mistakes", Kind: SectionMistakes},
+		},
+		[]string{"deterministic", "count", "timeout"}),
 
 	uc("simulate-flaky-api",
 		`{
@@ -118,7 +142,7 @@ var UseCases = []UseCase{
 		"the response arrives after ~3 seconds", false,
 		[]string{"simulate-flaky-api", "test-retry-logic", "mock-rest-api"}),
 
-	uc("mock-webhook-receiver",
+	longForm(uc("mock-webhook-receiver",
 		`{
   "method": "POST",
   "response_status": 200,
@@ -127,6 +151,13 @@ var UseCases = []UseCase{
 		"POST", "", `{"event":"payment.succeeded"}`,
 		`{"received":true}`, true,
 		[]string{"echo-request-data", "manage-mocks-from-any-device", "mock-rest-api"}),
+		[]GuideSection{
+			{Key: "reach", Kind: SectionProse},
+			{Key: "ack", Kind: SectionProse},
+			{Key: "inspect", Kind: SectionProse},
+			{Key: "mistakes", Kind: SectionMistakes},
+		},
+		[]string{"local", "headers", "reply"}),
 
 	uc("mock-error-response",
 		`{

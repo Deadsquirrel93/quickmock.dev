@@ -1180,6 +1180,16 @@ input:focus, select:focus, textarea:focus {
 }
 .guide-mistakes h2 { margin-top: 0; }
 .guide-mistakes p:last-child { margin-bottom: 0; }
+
+/* Long-form section body. A div rather than a p so a section can carry
+   lists and multiple paragraphs — the shapes AI engines extract best. */
+.guide-prose { margin: 0 0 1.5rem; }
+.guide-prose p { margin: 0 0 0.85rem; }
+.guide-prose p:last-child { margin-bottom: 0; }
+.guide-prose ul { margin: 0 0 0.85rem; padding-left: 1.2rem; }
+.guide-prose li { margin-bottom: 0.4rem; }
+.guide-prose li:last-child { margin-bottom: 0; }
+.guide-mistakes .guide-prose:last-child { margin-bottom: 0; }
 .guide-faq { margin: 0 0 1.5rem; }
 .guide-faq dt { font-weight: 600; margin-top: 1rem; }
 .guide-faq dd { margin: 0.35rem 0 0; color: var(--fg-muted); }

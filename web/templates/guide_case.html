@@ -19,11 +19,11 @@
   {{ if eq .Kind "mistakes" }}
   <div class="guide-mistakes">
     <h2>{{ t (printf "%s.sec.%s.title" $.Case.KeyPrefix .Key) }}</h2>
-    <p>{{ tHTML (printf "%s.sec.%s.body" $.Case.KeyPrefix .Key) }}</p>
+    <div class="guide-prose">{{ tHTML (printf "%s.sec.%s.body" $.Case.KeyPrefix .Key) }}</div>
   </div>
   {{ else }}
   <h2>{{ t (printf "%s.sec.%s.title" $.Case.KeyPrefix .Key) }}</h2>
-  <p>{{ tHTML (printf "%s.sec.%s.body" $.Case.KeyPrefix .Key) }}</p>
+  <div class="guide-prose">{{ tHTML (printf "%s.sec.%s.body" $.Case.KeyPrefix .Key) }}</div>
   {{ end }}
   {{ end }}
   {{ end }}
