@@ -84,6 +84,35 @@ func TestGuideCaseRenders(t *testing.T) {
 	}
 }
 
+// TestGuideCaseSectionMistakesCallout guards the SectionKind dispatch in
+// guide_case.html: a SectionMistakes section must render inside the
+// "guide-mistakes" callout, and a case with no such section must not emit
+// it. A typo'd `{{ if eq .Kind "mistakes" }}` or a renamed SectionMistakes
+// constant would otherwise degrade silently into the plain-prose branch.
+func TestGuideCaseSectionMistakesCallout(t *testing.T) {
+	u := testUI(t)
+
+	w := httptest.NewRecorder()
+	req := withSlug(httptest.NewRequest("GET", "/guide/mock-rest-api", nil), "mock-rest-api")
+	u.GuideCase(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "guide-mistakes") {
+		t.Fatal("long-form case page missing the guide-mistakes callout")
+	}
+
+	w = httptest.NewRecorder()
+	req = withSlug(httptest.NewRequest("GET", "/guide/simulate-slow-api", nil), "simulate-slow-api")
+	u.GuideCase(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	if strings.Contains(w.Body.String(), "guide-mistakes") {
+		t.Fatal("short case page unexpectedly has a guide-mistakes callout")
+	}
+}
+
 func TestUseCaseRelatedIsWellFormed(t *testing.T) {
 	inbound := make(map[string]bool, len(UseCases))
 	for _, c := range UseCases {

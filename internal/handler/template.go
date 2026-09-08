@@ -78,11 +78,6 @@ type MockTemplate struct {
 	// section. Empty for a short entry; filled in by editing the registry
 	// directly (mt() covers only the short fields).
 	Sources []Source
-	// HasAnswer gates the standalone answer paragraph rendered right after
-	// the summary and before the payload code block: <KeyPrefix>.answer.
-	// False for a short entry (mt() covers only the short fields, so this
-	// defaults to false); set to true once the answer prose is written.
-	HasAnswer bool
 }
 
 func mt(slug string, category TemplateCategory, kind TemplateKind, createBody, verb, header, data, expect string, fields []string, relatedGuide string, related []string) MockTemplate {
@@ -102,12 +97,11 @@ func mt(slug string, category TemplateCategory, kind TemplateKind, createBody, v
 	}
 }
 
-// withDepth attaches the answer paragraph flag, the FAQ key suffixes and the
-// primary sources to the record mt() built. A wrapper rather than more
-// positional parameters on mt(): the constructor already takes eleven, and a
-// twelfth would make every call site harder to read than the data it carries.
+// withDepth attaches the FAQ key suffixes and the primary sources to the
+// record mt() built. A wrapper rather than more positional parameters on
+// mt(): the constructor already takes eleven, and a twelfth would make every
+// call site harder to read than the data it carries.
 func withDepth(t MockTemplate, faq []string, sources []Source) MockTemplate {
-	t.HasAnswer = true
 	t.FAQ = faq
 	t.Sources = sources
 	return t

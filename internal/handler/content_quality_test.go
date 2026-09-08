@@ -18,9 +18,12 @@ func wordCount(s string) int {
 }
 
 // resolves reports whether key actually translated to prose rather than
-// falling back to the literal key (Localizer.T's last-resort behaviour so a
-// page never crashes on a missing translation). A key that "resolves" to
-// itself is exactly the typo-in-prod scenario these tests exist to catch.
+// falling back to the literal key. Localizer.T tries lang, then the
+// fallback language (en), and only returns the literal key itself as a
+// last resort so a page never crashes on a missing translation. A key that
+// "resolves" to itself is exactly the typo-in-prod scenario these tests
+// exist to catch; a ru-only-falls-back-to-en gap is caught separately by
+// scripts/check_i18n.sh, which enforces key parity between locale files.
 func resolves(t *testing.T, localz interface {
 	T(string, string, ...any) string
 }, lang, key string) string {
@@ -56,10 +59,10 @@ func TestTemplateMeetsPublicationThreshold(t *testing.T) {
 			if len(tpl.Fields) < minFields {
 				t.Errorf("Fields has %d entries, want >= %d for kind %q", len(tpl.Fields), minFields, tpl.Kind)
 			}
-
-			if !tpl.HasAnswer {
-				t.Errorf("HasAnswer = false, want true")
+			if len(tpl.Fields) > 5 {
+				t.Errorf("Fields has %d entries, want <= 5", len(tpl.Fields))
 			}
+
 			if len(tpl.FAQ) != 3 {
 				t.Errorf("FAQ has %d entries, want exactly 3, got %v", len(tpl.FAQ), tpl.FAQ)
 			}
@@ -155,9 +158,7 @@ func TestGuideAndTemplateContentKeysResolve(t *testing.T) {
 					resolves(t, u.localz, lang, tpl.KeyPrefix+".faq."+suffix+".q")
 					resolves(t, u.localz, lang, tpl.KeyPrefix+".faq."+suffix+".a")
 				}
-				if tpl.HasAnswer {
-					resolves(t, u.localz, lang, tpl.KeyPrefix+".answer")
-				}
+				resolves(t, u.localz, lang, tpl.KeyPrefix+".answer")
 			}
 		})
 	}

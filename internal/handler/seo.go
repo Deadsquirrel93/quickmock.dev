@@ -107,7 +107,9 @@ func HomeJSONLD(localz *i18n.Localizer, lang, baseURL string, supportedLangs []s
 			"inLanguage": lang,
 			"step":       howToSteps,
 		},
-		faqNode(faqs),
+	}
+	if faq := faqNode(faqs); faq != nil {
+		graph = append(graph, faq)
 	}
 
 	payload := map[string]any{
@@ -125,8 +127,9 @@ func HomeJSONLD(localz *i18n.Localizer, lang, baseURL string, supportedLangs []s
 }
 
 // GuideCaseJSONLD builds the schema.org graph for a /guide/<slug> page: a
-// HowTo (create the mock, call it) plus a BreadcrumbList. Mirrors HomeJSONLD's
-// defang of "</" so the inline <script> can't be broken out of.
+// HowTo (create the mock, call it, both dated via dateModified) plus a
+// BreadcrumbList, plus an FAQPage node when the case has FAQ entries. Mirrors
+// HomeJSONLD's defang of "</" so the inline <script> can't be broken out of.
 func GuideCaseJSONLD(localz *i18n.Localizer, lang, baseURL string, c UseCase) template.JS {
 	t := func(key string, args ...any) string { return localz.T(lang, key, args...) }
 	base := strings.TrimRight(baseURL, "/")
@@ -179,9 +182,11 @@ func GuideCaseJSONLD(localz *i18n.Localizer, lang, baseURL string, c UseCase) te
 }
 
 // TemplateCaseJSONLD builds the schema.org graph for a /templates/<slug>
-// page: a HowTo (create the mock, call it) plus a BreadcrumbList. Mirrors
-// GuideCaseJSONLD's defang of "</" so the inline <script> can't be broken
-// out of.
+// page: a HowTo (create the mock, call it, both dated via dateModified, with
+// the template's Sources attached as HowTo.citation when present) plus a
+// BreadcrumbList, plus an FAQPage node when the template has FAQ entries.
+// Mirrors GuideCaseJSONLD's defang of "</" so the inline <script> can't be
+// broken out of.
 func TemplateCaseJSONLD(localz *i18n.Localizer, lang, baseURL string, t MockTemplate) template.JS {
 	tr := func(key string, args ...any) string { return localz.T(lang, key, args...) }
 	base := strings.TrimRight(baseURL, "/")

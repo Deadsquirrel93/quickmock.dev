@@ -13,9 +13,7 @@
   <h1>{{ t (printf "%s.title" .Template.KeyPrefix) }}</h1>
   <p class="guide-summary">{{ t (printf "%s.summary" .Template.KeyPrefix) }}</p>
 
-  {{ if .Template.HasAnswer }}
   <p class="guide-answer">{{ t (printf "%s.answer" .Template.KeyPrefix) }}</p>
-  {{ end }}
 
   <p class="badge templates-kind">{{ t (printf "templates.kind.%s" .Template.Kind) }}</p>
 
