@@ -1156,6 +1156,12 @@ input:focus, select:focus, textarea:focus {
 .guide-summary { font-size: 1.1rem; color: var(--fg-muted); margin: 0 0 1.5rem; }
 .guide-case h2 { font-size: 1.05rem; margin: 1.75rem 0 0.6rem; }
 .guide-case > p { line-height: 1.6; }
+/* "Related guides" / "Related templates" list at the foot of a case page.
+   The summary mirrors .guide-card p so a related entry reads the same here
+   as it does on the index it came from. */
+.guide-related { margin: 0 0 1.5rem; padding-left: 1.2rem; }
+.guide-related li { margin-bottom: 0.6rem; }
+.guide-related-summary { display: block; color: var(--fg-muted); font-size: 0.92rem; line-height: 1.5; }
 .guide-code-block { position: relative; }
 .guide-code {
   background: var(--bg-code);
