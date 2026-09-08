@@ -69,6 +69,25 @@
   <h2>{{ t "templates.section.differences" }}</h2>
   <p>{{ t (printf "%s.differences" .Template.KeyPrefix) }}</p>
 
+  {{ if .Template.Sources }}
+  <h2>{{ t "templates.section.sources" }}</h2>
+  <ul class="templates-sources">
+    {{ range .Template.Sources }}
+    <li><a href="{{ .URL }}">{{ .Title }}</a></li>
+    {{ end }}
+  </ul>
+  {{ end }}
+
+  {{ if .Template.FAQ }}
+  <h2>{{ t "templates.section.faq" }}</h2>
+  <dl class="guide-faq">
+    {{ range .Template.FAQ }}
+    <dt>{{ t (printf "%s.faq.%s.q" $.Template.KeyPrefix .) }}</dt>
+    <dd>{{ tHTML (printf "%s.faq.%s.a" $.Template.KeyPrefix .) }}</dd>
+    {{ end }}
+  </dl>
+  {{ end }}
+
   <div class="guide-cta card">
     <h2>{{ t "templates.cta.title" }}</h2>
     {{ if .Error }}
@@ -97,5 +116,7 @@
   {{ end }}
 
   <p><a href="/templates">{{ t "templates.back" }}</a></p>
+
+  <p class="guide-last-updated">{{ t "common.last_updated" .LastUpdated }}</p>
 </section>
 {{ end }}

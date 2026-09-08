@@ -1,5 +1,27 @@
 package handler
 
+// SectionKind selects how a GuideSection's body is presented on the page.
+type SectionKind string
+
+const (
+	// SectionProse is a plain heading + paragraph, flowing with the rest of
+	// the page.
+	SectionProse SectionKind = "prose"
+	// SectionMistakes wraps the heading + paragraph in a callout so common
+	// pitfalls stand out from the surrounding prose.
+	SectionMistakes SectionKind = "mistakes"
+)
+
+// GuideSection is one long-form section on a /guide/<slug> page, rendered
+// between the summary and the existing curl walkthrough. Key is the suffix
+// under <UseCase.KeyPrefix>.sec.<Key> for the section's ".title" and ".body"
+// locale keys (the latter rendered as trusted HTML, so it may carry inline
+// markup); Kind picks the wrapper the section renders in.
+type GuideSection struct {
+	Key  string
+	Kind SectionKind
+}
+
 // UseCase is one /guide/<slug> landing page. Localized prose (title, summary,
 // why) is keyed by KeyPrefix in the locale files; the code blocks below are
 // language-neutral and shown verbatim. This registry is the single source of
@@ -21,6 +43,15 @@ type UseCase struct {
 	// the single source of truth and a test enforces that every slug resolves
 	// and no case is left without inbound links.
 	Related []string
+	// Sections lists optional long-form content rendered between the
+	// summary and the curl walkthrough. Empty for a short entry; filled in
+	// by editing the registry directly (uc() covers only the short fields).
+	Sections []GuideSection
+	// FAQ lists suffix keys under <KeyPrefix>.faq.<key> for the FAQ block
+	// rendered before the CTA: <KeyPrefix>.faq.<key>.q is the question,
+	// <KeyPrefix>.faq.<key>.a the answer (trusted HTML). Empty for a short
+	// entry.
+	FAQ []string
 }
 
 func uc(slug, createBody, verb, header, data, expect string, inspector bool, related []string) UseCase {

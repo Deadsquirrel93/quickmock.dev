@@ -28,6 +28,14 @@ const (
 	CategoryGeneric  TemplateCategory = "generic"
 )
 
+// Source is an external reference cited by a /templates/<slug> page (e.g. an
+// RFC section or a provider's own API docs), rendered as a plain link under
+// templates.section.sources.
+type Source struct {
+	URL   string // absolute https URL
+	Title string // language-neutral link text, e.g. "RFC 6749 §4.1"
+}
+
 // MockTemplate is one curated /templates/<slug> entry: a ready-to-use mock
 // configuration that reproduces the shape of a well-known third-party API
 // (Stripe, GitHub, Slack, OAuth, ...). Localized prose (title, summary, why)
@@ -57,6 +65,15 @@ type MockTemplate struct {
 	// "Related templates" block. Curated, at least 3 per entry; a test
 	// enforces that every slug resolves and no template is left orphaned.
 	Related []string
+	// FAQ lists suffix keys under <KeyPrefix>.faq.<key> for the FAQ block
+	// rendered before the CTA: <KeyPrefix>.faq.<key>.q is the question,
+	// <KeyPrefix>.faq.<key>.a the answer (trusted HTML). Empty for a short
+	// entry.
+	FAQ []string
+	// Sources lists external references shown after the "differences"
+	// section. Empty for a short entry; filled in by editing the registry
+	// directly (mt() covers only the short fields).
+	Sources []Source
 }
 
 func mt(slug string, category TemplateCategory, kind TemplateKind, createBody, verb, header, data, expect string, fields []string, relatedGuide string, related []string) MockTemplate {

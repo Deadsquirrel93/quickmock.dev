@@ -1162,6 +1162,29 @@ input:focus, select:focus, textarea:focus {
 .guide-related { margin: 0 0 1.5rem; padding-left: 1.2rem; }
 .guide-related li { margin-bottom: 0.6rem; }
 .guide-related-summary { display: block; color: var(--fg-muted); font-size: 0.92rem; line-height: 1.5; }
+/* Long-form sections and FAQ inserted between the summary and the curl
+   walkthrough on a case page (guide_case.html, templates_case.html). A
+   "mistakes"-kind section gets an accent-bordered callout so it stands out
+   from the surrounding prose; a plain section flows like the rest of the
+   page. */
+.guide-mistakes {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+.guide-mistakes h3 { margin-top: 0; }
+.guide-mistakes p:last-child { margin-bottom: 0; }
+.guide-faq { margin: 0 0 1.5rem; }
+.guide-faq dt { font-weight: 600; margin-top: 1rem; }
+.guide-faq dd { margin: 0.35rem 0 0; color: var(--fg-muted); }
+.templates-sources { margin: 0 0 1.5rem; padding-left: 1.2rem; }
+.templates-sources li { margin-bottom: 0.4rem; }
+/* Freshness line at the foot of a case page, distinct from the page-level
+   .last-updated (which is centered on the home page). */
+.guide-last-updated { color: var(--fg-muted); font-size: 0.85rem; margin-top: 1.5rem; }
 .guide-code-block { position: relative; }
 .guide-code {
   background: var(--bg-code);
