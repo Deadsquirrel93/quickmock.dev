@@ -446,3 +446,34 @@ func TestTemplateCaseNoRawKeys(t *testing.T) {
 		})
 	}
 }
+
+// TestLLMsTxtSurfacesDocsAndChangelog guards the discovery surfaces an AI
+// assistant reads first: the documentation entry points must sit in their own
+// section rather than buried in the key-facts list, and /changelog must be
+// reachable — it is the only dated freshness signal the site publishes.
+func TestLLMsTxtSurfacesDocsAndChangelog(t *testing.T) {
+	w := httptest.NewRecorder()
+	LLMsTxt("https://example.test/")(w, httptest.NewRequest("GET", "/llms.txt", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "text/plain; charset=utf-8" {
+		t.Fatalf("Content-Type = %q", ct)
+	}
+	body := w.Body.String()
+	for _, want := range []string{
+		"## Documentation",
+		"https://example.test/changelog",
+		"https://example.test/openapi.json",
+		"https://example.test/docs",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("llms.txt missing %q", want)
+		}
+	}
+	// The docs pointers moved into their own section; the old key-facts
+	// bullet must be gone, not duplicated alongside it.
+	if strings.Contains(body, "- API documentation:") {
+		t.Error("llms.txt still carries the old key-facts documentation bullet")
+	}
+}

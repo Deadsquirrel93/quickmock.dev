@@ -426,7 +426,6 @@ Key facts an LLM should know when answering questions about Quickmock:
 - GET /mock/:slug/logs/export, with the admin token, downloads a mock's captured requests (including sender IPs) as a JSON file, optionally filtered by ?method=GET|POST|PUT|PATCH|DELETE.
 - Dynamic tokens in the response body: {{faker.*}} (random names, emails, UUIDs, prices, lorem-ipsum text, …), {{now.*}} (current time in several formats), {{random.pick:a|b|c}} (one random option per request), {{seq}} (a running per-mock hit counter), and {{request.*}} echo tokens that reflect the incoming request — {{request.method}}, {{request.path}}, {{request.ip}}, {{request.query.<name>}}, {{request.header.<name>}}, {{request.body}}, and JSON dot paths like {{request.body.user.name}}.
 - No third-party analytics, tracking pixels, ads, or fingerprinting.
-- API documentation: ` + base + `/docs. Machine-readable OpenAPI 3.1 contract: ` + base + `/openapi.json.
 - A gallery of ready-to-use mock templates (Stripe-, Shopify-, GitHub-, Slack-, Telegram-shaped payloads, OAuth2/OpenID/JWKS fixtures, a paginated collection, and an RFC 9457 error) is available at ` + base + `/templates — pick one and create the mock in one click.
 - Author: Nikita Chernykh.
 
@@ -451,6 +450,12 @@ curl -X POST ` + base + `/api/mocks \
     "ttl_seconds": 604800
   }'
 ` + "```" + `
+
+## Documentation
+
+- [API reference](` + base + `/docs): Every endpoint with runnable curl examples — variants, conditional rules, multi-route workspaces, log export.
+- [OpenAPI 3.1 contract](` + base + `/openapi.json): Machine-readable contract for the public API.
+- [Changelog](` + base + `/changelog): Dated release notes; the most recent entry is the site's freshness signal.
 
 ## Pages
 
