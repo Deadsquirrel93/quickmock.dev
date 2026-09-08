@@ -86,12 +86,9 @@ func TestTemplateMeetsPublicationThreshold(t *testing.T) {
 // test-retry-logic) established while writing them (Task 4). Entries with
 // no Sections (the other seven guides) are short by design and exempt.
 //
-// The count includes section titles alongside their bodies and both halves
-// of each FAQ pair: titles render as visible <h2> headings the reader sees
-// as part of the section, and the 500-word floor was originally measured
-// that way (ledger: en 683/574/609, ru 578/504/519 words) — excluding
-// titles would put two of the three Russian guides under the floor despite
-// matching depth to their English counterparts.
+// The count is body copy only: the answer paragraph, each section's body
+// (not its title — titles are navigation, not prose), and both halves of
+// each FAQ pair.
 func TestLongFormGuidesMeetWordFloor(t *testing.T) {
 	u := testUI(t)
 	for _, c := range UseCases {
@@ -104,8 +101,6 @@ func TestLongFormGuidesMeetWordFloor(t *testing.T) {
 				var b strings.Builder
 				b.WriteString(u.localz.T(lang, c.KeyPrefix+".answer"))
 				for _, sec := range c.Sections {
-					b.WriteByte(' ')
-					b.WriteString(u.localz.T(lang, c.KeyPrefix+".sec."+sec.Key+".title"))
 					b.WriteByte(' ')
 					b.WriteString(u.localz.T(lang, c.KeyPrefix+".sec."+sec.Key+".body"))
 				}
