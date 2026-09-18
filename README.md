@@ -72,9 +72,10 @@ Need a different value every call instead of a frozen blob? Put a token in the r
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `faker.*`   | `name`, `firstname`, `lastname`, `username`, `email`, `phone`, `url`, `ipv4`, `uuid`, `int`, `bool`, `word`, `sentence`, `color`, `company`, `city`               |
 | `now.*`     | `iso8601` (RFC 3339), `unix` (seconds), `unix_ms`, `date` (YYYY-MM-DD), `time` (HH:MM:SS), `rfc1123` (HTTP date)                                                  |
-| `request.*` | `method`, `path`, `ip`, `query.<name>`, `header.<name>`, `body` (raw, first 16 KB), `body.<json.dot.path>` (e.g. `body.user.name`, `body.items.0.sku`)            |
+| `request.*` | `method`, `path`, `host`, `ip`, `query.<name>`, `header.<name>`, `body` (raw, first 16 KB), `body.<json.dot.path>` (e.g. `body.user.name`, `body.items.0.sku`)            |
+| `mock.*`    | `url` — this mock's own base URL (`https://quickmock.dev/m/<slug>`), for response bodies that have to reference themselves                                        |
 
-`request.*` tokens echo the incoming request back into the response. Values are inserted verbatim — token-looking text inside a query param or body field is never re-expanded — and nothing extra is stored:
+`request.*` tokens echo the incoming request back into the response, and `{{mock.url}}` names the mock itself — what an OIDC discovery document's `issuer` or a pagination `next` link needs, since the slug only exists after creation. Values are inserted verbatim — token-looking text inside a query param or body field is never re-expanded — and nothing extra is stored:
 
 ```json
 {
