@@ -28,10 +28,15 @@ type MockRouter struct {
 	seq    *repository.SeqCounter
 	logger *slog.Logger
 	maxLog int
+	// baseURL is the site's configured public origin. It backs the
+	// {{mock.url}} token, which therefore names the same address the UI
+	// offers for copy-paste instead of whatever Host the caller sent.
+	baseURL string
 }
 
-func NewMockRouter(svc *service.MockService, logs *service.LogWriter, seq *repository.SeqCounter, logger *slog.Logger) *MockRouter {
-	return &MockRouter{svc: svc, logs: logs, seq: seq, logger: logger, maxLog: 16 * 1024}
+func NewMockRouter(svc *service.MockService, logs *service.LogWriter, seq *repository.SeqCounter, logger *slog.Logger, baseURL string) *MockRouter {
+	return &MockRouter{svc: svc, logs: logs, seq: seq, logger: logger, maxLog: 16 * 1024,
+		baseURL: strings.TrimSuffix(baseURL, "/")}
 }
 
 // ServeHTTP matches the slug, validates the method, sleeps the configured
@@ -179,12 +184,14 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// most the first 16 KB of the incoming body — same window as the
 	// inspector.
 	_, _ = w.Write([]byte(service.RenderResponseBodyForRequest(served.Body, &service.RequestData{
-		Method: r.Method,
-		Path:   r.URL.Path,
-		IP:     mockmw.IPFromContext(r.Context()),
-		Query:  r.URL.Query(),
-		Header: r.Header,
-		Body:   bodyBytes,
+		Method:  r.Method,
+		Path:    r.URL.Path,
+		Host:    r.Host,
+		IP:      mockmw.IPFromContext(r.Context()),
+		Query:   r.URL.Query(),
+		Header:  r.Header,
+		Body:    bodyBytes,
+		MockURL: h.baseURL + "/m/" + m.Slug,
 		// ":tpl" keeps the {{seq}} token's counter separate from the one
 		// nextPos above uses to step through m.SequenceSteps — sharing a
 		// key would make a {{seq}} token silently skip every other

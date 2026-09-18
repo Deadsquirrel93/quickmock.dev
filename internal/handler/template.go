@@ -226,10 +226,10 @@ the webhook response itself is treated as a Bot API method call`,
   "response_status": 200,
   "content_type": "application/json",
   "path_suffix": ".well-known/openid-configuration",
-  "response_body": "{\"issuer\":\"https://quickmock.dev/m/YOUR-SLUG\",\"authorization_endpoint\":\"https://quickmock.dev/m/YOUR-SLUG/authorize\",\"token_endpoint\":\"https://quickmock.dev/m/YOUR-SLUG/token\",\"jwks_uri\":\"https://quickmock.dev/m/YOUR-SLUG/.well-known/jwks.json\",\"response_types_supported\":[\"code\"],\"subject_types_supported\":[\"public\"],\"id_token_signing_alg_values_supported\":[\"RS256\"]}"
+  "response_body": "{\"issuer\":\"{{mock.url}}\",\"authorization_endpoint\":\"{{mock.url}}/authorize\",\"token_endpoint\":\"{{mock.url}}/token\",\"jwks_uri\":\"{{mock.url}}/.well-known/jwks.json\",\"response_types_supported\":[\"code\"],\"subject_types_supported\":[\"public\"],\"id_token_signing_alg_values_supported\":[\"RS256\"]}"
 }`,
 		"GET", "", "",
-		"GET /m/<slug>/.well-known/openid-configuration -> 200 an OIDC discovery document\nreplace YOUR-SLUG with the mock's real slug before using it",
+		"GET /m/<slug>/.well-known/openid-configuration -> 200 an OIDC discovery document\nevery advertised endpoint resolves to this mock via the {{mock.url}} token",
 		[]string{"issuer", "authorization_endpoint", "token_endpoint", "jwks_uri"},
 		"mock-rest-api",
 		[]string{"jwks-endpoint", "oauth2-token-response", "paginated-collection"}),
@@ -263,7 +263,7 @@ the webhook response itself is treated as a Bot API method call`,
   "method": "GET",
   "response_status": 200,
   "content_type": "application/json",
-  "response_body": "{\"data\":[{\"id\":\"{{faker.uuid}}\",\"name\":\"{{faker.name}}\",\"email\":\"{{faker.email}}\"},{\"id\":\"{{faker.uuid}}\",\"name\":\"{{faker.name}}\",\"email\":\"{{faker.email}}\"},{\"id\":\"{{faker.uuid}}\",\"name\":\"{{faker.name}}\",\"email\":\"{{faker.email}}\"}],\"page\":1,\"per_page\":3,\"total\":42,\"next\":\"https://quickmock.dev/m/YOUR-SLUG?page=2\"}"
+  "response_body": "{\"data\":[{\"id\":\"{{faker.uuid}}\",\"name\":\"{{faker.name}}\",\"email\":\"{{faker.email}}\"},{\"id\":\"{{faker.uuid}}\",\"name\":\"{{faker.name}}\",\"email\":\"{{faker.email}}\"},{\"id\":\"{{faker.uuid}}\",\"name\":\"{{faker.name}}\",\"email\":\"{{faker.email}}\"}],\"page\":1,\"per_page\":3,\"total\":42,\"next\":\"{{mock.url}}?page=2\"}"
 }`,
 		"GET", "", "",
 		"GET /m/<slug> -> 200 a paginated list of 3 fake records\npage/per_page/total/next describe the rest of the collection",
@@ -281,7 +281,7 @@ the webhook response itself is treated as a Bot API method call`,
   "method": "GET",
   "response_status": 422,
   "content_type": "application/problem+json",
-  "response_body": "{\"type\":\"https://quickmock.dev/problems/validation-error\",\"title\":\"Your request parameters didn't validate\",\"status\":422,\"detail\":\"The 'email' field must be a valid email address.\",\"instance\":\"/m/YOUR-SLUG/requests/38f0\",\"errors\":[{\"field\":\"email\",\"message\":\"must be a valid email address\"}]}"
+  "response_body": "{\"type\":\"https://quickmock.dev/problems/validation-error\",\"title\":\"Your request parameters didn't validate\",\"status\":422,\"detail\":\"The 'email' field must be a valid email address.\",\"instance\":\"{{mock.url}}/requests/38f0\",\"errors\":[{\"field\":\"email\",\"message\":\"must be a valid email address\"}]}"
 }`,
 		"GET", "", "",
 		"GET /m/<slug> -> 422 application/problem+json\nan RFC 9457 problem document with a custom errors[] extension",

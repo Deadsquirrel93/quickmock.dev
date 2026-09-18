@@ -59,12 +59,26 @@ var SupportedTokens = []string{
 var RequestTokens = []string{
 	"{{request.method}}",
 	"{{request.path}}",
+	"{{request.host}}",
 	"{{request.ip}}",
 	"{{request.query.id}}",
 	"{{request.header.x-request-id}}",
 	"{{request.body}}",
 	"{{request.body.user.name}}",
 }
+
+// MockTokens lists the {{mock.*}} tokens, which describe the mock serving the
+// request rather than the request itself. Like RequestTokens they need live
+// serving context and therefore stay out of SupportedTokens.
+var MockTokens = []string{
+	"{{mock.url}}",
+}
+
+// mockTokenRe matches the {{mock.*}} tokens. They also match the strict
+// tokenRe grammar below, which is harmless: that pass has no case for the
+// "mock" namespace and returns such tokens untouched, exactly as it already
+// does for {{request.*}}.
+var mockTokenRe = regexp.MustCompile(`\{\{\s*mock\.([a-z0-9_]+)\s*\}\}`)
 
 // requestTokenRe matches {{request.<path>}}. It is a separate pattern from
 // tokenRe because header names carry uppercase letters and dashes, and JSON
@@ -95,6 +109,23 @@ type RequestData struct {
 	Query  url.Values
 	Header http.Header
 	Body   []byte
+
+	// Host is the authority the request was addressed to — Go keeps it in
+	// r.Host, never in r.Header, so {{request.header.host}} cannot stand in
+	// for it. Like every other request.* value it is echoed verbatim, and
+	// like every other one it is client-controlled: a caller can send any
+	// Host header it likes. Response bodies that must name the mock's own
+	// address want MockURL below instead.
+	Host string
+
+	// MockURL is the mock's own public base URL (BaseURL + "/m/" + slug),
+	// resolving {{mock.url}}. It comes from the server's configured base URL
+	// rather than from the request, so it is the same address the UI offers
+	// for copy-paste and cannot be steered by a forged Host header. It exists
+	// for bodies that have to reference themselves — an OIDC discovery
+	// document's issuer, a pagination "next" link — which is impossible to
+	// write by hand because the slug only exists after creation.
+	MockURL string
 
 	// Seq supplies the {{seq}} token's next value. Callers wire it to the
 	// shared repository.SeqCounter already used for response-sequence
@@ -143,6 +174,7 @@ func RenderResponseBodyForRequest(body string, req *RequestData) string {
 	if req == nil {
 		return body
 	}
+	body = substituteMockTokens(body, req)
 	return substituteRequestTokens(body, req)
 }
 
@@ -176,6 +208,21 @@ func substituteExtraTokens(body string, req *RequestData) string {
 	})
 }
 
+// substituteMockTokens resolves {{mock.*}}. An empty MockURL means the caller
+// had no serving context to offer, so the token is left untouched — the same
+// fallback every other token here uses when its data isn't available.
+func substituteMockTokens(body string, req *RequestData) string {
+	if req.MockURL == "" || !strings.Contains(body, "{{") {
+		return body
+	}
+	return mockTokenRe.ReplaceAllStringFunc(body, func(match string) string {
+		if mockTokenRe.FindStringSubmatch(match)[1] == "url" {
+			return req.MockURL
+		}
+		return match
+	})
+}
+
 func substituteRequestTokens(body string, req *RequestData) string {
 	// The JSON body is parsed lazily, at most once, and only when a
 	// {{request.body.<path>}} token is actually present.
@@ -189,6 +236,14 @@ func substituteRequestTokens(body string, req *RequestData) string {
 			return req.Method
 		case path == "path":
 			return req.Path
+		case path == "host":
+			// Unlike method/path/ip, which every served request carries,
+			// Host can be empty when the caller had none to offer — then
+			// the token is left alone, same as a missing query param or
+			// header, instead of blanking itself out of the body.
+			if req.Host != "" {
+				return req.Host
+			}
 		case path == "ip":
 			return req.IP
 		case path == "body":

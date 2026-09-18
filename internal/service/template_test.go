@@ -149,12 +149,14 @@ func TestRenderResponseBody_IPv4(t *testing.T) {
 
 func sampleRequest() *RequestData {
 	return &RequestData{
-		Method: "POST",
-		Path:   "/m/abc123/users/42",
-		IP:     "203.0.113.7",
-		Query:  url.Values{"id": {"42"}, "filter": {"active"}},
-		Header: http.Header{"X-Request-Id": {"req-777"}, "User-Agent": {"curl/8.0"}},
-		Body:   []byte(`{"user":{"name":"Bob","age":30,"admin":true},"items":[{"sku":"A1"},{"sku":"B2"}]}`),
+		Method:  "POST",
+		Path:    "/m/abc123/users/42",
+		Host:    "quickmock.dev",
+		IP:      "203.0.113.7",
+		Query:   url.Values{"id": {"42"}, "filter": {"active"}},
+		Header:  http.Header{"X-Request-Id": {"req-777"}, "User-Agent": {"curl/8.0"}},
+		Body:    []byte(`{"user":{"name":"Bob","age":30,"admin":true},"items":[{"sku":"A1"},{"sku":"B2"}]}`),
+		MockURL: "https://quickmock.dev/m/abc123",
 	}
 }
 
@@ -366,5 +368,71 @@ func TestRenderResponseBody_FakerPriceAndLorem(t *testing.T) {
 	lorem := RenderResponseBody(`{{faker.lorem}}`)
 	if lorem == "" || !strings.Contains(lorem, " ") {
 		t.Fatalf("expected a non-empty multi-word lorem paragraph, got %q", lorem)
+	}
+}
+
+func TestRenderRequest_Host(t *testing.T) {
+	out := RenderResponseBodyForRequest(`{"self":"https://{{request.host}}/health"}`, sampleRequest())
+	want := `{"self":"https://quickmock.dev/health"}`
+	if out != want {
+		t.Fatalf("expected %q, got %q", want, out)
+	}
+}
+
+// Go parses the Host header into r.Host and strips it from r.Header, so the
+// header token cannot stand in for {{request.host}} — the very reason that
+// token exists. Asserted here so a future refactor of RequestData that drops
+// the separate Host field fails loudly.
+func TestRenderRequest_HeaderHostIsNotHost(t *testing.T) {
+	in := `{{request.header.host}}`
+	if out := RenderResponseBodyForRequest(in, sampleRequest()); out != in {
+		t.Fatalf("expected the header token preserved (no Host in r.Header), got %q", out)
+	}
+}
+
+func TestRenderMock_URL(t *testing.T) {
+	in := `{"issuer":"{{mock.url}}","jwks_uri":"{{mock.url}}/.well-known/jwks.json"}`
+	want := `{"issuer":"https://quickmock.dev/m/abc123","jwks_uri":"https://quickmock.dev/m/abc123/.well-known/jwks.json"}`
+	if out := RenderResponseBodyForRequest(in, sampleRequest()); out != want {
+		t.Fatalf("expected %q, got %q", want, out)
+	}
+}
+
+func TestRenderMock_AllMockTokensResolve(t *testing.T) {
+	for _, tok := range MockTokens {
+		if out := RenderResponseBodyForRequest(tok, sampleRequest()); out == tok {
+			t.Errorf("mock token %q was not substituted", tok)
+		}
+	}
+}
+
+// Every context-free entry point must leave both new tokens alone: they have
+// no meaning without a live request, and silently blanking them would corrupt
+// a stored body on any code path that renders without one.
+func TestRenderMock_WithoutContextLeavesTokens(t *testing.T) {
+	in := `{{mock.url}} {{request.host}}`
+	if out := RenderResponseBody(in); out != in {
+		t.Fatalf("expected tokens preserved without a request, got %q", out)
+	}
+	if out := RenderResponseBodyForRequest(in, &RequestData{}); out != in {
+		t.Fatalf("expected tokens preserved on an empty request, got %q", out)
+	}
+}
+
+func TestRenderMock_UnknownMockFieldLeftAsIs(t *testing.T) {
+	in := `{{mock.slug}}`
+	if out := RenderResponseBodyForRequest(in, sampleRequest()); out != in {
+		t.Fatalf("expected unknown mock token preserved, got %q", out)
+	}
+}
+
+// A mock URL is inserted verbatim like every other resolved value, so text
+// inside it is never rescanned for tokens.
+func TestRenderMock_URLIsNotRescanned(t *testing.T) {
+	req := sampleRequest()
+	req.MockURL = "https://quickmock.dev/m/{{faker.uuid}}"
+	out := RenderResponseBodyForRequest(`{{mock.url}}`, req)
+	if out != req.MockURL {
+		t.Fatalf("expected the URL inserted verbatim, got %q", out)
 	}
 }

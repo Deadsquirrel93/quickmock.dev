@@ -8,9 +8,9 @@ import (
 )
 
 // TestSetMockProtectiveHeaders pins the server-owned headers on /m/:slug.
-// MockRouter itself needs a live Postgres to construct, so the header block
-// is factored out and asserted here — otherwise this defence has no
-// automated coverage at all.
+// The block is asserted directly rather than through a served response so a
+// header can never be dropped silently by a serve-path branch that happens
+// to return early; mock_router_tokens_test.go covers the serve path itself.
 func TestSetMockProtectiveHeaders(t *testing.T) {
 	want := map[string]string{
 		"X-Content-Type-Options":       "nosniff",
