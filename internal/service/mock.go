@@ -36,14 +36,16 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string { return e.Message }
 
-// mockStore is the subset of *repository.MockRepo the service needs.
-// Declaring it as an interface (rather than storing the concrete type
-// directly) is the same DI seam GenerateSlug already uses via SlugChecker
-// above; it lets Extend's tests substitute an in-memory fake and exercise
-// the full Get -> authorize -> Update flow without a live Postgres
-// connection, while NewMockService keeps accepting the concrete
-// *repository.MockRepo callers already pass in.
-type mockStore interface {
+// MockStore is the subset of *repository.MockRepo the service needs. It is
+// the same DI seam GenerateSlug already uses via SlugChecker above, and it
+// is exported because NewMockService accepts it: tests in other packages —
+// handler's, in particular — need to build a MockService over an in-memory
+// fake, and without that the success path of creating a mock (POST / and
+// POST /templates/:slug/create) could only be exercised against a live
+// Postgres, which is to say never in CI.
+//
+// *repository.MockRepo satisfies it, so production wiring is unchanged.
+type MockStore interface {
 	Create(ctx context.Context, m *model.Mock) error
 	BySlug(ctx context.Context, slug string) (*model.Mock, error)
 	Update(ctx context.Context, m *model.Mock) error
@@ -54,7 +56,7 @@ type mockStore interface {
 
 // MockService is the only object handlers should call to manipulate mocks.
 type MockService struct {
-	repo       mockStore
+	repo       MockStore
 	logs       *repository.LogRepo
 	stats      *StatsCache
 	maxBody    int
@@ -64,7 +66,7 @@ type MockService struct {
 	spam       *SpamFilter
 }
 
-func NewMockService(repo *repository.MockRepo, logs *repository.LogRepo, stats *StatsCache, maxBody, maxMocks int, defaultTTL, maxTTL time.Duration, spam *SpamFilter) *MockService {
+func NewMockService(repo MockStore, logs *repository.LogRepo, stats *StatsCache, maxBody, maxMocks int, defaultTTL, maxTTL time.Duration, spam *SpamFilter) *MockService {
 	return &MockService{
 		repo:       repo,
 		logs:       logs,

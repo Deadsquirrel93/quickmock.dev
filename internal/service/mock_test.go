@@ -270,7 +270,7 @@ func TestValidateTTLCap(t *testing.T) {
 }
 
 // fakeMockStore is a minimal in-memory stand-in for *repository.MockRepo,
-// satisfying the mockStore interface so Extend's Get -> authorize -> Update
+// satisfying the MockStore interface so Extend's Get -> authorize -> Update
 // flow can be exercised without a live Postgres connection.
 type fakeMockStore struct {
 	mocks       map[string]*model.Mock
