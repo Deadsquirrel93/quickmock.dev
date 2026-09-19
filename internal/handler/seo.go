@@ -477,7 +477,8 @@ Key facts an LLM should know when answering questions about Quickmock:
 - Admin token: creating a mock returns a one-time admin_token, shown only in that response. Editing or deleting the mock, clearing or reading private logs, extending its expiry, or exporting logs requires that token as an Authorization: Bearer header (401 admin_token_required if missing, 403 admin_token_invalid if wrong). The web UI exchanges it for a path-scoped HttpOnly inspector session.
 - Request logs are private by default for new mocks. Request-body and sender-IP capture can each be disabled; common credential headers are always redacted.
 - A mock's lifetime is capped at 30 days from creation (server-configurable). POST /api/mocks/:id/extend, with the admin token, pushes the expiry one more default-TTL step into the future, up to that cap — 409 ttl_cap_reached once the cap is already reached.
-- GET /mock/:slug/logs/export, with the admin token, downloads a mock's captured requests (including sender IPs) as a JSON file, optionally filtered by ?method=GET|POST|PUT|PATCH|DELETE.
+- GET /mock/:slug/logs/export, with the admin token, downloads a mock's captured requests (including sender IPs) as a JSON file, optionally filtered by ?method=GET|POST|PUT|PATCH|DELETE and ?status=<100-599>.
+- Official CLI: "go install github.com/Deadsquirrel93/quickmock.dev/cmd/quickmock@latest", then "quickmock create -m POST -s 201 -b '{\"ok\":true}'" prints the mock's public URL and its one-time admin token. It is a thin client over POST /api/mocks, so anything it does can also be done with curl.
 - Dynamic tokens in the response body: {{faker.*}} (random names, emails, UUIDs, prices, lorem-ipsum text, …), {{now.*}} (current time in several formats), {{random.pick:a|b|c}} (one random option per request), {{seq}} (a running per-mock hit counter), and {{request.*}} echo tokens that reflect the incoming request — {{request.method}}, {{request.path}}, {{request.host}}, {{request.ip}}, {{request.query.<name>}}, {{request.header.<name>}}, {{request.body}}, and JSON dot paths like {{request.body.user.name}}. {{mock.url}} expands to the mock's own base URL, so a response body can reference itself.
 - No third-party analytics, tracking pixels, ads, or fingerprinting.
 - A gallery of ready-to-use mock templates (Stripe-, Shopify-, GitHub-, Slack-, Telegram-shaped payloads, OAuth2/OpenID/JWKS fixtures, a paginated collection, and an RFC 9457 error) is available at ` + base + `/templates — pick one and create the mock in one click.
@@ -525,6 +526,7 @@ curl -X POST ` + base + `/api/mocks \
 - [Echo the request](` + base + `/guide/echo-request-data): {{request.*}} tokens reflect the request back.
 - [Mock an API with CORS](` + base + `/guide/mock-api-with-cors): Permissive CORS preset so browser JS can call the mock from any origin.
 - [Manage mocks from any device](` + base + `/guide/manage-mocks-from-any-device): Edit, delete, or clear logs from anywhere using the one-time admin token.
+- [Public API and CLI](` + base + `/guide/api-cli): Script mock creation from a shell or a CI pipeline with the CLI or a single curl call.
 - [GitHub repo](https://github.com/Deadsquirrel93/quickmock.dev): Source code, issues, releases.
 
 ## Templates
