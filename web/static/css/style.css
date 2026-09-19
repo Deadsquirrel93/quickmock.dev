@@ -864,7 +864,7 @@ input:focus, select:focus, textarea:focus {
 }
 .glossary-list code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  background: var(--bg-code);
+  background: rgba(127, 127, 127, 0.12);
   padding: 0.05rem 0.3rem;
   border-radius: 4px;
   font-size: 0.9em;
@@ -907,7 +907,7 @@ input:focus, select:focus, textarea:focus {
 .changelog-release li { margin: 0.4rem 0; line-height: 1.5; }
 .changelog-release code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  background: var(--bg-code);
+  background: rgba(127, 127, 127, 0.12);
   padding: 0.05rem 0.3rem;
   border-radius: 4px;
   font-size: 0.9em;
