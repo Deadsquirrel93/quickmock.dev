@@ -712,5 +712,8 @@
   "templates.case.problem-json-error.field.title": "Un corto resumen del problema comprensible para humanos.",
   "templates.case.problem-json-error.field.status": "Refleja el estado y código de respuesta HTTP, guardado a mayores para que el cliente lo tenga o lo registre en el log.",
   "templates.case.problem-json-error.field.detail": "Una explicación pormenorizada de lo sucedido; edita para probar cómo lo trata tu cliente en el parseo.",
-  "templates.case.problem-json-error.field.errors": "Un array u objeto (no estándar de base) extra para la extensión con errores a nivel de campo tal y como se hace en las API del estilo Stripe y demás."
+  "templates.case.problem-json-error.field.errors": "Un array u objeto (no estándar de base) extra para la extensión con errores a nivel de campo tal y como se hace en las API del estilo Stripe y demás.",
+  "changelog.r0919.title": "2026-09-19 — Filtrado por estado y nuevas configuraciones regionales",
+  "changelog.r0919.added1": "<strong>Filtro de estado</strong>: El inspector de solicitudes ahora captura el estado HTTP realmente servido para cada solicitud y permite filtrar la vista de registro por código de estado. Las exportaciones de registros incluyen el nuevo campo.",
+  "changelog.r0919.added2": "<strong>Configuraciones regionales</strong>: Se agregaron traducciones completas para español, portugués y chino simplificado, lo que hace que Quickmock sea accesible para una audiencia global más amplia según las tendencias de tráfico."
 }

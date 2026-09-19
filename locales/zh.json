@@ -712,5 +712,8 @@
   "templates.case.problem-json-error.field.title": "对该问题的简短的、人类可读的总结。",
   "templates.case.problem-json-error.field.status": "反映 HTTP 响应状态，保留在主体中以供单独记录它的客户端使用。",
   "templates.case.problem-json-error.field.detail": "对此次发生的具体解释；编辑它以匹配您正在测试的失败。",
-  "templates.case.problem-json-error.field.errors": "带有字段级错误的非标准扩展数组，这类错误通常由 GitHub 或 Stripe 风格的 API 添加。"
+  "templates.case.problem-json-error.field.errors": "带有字段级错误的非标准扩展数组，这类错误通常由 GitHub 或 Stripe 风格的 API 添加。",
+  "changelog.r0919.title": "2026-09-19 — 状态过滤和新的语言环境",
+  "changelog.r0919.added1": "<strong>状态过滤</strong>：请求检查器现在会捕获每个请求实际服务的HTTP状态，并允许按状态代码过滤日志视图。日志导出包含新字段。",
+  "changelog.r0919.added2": "<strong>语言环境</strong>：添加了西班牙语、葡萄牙语和简体中文的完整翻译，使Quickmock能够根据流量趋势为更广泛的全球受众提供服务。"
 }

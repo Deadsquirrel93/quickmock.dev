@@ -712,5 +712,8 @@
   "templates.case.problem-json-error.field.title": "A short, human-readable summary of the problem.",
   "templates.case.problem-json-error.field.status": "Mirrors the HTTP response status, kept in the body for clients that log it separately.",
   "templates.case.problem-json-error.field.detail": "A specific explanation for this occurrence; edit it to match the failure you're testing.",
-  "templates.case.problem-json-error.field.errors": "A non-standard extension array with field-level errors, the kind GitHub- or Stripe-style APIs often add."
+  "templates.case.problem-json-error.field.errors": "A non-standard extension array with field-level errors, the kind GitHub- or Stripe-style APIs often add.",
+  "changelog.r0919.title": "2026-09-19 — Status filtering and new locales",
+  "changelog.r0919.added1": "<strong>Status Filter</strong>: The request inspector now captures the actually-served HTTP status for each request, and allows filtering the log view by status code. Log exports include the new field.",
+  "changelog.r0919.added2": "<strong>Locales</strong>: Added full translations for Spanish, Portuguese, and Simplified Chinese, making Quickmock accessible to a broader global audience based on traffic trends."
 }
