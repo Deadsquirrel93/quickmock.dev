@@ -44,6 +44,19 @@
   </details>
 </section>
 
+<section class="cli-block container">
+  <h2>{{ t "home.cli.title" }}</h2>
+  <p class="howto-intro">{{ t "home.cli.body" }}</p>
+  <div class="example-block">
+    <p class="example-caption">{{ t "home.cli.caption" }}</p>
+<pre><code>$ go install github.com/Deadsquirrel93/quickmock.dev/cmd/quickmock@latest
+$ quickmock create -m POST -b '{"ok":true}'
+Public URL:  {{ .BaseURL }}/m/abc123def456
+Admin Token: qm_...</code></pre>
+  </div>
+  <p style="margin-top: 1rem;"><a href="/guide/api-cli" class="btn btn-secondary">{{ t "home.cli.link" }}</a></p>
+</section>
+
 <section class="container">
   {{ if .Error }}
     <div class="banner banner-error" role="alert">

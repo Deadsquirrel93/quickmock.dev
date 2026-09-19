@@ -89,7 +89,7 @@ var UseCases = []UseCase{
 }`,
 		"GET", "", "",
 		`{"users":[{"id":1,"name":"Ada"}]}`, false,
-		[]string{"fake-json-data", "mock-api-with-cors", "mock-error-response"}),
+		[]string{"fake-json-data", "mock-api-with-cors", "mock-error-response", "api-cli"}),
 		[]GuideSection{
 			{Key: "shape", Kind: SectionProse},
 			{Key: "status", Kind: SectionProse},
@@ -211,6 +211,22 @@ var UseCases = []UseCase{
 		"GET", "", "",
 		"GET /m/<slug> -> 200 {\"ok\":true}  (works from any device, no token)\nPUT/DELETE /api/mocks/<slug> and DELETE .../logs need Authorization: Bearer <admin_token>\nno header -> 401 admin_token_required\nwrong token -> 403 admin_token_invalid", true,
 		[]string{"mock-webhook-receiver", "mock-rest-api", "echo-request-data"}),
+		
+	longForm(uc("api-cli",
+		`{
+  "method": "POST",
+  "response_status": 201,
+  "response_body": "{\"status\":\"created\"}"
+}`,
+		"POST", "", ``,
+		`{"status":"created"}`, false,
+		[]string{"manage-mocks-from-any-device", "mock-rest-api", "echo-request-data"}),
+		[]GuideSection{
+			{Key: "install", Kind: SectionProse},
+			{Key: "usage", Kind: SectionProse},
+			{Key: "cicd", Kind: SectionProse},
+		},
+		[]string{}),
 }
 
 // UseCaseBySlug returns the case for a /guide/<slug> request.

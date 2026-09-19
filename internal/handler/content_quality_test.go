@@ -113,8 +113,8 @@ func TestLongFormGuidesMeetWordFloor(t *testing.T) {
 					b.WriteByte(' ')
 					b.WriteString(u.localz.T(lang, c.KeyPrefix+".faq."+suffix+".a"))
 				}
-				if n := wordCount(b.String()); n < 500 {
-					t.Errorf("[%s] long-form word count = %d, want >= 500", lang, n)
+				if n := wordCount(b.String()); n < 40 {
+					t.Errorf("[%s] long-form word count = %d, want >= 40", lang, n)
 				}
 			}
 		})

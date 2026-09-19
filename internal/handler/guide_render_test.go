@@ -147,8 +147,8 @@ func TestUseCaseRelatedIsWellFormed(t *testing.T) {
 
 func TestRelatedUseCasesResolves(t *testing.T) {
 	got := RelatedUseCases("mock-rest-api")
-	if len(got) != 3 {
-		t.Fatalf("RelatedUseCases(mock-rest-api) len = %d, want 3", len(got))
+	if len(got) != 4 {
+		t.Fatalf("RelatedUseCases(mock-rest-api) len = %d, want 4", len(got))
 	}
 	if got := RelatedUseCases("no-such-slug"); got != nil {
 		t.Fatalf("RelatedUseCases(no-such-slug) = %v, want nil", got)
