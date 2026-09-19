@@ -211,7 +211,7 @@ var UseCases = []UseCase{
 		"GET", "", "",
 		"GET /m/<slug> -> 200 {\"ok\":true}  (works from any device, no token)\nPUT/DELETE /api/mocks/<slug> and DELETE .../logs need Authorization: Bearer <admin_token>\nno header -> 401 admin_token_required\nwrong token -> 403 admin_token_invalid", true,
 		[]string{"mock-webhook-receiver", "mock-rest-api", "echo-request-data"}),
-		
+
 	longForm(uc("api-cli",
 		`{
   "method": "POST",
@@ -225,8 +225,9 @@ var UseCases = []UseCase{
 			{Key: "install", Kind: SectionProse},
 			{Key: "usage", Kind: SectionProse},
 			{Key: "cicd", Kind: SectionProse},
+			{Key: "mistakes", Kind: SectionMistakes},
 		},
-		[]string{}),
+		[]string{"auth", "cleanup", "language"}),
 }
 
 // UseCaseBySlug returns the case for a /guide/<slug> request.

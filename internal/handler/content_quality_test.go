@@ -5,16 +5,48 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"unicode"
 )
 
 // htmlTagRE strips markup so word/character floors measure the reader-facing
 // text, not the <p>/<ul>/<code>/<a> tags that carry it.
 var htmlTagRE = regexp.MustCompile(`<[^>]*>`)
 
+// cjkCharsPerWord converts a run of CJK characters into a comparable word
+// count. Chinese averages roughly two characters per word; the figure only
+// has to be in the right neighbourhood, since it feeds a floor rather than a
+// report.
+const cjkCharsPerWord = 2
+
 // wordCount counts whitespace-separated tokens in s after HTML tags are
-// stripped.
+// stripped, then adds an estimate for any CJK text it found.
+//
+// Whitespace splitting alone is wrong for zh: Chinese prose has no spaces
+// between words, so a fully translated 650-word guide scored ~90 and the
+// floor below could only be satisfied by lowering it to a value that no
+// longer guarded anything. Counting CJK characters separately keeps one
+// floor meaningful for every locale.
 func wordCount(s string) int {
-	return len(strings.Fields(htmlTagRE.ReplaceAllString(s, " ")))
+	s = htmlTagRE.ReplaceAllString(s, " ")
+	var (
+		latin strings.Builder
+		cjk   int
+	)
+	for _, r := range s {
+		if isCJK(r) {
+			cjk++
+			continue
+		}
+		latin.WriteRune(r)
+	}
+	return len(strings.Fields(latin.String())) + cjk/cjkCharsPerWord
+}
+
+// isCJK reports whether r is a character from a script written without word
+// spaces. Han covers zh; the kana and Hangul ranges are here so adding ja or
+// ko later does not silently reintroduce the bug Han was added to fix.
+func isCJK(r rune) bool {
+	return unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Hangul)
 }
 
 // resolves reports whether key actually translated to prose rather than
@@ -92,6 +124,13 @@ func TestTemplateMeetsPublicationThreshold(t *testing.T) {
 // The count is body copy only: the answer paragraph, each section's body
 // (not its title — titles are navigation, not prose), and both halves of
 // each FAQ pair.
+// longFormWordFloor is the length a guide has to reach before it earns a
+// Sections block. It is deliberately high: a /guide/<slug> page that ranks
+// on its own is the point, and a few hundred words of prose around a curl
+// snippet is the thin content the floor exists to keep out. Lower it and the
+// guard stops guarding — the guides that pass today run 500-700 words.
+const longFormWordFloor = 500
+
 func TestLongFormGuidesMeetWordFloor(t *testing.T) {
 	u := testUI(t)
 	for _, c := range UseCases {
@@ -113,11 +152,57 @@ func TestLongFormGuidesMeetWordFloor(t *testing.T) {
 					b.WriteByte(' ')
 					b.WriteString(u.localz.T(lang, c.KeyPrefix+".faq."+suffix+".a"))
 				}
-				if n := wordCount(b.String()); n < 40 {
-					t.Errorf("[%s] long-form word count = %d, want >= 40", lang, n)
+				if n := wordCount(b.String()); n < longFormWordFloor {
+					t.Errorf("[%s] long-form word count = %d, want >= %d", lang, n, longFormWordFloor)
 				}
 			}
 		})
+	}
+}
+
+// realTagRE matches the HTML element names these pages actually use. It is
+// deliberately not htmlTagRE: prose here legitimately contains angle-bracket
+// placeholders like /api/mocks/<slug>, which are not markup and must keep
+// rendering literally.
+var realTagRE = regexp.MustCompile(`(?i)</?(?:p|br|ul|ol|li|code|pre|strong|em|b|i|a|div|span|dl|dt|dd|h[1-6])\b[^>]*>`)
+
+// TestEscapedContentSlotsCarryNoMarkup guards the split between the keys
+// guide_case.html / templates_case.html render with `t` and the ones they
+// render with `tHTML`. Only section bodies and FAQ answers are trusted HTML;
+// a <code> tag written into a summary, answer, why or FAQ question reaches
+// the reader as the literal text "<code>", which is the kind of defect that
+// survives a review because the locale file looks perfectly reasonable.
+func TestEscapedContentSlotsCarryNoMarkup(t *testing.T) {
+	u := testUI(t)
+	plain := []string{".title", ".summary", ".answer", ".why", ".differences"}
+
+	check := func(t *testing.T, lang, key string) {
+		t.Helper()
+		if m := realTagRE.FindString(u.localz.T(lang, key)); m != "" {
+			t.Errorf("[%s] %s is rendered escaped but contains %s", lang, key, m)
+		}
+	}
+
+	for _, lang := range u.localz.Supported() {
+		for _, c := range UseCases {
+			for _, suffix := range plain {
+				check(t, lang, c.KeyPrefix+suffix)
+			}
+			for _, q := range c.FAQ {
+				check(t, lang, c.KeyPrefix+".faq."+q+".q")
+			}
+			for _, sec := range c.Sections {
+				check(t, lang, c.KeyPrefix+".sec."+sec.Key+".title")
+			}
+		}
+		for _, tpl := range MockTemplates {
+			for _, suffix := range plain {
+				check(t, lang, tpl.KeyPrefix+suffix)
+			}
+			for _, q := range tpl.FAQ {
+				check(t, lang, tpl.KeyPrefix+".faq."+q+".q")
+			}
+		}
 	}
 }
 
