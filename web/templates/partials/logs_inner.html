@@ -12,6 +12,7 @@
     <li class="log-item" x-data="{ open: false }">
       <button type="button" class="log-header" @click="open = !open" :aria-expanded="open">
         <span class="badge badge-method badge-{{ .RequestMethod }}">{{ .RequestMethod }}</span>
+        <span class="badge" :class="{'badge-error': {{ .ResponseStatus }} >= 400, 'badge-success': {{ .ResponseStatus }} < 400 && {{ .ResponseStatus }} > 0}">{{ if eq .ResponseStatus 0 }}?{{ else }}{{ .ResponseStatus }}{{ end }}</span>
         <span class="log-time">{{ fmtTime .CreatedAt }}</span>
         <span class="muted">{{ .RequestIP }}</span>
       </button>

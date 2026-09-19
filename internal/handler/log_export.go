@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,7 +50,8 @@ func (u *UI) LogsExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logs, err := u.logs.ListByMockID(r.Context(), m.ID, logsExportLimit, time.Time{}, repository.LogFilter{Method: method})
+	status, _ := strconv.Atoi(r.URL.Query().Get("status"))
+	logs, err := u.logs.ListByMockID(r.Context(), m.ID, logsExportLimit, time.Time{}, repository.LogFilter{Method: method, Status: status})
 	if err != nil {
 		writeError(w, r, http.StatusInternalServerError, "internal", u.renderer)
 		return

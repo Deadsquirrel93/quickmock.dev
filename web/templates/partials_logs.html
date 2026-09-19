@@ -3,14 +3,26 @@
      ?method= as the list below it), and the log list. No base layout. */}}
 {{ define "partials_logs" }}
 <div class="card-header">
-  <select id="log-filter-method" name="method" aria-label="{{ t "logs.filter.method" }}"
+  <select id="log-filter-method" class="log-filter" name="method" aria-label="{{ t "logs.filter.method" }}"
           hx-get="/mock/{{ .Mock.Slug }}/logs" hx-target="#qm-logs" hx-swap="innerHTML" hx-trigger="change">
-    <option value=""{{ if eq .Method "" }} selected{{ end }}>{{ t "logs.filter.all" }}</option>
+    <option value=""{{ if eq .Method "" }} selected{{ end }}>{{ t "logs.filter.all_methods" }}</option>
     {{ range .FilterMethods }}
     <option value="{{ . }}"{{ if eq (print .) $.Method }} selected{{ end }}>{{ . }}</option>
     {{ end }}
   </select>
-  <a class="btn btn-ghost" href="/mock/{{ .Mock.Slug }}/logs/export{{ if .Method }}?method={{ .Method }}{{ end }}">{{ t "logs.export.button" }}</a>
+  <select id="log-filter-status" class="log-filter" name="status" aria-label="{{ t "logs.filter.status" }}"
+          hx-get="/mock/{{ .Mock.Slug }}/logs" hx-target="#qm-logs" hx-swap="innerHTML" hx-trigger="change">
+    <option value="0"{{ if eq .Status 0 }} selected{{ end }}>{{ t "logs.filter.all_statuses" }}</option>
+    <option value="200"{{ if eq .Status 200 }} selected{{ end }}>200</option>
+    <option value="201"{{ if eq .Status 201 }} selected{{ end }}>201</option>
+    <option value="204"{{ if eq .Status 204 }} selected{{ end }}>204</option>
+    <option value="400"{{ if eq .Status 400 }} selected{{ end }}>400</option>
+    <option value="401"{{ if eq .Status 401 }} selected{{ end }}>401</option>
+    <option value="403"{{ if eq .Status 403 }} selected{{ end }}>403</option>
+    <option value="404"{{ if eq .Status 404 }} selected{{ end }}>404</option>
+    <option value="500"{{ if eq .Status 500 }} selected{{ end }}>500</option>
+  </select>
+  <a class="btn btn-ghost" href="/mock/{{ .Mock.Slug }}/logs/export?method={{ .Method }}&status={{ if ne .Status 0 }}{{ .Status }}{{ end }}">{{ t "logs.export.button" }}</a>
 </div>
 {{ template "logs_inner" . }}
 {{/* The outer #qm-logs box (mock.html) drives both the initial "load" fetch
@@ -25,7 +37,7 @@
   (function () {
     var box = document.getElementById('qm-logs');
     if (box) {
-      box.setAttribute('hx-include', '#log-filter-method');
+      box.setAttribute('hx-include', '.log-filter');
       htmx.process(box);
     }
   })();

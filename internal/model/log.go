@@ -16,5 +16,6 @@ type RequestLog struct {
 	RequestHeaders map[string]string `json:"request_headers"`
 	RequestBody    string            `json:"request_body"`
 	RequestIP      string            `json:"request_ip"`
+	ResponseStatus int               `json:"response_status"`
 	CreatedAt      time.Time         `json:"created_at"`
 }

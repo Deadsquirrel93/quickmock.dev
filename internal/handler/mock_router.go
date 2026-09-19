@@ -90,6 +90,24 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	served, configured := pickConfiguredVariant(src, requestedVariant(r), r, bodyBytes)
+	if !configured {
+		if len(m.Routes) == 0 {
+			served = pickVariant(m, rand.IntN(100), func() uint64 {
+				return h.seq.Next(r.Context(), m.ID)
+			})
+		} else {
+			served = servedResponse{Variant: "default", Status: src.Status, Body: src.Body,
+				Headers: src.Headers, ContentType: src.ContentType}
+		}
+	}
+	served.Route = routeName
+
+	status := served.Status
+	if status == 0 {
+		status = http.StatusOK
+	}
+
 	// Submit log asynchronously. Drop on full queue, never block.
 	logBody := string(bodyBytes)
 	if !m.CaptureBody {
@@ -105,20 +123,8 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		RequestHeaders: flattenHeaders(r.Header),
 		RequestBody:    logBody,
 		RequestIP:      logIP,
+		ResponseStatus: status,
 	})
-
-	served, configured := pickConfiguredVariant(src, requestedVariant(r), r, bodyBytes)
-	if !configured {
-		if len(m.Routes) == 0 {
-			served = pickVariant(m, rand.IntN(100), func() uint64 {
-				return h.seq.Next(r.Context(), m.ID)
-			})
-		} else {
-			served = servedResponse{Variant: "default", Status: src.Status, Body: src.Body,
-				Headers: src.Headers, ContentType: src.ContentType}
-		}
-	}
-	served.Route = routeName
 
 	if d := effectiveDelay(m.ResponseDelayMS, m.ResponseDelayMaxMS); d > 0 {
 		select {
@@ -175,10 +181,6 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	setMockProtectiveHeaders(w)
 
-	status := served.Status
-	if status == 0 {
-		status = http.StatusOK
-	}
 	w.WriteHeader(status)
 	// bodyBytes is capped at maxLog+1, so {{request.body*}} tokens see at
 	// most the first 16 KB of the incoming body — same window as the

@@ -26,10 +26,10 @@ func (r *LogRepo) Insert(ctx context.Context, l *model.RequestLog) error {
 		return fmt.Errorf("marshal headers: %w", err)
 	}
 	_, err = r.pool.Exec(ctx, `
-		INSERT INTO request_logs (mock_id, request_method, request_headers, request_body, request_ip)
-		VALUES ($1,$2,$3,$4,$5)
+		INSERT INTO request_logs (mock_id, request_method, request_headers, request_body, request_ip, response_status)
+		VALUES ($1,$2,$3,$4,$5,$6)
 	`,
-		l.MockID, l.RequestMethod, headers, l.RequestBody, l.RequestIP,
+		l.MockID, l.RequestMethod, headers, l.RequestBody, l.RequestIP, l.ResponseStatus,
 	)
 	return err
 }
@@ -41,6 +41,9 @@ type LogFilter struct {
 	// Method, when non-empty, restricts results to logs with that exact
 	// HTTP method (e.g. "POST"). Empty means any method.
 	Method string
+	// Status, when non-zero, restricts results to logs with that exact
+	// HTTP response status (e.g. 200).
+	Status int
 }
 
 // ListByMockID returns up to `limit` newest logs for a mock. Optional `since`
@@ -54,7 +57,7 @@ func (r *LogRepo) ListByMockID(ctx context.Context, mockID string, limit int, si
 	}
 
 	query := `
-		SELECT id, mock_id, request_method, request_headers, request_body, request_ip, created_at
+		SELECT id, mock_id, request_method, request_headers, request_body, request_ip, response_status, created_at
 		FROM request_logs
 		WHERE mock_id = $1
 	`
@@ -67,6 +70,10 @@ func (r *LogRepo) ListByMockID(ctx context.Context, mockID string, limit int, si
 	if f.Method != "" {
 		args = append(args, f.Method)
 		query += fmt.Sprintf(" AND request_method = $%d", len(args))
+	}
+	if f.Status != 0 {
+		args = append(args, f.Status)
+		query += fmt.Sprintf(" AND response_status = $%d", len(args))
 	}
 
 	args = append(args, limit)
@@ -86,7 +93,7 @@ func (r *LogRepo) ListByMockID(ctx context.Context, mockID string, limit int, si
 		)
 		if err := rows.Scan(
 			&l.ID, &l.MockID, &l.RequestMethod, &headers,
-			&l.RequestBody, &l.RequestIP, &l.CreatedAt,
+			&l.RequestBody, &l.RequestIP, &l.ResponseStatus, &l.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

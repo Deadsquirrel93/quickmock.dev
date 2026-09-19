@@ -247,6 +247,12 @@ func (r *Renderer) baseFuncMap(lang string) template.FuncMap {
 				return "uz_UZ"
 			case "ar":
 				return "ar_AR"
+			case "zh":
+				return "zh_CN"
+			case "pt":
+				return "pt_BR"
+			case "es":
+				return "es_ES"
 			default:
 				return code
 			}

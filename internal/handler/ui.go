@@ -282,11 +282,13 @@ func (u *UI) LogsPartial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	method := logsPartialMethod(r.URL.Query().Get("method"))
-	logs, _ := u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{}, repository.LogFilter{Method: method})
+	status, _ := strconv.Atoi(r.URL.Query().Get("status"))
+	logs, _ := u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{}, repository.LogFilter{Method: method, Status: status})
 	u.renderer.Render(w, r, "partials_logs", http.StatusOK, map[string]any{
 		"Mock":          m,
 		"Logs":          logs,
 		"Method":        method,
+		"Status":        status,
 		"FilterMethods": logFilterMethods,
 	})
 }
