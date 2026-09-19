@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -129,6 +130,89 @@ func TestLogRepoListByMockIDMethodFilter(t *testing.T) {
 		}
 		if len(logs) != 0 {
 			t.Fatalf("got %d logs, want 0", len(logs))
+		}
+	})
+}
+
+// TestLogRepoStatusFilter covers the response_status column end to end, and
+// in particular the shape migration 008 has to leave behind: the column must
+// be NOT NULL DEFAULT 0, because ListByMockID scans it into a plain int and
+// pgx errors with "cannot scan NULL into *int" on a NULL. The first cut of
+// 008 added the column nullable, which made every log read fail against rows
+// written before the deploy — a fresh test database never reproduced it
+// because Insert always supplies a value.
+func TestLogRepoStatusFilter(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+
+	mockRepo := NewMockRepo(pool)
+	logRepo := NewLogRepo(pool)
+
+	slug := fmt.Sprintf("log-status-test-%d", time.Now().UnixNano())
+	m := seedMock(ctx, t, mockRepo, slug)
+
+	for _, status := range []int{200, 200, 404, 500} {
+		if err := logRepo.Insert(ctx, &model.RequestLog{
+			MockID:         m.ID,
+			RequestMethod:  "GET",
+			RequestIP:      "127.0.0.1",
+			ResponseStatus: status,
+		}); err != nil {
+			t.Fatalf("insert log (%d): %v", status, err)
+		}
+	}
+
+	t.Run("column is not nullable and defaults to 0", func(t *testing.T) {
+		var nullable string
+		var def *string
+		err := pool.QueryRow(ctx, `
+			SELECT is_nullable, column_default
+			FROM information_schema.columns
+			WHERE table_name = 'request_logs' AND column_name = 'response_status'
+		`).Scan(&nullable, &def)
+		if err != nil {
+			t.Fatalf("inspect column: %v", err)
+		}
+		if nullable != "NO" {
+			t.Errorf("response_status is_nullable = %q, want %q — a NULL here breaks every ListByMockID call", nullable, "NO")
+		}
+		if def == nil || !strings.HasPrefix(*def, "0") {
+			t.Errorf("response_status column_default = %v, want 0", def)
+		}
+	})
+
+	t.Run("status filter narrows to exact matches", func(t *testing.T) {
+		logs, err := logRepo.ListByMockID(ctx, m.ID, 50, time.Time{}, LogFilter{Status: 200})
+		if err != nil {
+			t.Fatalf("ListByMockID: %v", err)
+		}
+		if len(logs) != 2 {
+			t.Fatalf("got %d logs, want 2", len(logs))
+		}
+		for _, l := range logs {
+			if l.ResponseStatus != 200 {
+				t.Fatalf("unexpected status %d leaked into 200-filtered results", l.ResponseStatus)
+			}
+		}
+	})
+
+	t.Run("zero status means no filter", func(t *testing.T) {
+		logs, err := logRepo.ListByMockID(ctx, m.ID, 50, time.Time{}, LogFilter{Status: 0})
+		if err != nil {
+			t.Fatalf("ListByMockID: %v", err)
+		}
+		if len(logs) != 4 {
+			t.Fatalf("got %d logs, want 4", len(logs))
+		}
+	})
+
+	t.Run("method and status filters combine", func(t *testing.T) {
+		logs, err := logRepo.ListByMockID(ctx, m.ID, 50, time.Time{}, LogFilter{Method: "GET", Status: 500})
+		if err != nil {
+			t.Fatalf("ListByMockID: %v", err)
+		}
+		if len(logs) != 1 {
+			t.Fatalf("got %d logs, want 1", len(logs))
 		}
 	})
 }
