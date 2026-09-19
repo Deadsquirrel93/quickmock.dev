@@ -44,13 +44,18 @@ func (u *UI) LogsExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	status, ok := logStatusFilter(r.URL.Query().Get("status"))
+	if !ok {
+		writeError(w, r, http.StatusUnprocessableEntity, "validation_failed", u.renderer)
+		return
+	}
+
 	m, err := u.svc.AuthorizeSlug(r.Context(), slug, bearerToken(r))
 	if err != nil {
 		u.writeLogsExportError(w, r, err)
 		return
 	}
 
-	status, _ := strconv.Atoi(r.URL.Query().Get("status"))
 	logs, err := u.logs.ListByMockID(r.Context(), m.ID, logsExportLimit, time.Time{}, repository.LogFilter{Method: method, Status: status})
 	if err != nil {
 		writeError(w, r, http.StatusInternalServerError, "internal", u.renderer)
@@ -81,6 +86,27 @@ func logMethodFilter(raw string) (method string, ok bool) {
 		return "", false
 	}
 	return raw, true
+}
+
+// logStatusFilter validates and normalizes the "status" query parameter, on
+// the same terms logMethodFilter applies to "method": empty (or "0") means
+// no filter, and anything that is not a plausible HTTP status code reports
+// ok=false so the caller can answer 422.
+//
+// Silently ignoring garbage here would be worse than on the HTMX partial:
+// this response is a file the caller keeps, so a typo'd filter would hand
+// back the mock's whole captured history — sender IPs included — while
+// looking exactly like the narrow export that was asked for.
+func logStatusFilter(raw string) (status int, ok bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "0" {
+		return 0, true
+	}
+	status, err := strconv.Atoi(raw)
+	if err != nil || status < 100 || status > 599 {
+		return 0, false
+	}
+	return status, true
 }
 
 // logsExportFilename builds the download filename, including the slug so

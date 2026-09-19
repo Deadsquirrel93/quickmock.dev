@@ -48,6 +48,40 @@ func TestLogMethodFilter(t *testing.T) {
 	}
 }
 
+// TestLogStatusFilter pins the strict half of the export's contract: unlike
+// the HTMX partial, a status this endpoint cannot make sense of is a 422 and
+// not a silently unfiltered download of the mock's whole history.
+func TestLogStatusFilter(t *testing.T) {
+	cases := []struct {
+		name   string
+		raw    string
+		want   int
+		wantOK bool
+	}{
+		{"empty means no filter", "", 0, true},
+		{"explicit zero means no filter", "0", 0, true},
+		{"valid status", "404", 404, true},
+		{"surrounding whitespace trimmed", "  500  ", 500, true},
+		{"lowest valid", "100", 100, true},
+		{"highest valid", "599", 599, true},
+		{"not a number is rejected", "abc", 0, false},
+		{"below the status range is rejected", "99", 0, false},
+		{"above the status range is rejected", "600", 0, false},
+		{"negative is rejected", "-200", 0, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, ok := logStatusFilter(c.raw)
+			if ok != c.wantOK {
+				t.Fatalf("logStatusFilter(%q) ok = %v, want %v", c.raw, ok, c.wantOK)
+			}
+			if got != c.want {
+				t.Fatalf("logStatusFilter(%q) = %d, want %d", c.raw, got, c.want)
+			}
+		})
+	}
+}
+
 func TestLogsExportFilename(t *testing.T) {
 	got := logsExportFilename("abc123XYZ")
 	if got != "quickmock-abc123XYZ-logs.json" {

@@ -1,6 +1,7 @@
 {{/* HTMX partial endpoint: GET /mock/:slug/logs.
-     Renders the method filter, the "download JSON" link (carrying the same
-     ?method= as the list below it), and the log list. No base layout. */}}
+     Renders the method and status filters, the "download JSON" link
+     (carrying the same ?method= / ?status= as the list below it), and the
+     log list. No base layout. */}}
 {{ define "partials_logs" }}
 <div class="card-header">
   <select id="log-filter-method" class="log-filter" name="method" aria-label="{{ t "logs.filter.method" }}"
@@ -13,16 +14,15 @@
   <select id="log-filter-status" class="log-filter" name="status" aria-label="{{ t "logs.filter.status" }}"
           hx-get="/mock/{{ .Mock.Slug }}/logs" hx-target="#qm-logs" hx-swap="innerHTML" hx-trigger="change">
     <option value="0"{{ if eq .Status 0 }} selected{{ end }}>{{ t "logs.filter.all_statuses" }}</option>
-    <option value="200"{{ if eq .Status 200 }} selected{{ end }}>200</option>
-    <option value="201"{{ if eq .Status 201 }} selected{{ end }}>201</option>
-    <option value="204"{{ if eq .Status 204 }} selected{{ end }}>204</option>
-    <option value="400"{{ if eq .Status 400 }} selected{{ end }}>400</option>
-    <option value="401"{{ if eq .Status 401 }} selected{{ end }}>401</option>
-    <option value="403"{{ if eq .Status 403 }} selected{{ end }}>403</option>
-    <option value="404"{{ if eq .Status 404 }} selected{{ end }}>404</option>
-    <option value="500"{{ if eq .Status 500 }} selected{{ end }}>500</option>
+    {{/* Options come from the handler (logFilterStatusOptions), which folds
+         the status currently being filtered on into the shortlist — a mock
+         can answer with any code, and an option that isn't rendered can't be
+         marked selected. */}}
+    {{ range .FilterStatuses }}
+    <option value="{{ . }}"{{ if eq . $.Status }} selected{{ end }}>{{ . }}</option>
+    {{ end }}
   </select>
-  <a class="btn btn-ghost" href="/mock/{{ .Mock.Slug }}/logs/export?method={{ .Method }}&status={{ if ne .Status 0 }}{{ .Status }}{{ end }}">{{ t "logs.export.button" }}</a>
+  <a class="btn btn-ghost" href="/mock/{{ .Mock.Slug }}/logs/export{{ if or .Method (ne .Status 0) }}?{{ if .Method }}method={{ .Method }}{{ end }}{{ if ne .Status 0 }}{{ if .Method }}&amp;{{ end }}status={{ .Status }}{{ end }}{{ end }}">{{ t "logs.export.button" }}</a>
 </div>
 {{ template "logs_inner" . }}
 {{/* The outer #qm-logs box (mock.html) drives both the initial "load" fetch

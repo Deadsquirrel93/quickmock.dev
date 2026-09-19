@@ -12,7 +12,10 @@
     <li class="log-item" x-data="{ open: false }">
       <button type="button" class="log-header" @click="open = !open" :aria-expanded="open">
         <span class="badge badge-method badge-{{ .RequestMethod }}">{{ .RequestMethod }}</span>
-        <span class="badge" :class="{'badge-error': {{ .ResponseStatus }} >= 400, 'badge-success': {{ .ResponseStatus }} < 400 && {{ .ResponseStatus }} > 0}">{{ if eq .ResponseStatus 0 }}?{{ else }}{{ .ResponseStatus }}{{ end }}</span>
+        {{/* Status class is decided here rather than in an Alpine :class
+             binding: the value is fixed at render time, so there is nothing
+             for Alpine to react to. */}}
+        <span class="badge {{ if eq .ResponseStatus 0 }}badge-unknown{{ else if ge .ResponseStatus 400 }}badge-error{{ else }}badge-success{{ end }}">{{ if eq .ResponseStatus 0 }}?{{ else }}{{ .ResponseStatus }}{{ end }}</span>
         <span class="log-time">{{ fmtTime .CreatedAt }}</span>
         <span class="muted">{{ .RequestIP }}</span>
       </button>

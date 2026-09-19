@@ -252,6 +252,43 @@ var logFilterMethods = []model.Method{
 	model.MethodGET, model.MethodPOST, model.MethodPUT, model.MethodPATCH, model.MethodDELETE,
 }
 
+// logFilterStatuses is the shortlist the inspector's status dropdown offers.
+// It is a convenience list, not the set of permitted values: a mock can be
+// configured to answer with any status, and logFilterStatusOptions folds the
+// one currently being filtered on into the list so the control never claims
+// a filter that is not active.
+var logFilterStatuses = []int{200, 201, 204, 400, 401, 403, 404, 500}
+
+// logFilterStatusOptions returns the dropdown's options for a request that is
+// filtering on `current`. A status outside the shortlist (302, 418, 503 — any
+// of which a mock can be configured to return) is inserted in order rather
+// than dropped, because an <option> that is absent cannot be marked selected:
+// the browser would then display the first entry, "all statuses", above a
+// list that is in fact filtered.
+func logFilterStatusOptions(current int) []int {
+	if current == 0 {
+		return logFilterStatuses
+	}
+	for _, s := range logFilterStatuses {
+		if s == current {
+			return logFilterStatuses
+		}
+	}
+	out := make([]int, 0, len(logFilterStatuses)+1)
+	inserted := false
+	for _, s := range logFilterStatuses {
+		if !inserted && current < s {
+			out = append(out, current)
+			inserted = true
+		}
+		out = append(out, s)
+	}
+	if !inserted {
+		out = append(out, current)
+	}
+	return out
+}
+
 // logsPartialMethod normalizes the "method" query parameter for the HTMX
 // log partial. Unlike logMethodFilter (log_export.go), which answers 422 on
 // garbage input, this is a lenient, repeatedly-polled fragment: an
@@ -267,6 +304,19 @@ func logsPartialMethod(raw string) string {
 	return ""
 }
 
+// logsPartialStatus normalizes the "status" query parameter for the same
+// lenient fragment: 0 means "no filter", and anything that is not a plausible
+// HTTP status code collapses to 0 rather than becoming a filter that can
+// never match. logStatusFilter (log_export.go) answers 422 on the same input
+// instead, for the same reason logMethodFilter does.
+func logsPartialStatus(raw string) int {
+	status, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || status < 100 || status > 599 {
+		return 0
+	}
+	return status
+}
+
 // LogsPartial returns just the log list — used by HTMX hx-trigger="every 2s".
 func (u *UI) LogsPartial(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
@@ -276,20 +326,27 @@ func (u *UI) LogsPartial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !u.inspectorAuthorized(r, m) {
+		// The filter keys are supplied even though there is nothing to
+		// filter: partials_logs renders its card-header unconditionally,
+		// and leaving them out makes the template compare and range over a
+		// missing map key.
 		u.renderer.Render(w, r, "partials_logs", http.StatusOK, map[string]any{
 			"Mock": m, "InspectorLocked": true,
+			"Method": "", "Status": 0,
+			"FilterMethods": logFilterMethods, "FilterStatuses": logFilterStatuses,
 		})
 		return
 	}
 	method := logsPartialMethod(r.URL.Query().Get("method"))
-	status, _ := strconv.Atoi(r.URL.Query().Get("status"))
+	status := logsPartialStatus(r.URL.Query().Get("status"))
 	logs, _ := u.logs.ListByMockID(r.Context(), m.ID, 50, time.Time{}, repository.LogFilter{Method: method, Status: status})
 	u.renderer.Render(w, r, "partials_logs", http.StatusOK, map[string]any{
-		"Mock":          m,
-		"Logs":          logs,
-		"Method":        method,
-		"Status":        status,
-		"FilterMethods": logFilterMethods,
+		"Mock":           m,
+		"Logs":           logs,
+		"Method":         method,
+		"Status":         status,
+		"FilterMethods":  logFilterMethods,
+		"FilterStatuses": logFilterStatusOptions(status),
 	})
 }
 

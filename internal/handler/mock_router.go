@@ -108,7 +108,13 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusOK
 	}
 
-	// Submit log asynchronously. Drop on full queue, never block.
+	// Build the log entry from what the request already carries, but hold
+	// the submit until the delay is over: the status recorded has to be the
+	// status actually written, and the delay below is the one place this
+	// handler can still leave without writing anything. On a delayed mock
+	// this is also when the row reaches the inspector — a few seconds later
+	// than the request arrived, which is the price of not logging a
+	// response the caller never got.
 	logBody := string(bodyBytes)
 	if !m.CaptureBody {
 		logBody = ""
@@ -117,22 +123,29 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !m.CaptureIP {
 		logIP = ""
 	}
-	h.logs.Submit(model.RequestLog{
+	entry := model.RequestLog{
 		MockID:         m.ID,
 		RequestMethod:  r.Method,
 		RequestHeaders: flattenHeaders(r.Header),
 		RequestBody:    logBody,
 		RequestIP:      logIP,
-		ResponseStatus: status,
-	})
+	}
 
 	if d := effectiveDelay(m.ResponseDelayMS, m.ResponseDelayMaxMS); d > 0 {
 		select {
 		case <-time.After(d):
 		case <-r.Context().Done():
+			// Client hung up mid-delay. WriteHeader is never reached, so
+			// the request is logged with the 0 sentinel the inspector
+			// renders as "?" instead of a status it never received.
+			h.logs.Submit(entry)
 			return
 		}
 	}
+
+	// Submit log asynchronously. Drop on full queue, never block.
+	entry.ResponseStatus = status
+	h.logs.Submit(entry)
 
 	// User-controlled response headers go first; the protective headers
 	// below overwrite anything the mock owner tries to set for them.

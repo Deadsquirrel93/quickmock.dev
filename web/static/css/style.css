@@ -547,6 +547,13 @@ input:focus, select:focus, textarea:focus {
 .badge-PATCH  { background: #fdf4ff; color: #a21caf; border-color: #f0abfc; }
 .badge-DELETE { background: #fef2f2; color: #b91c1c; border-color: #fca5a5; }
 .badge-ANY    { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+/* Response-status badges in the request inspector. Same fixed light palette
+   as the method badges above: both sit on the card background in either
+   theme, so the pair reads consistently. badge-unknown is the 0 sentinel —
+   a request whose response status was never recorded. */
+.badge-success { background: #ecfdf5; color: #047857; border-color: #6ee7b7; }
+.badge-error   { background: #fef2f2; color: #b91c1c; border-color: #fca5a5; }
+.badge-unknown { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
 .muted { color: var(--fg-muted); }
 
 .url-card { padding-top: 0.75rem; }
@@ -1095,7 +1102,7 @@ input:focus, select:focus, textarea:focus {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85rem;
   padding: 0.4rem 0.6rem;
-  background: var(--bg-code);
+  background: rgba(127, 127, 127, 0.12);
   color: var(--fg);
   border-radius: 6px;
   overflow: hidden;

@@ -195,6 +195,110 @@ func TestLogsPartialMethod(t *testing.T) {
 	}
 }
 
+func TestLogsPartialStatus(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want int
+	}{
+		{"empty means no filter", "", 0},
+		{"zero means no filter", "0", 0},
+		{"valid status", "404", 404},
+		{"whitespace trimmed", " 200 ", 200},
+		{"garbage is ignored, not rejected", "abc", 0},
+		{"out of range collapses to no filter", "99999", 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := logsPartialStatus(c.raw); got != c.want {
+				t.Fatalf("logsPartialStatus(%q) = %d, want %d", c.raw, got, c.want)
+			}
+		})
+	}
+}
+
+// TestLogFilterStatusOptions covers the case the dropdown got wrong: a mock
+// can be configured to answer with any status, and an option that is never
+// rendered cannot be marked selected — the browser then shows the first
+// entry ("all statuses") above a list that is in fact filtered.
+func TestLogFilterStatusOptions(t *testing.T) {
+	t.Run("no filter returns the shortlist unchanged", func(t *testing.T) {
+		got := logFilterStatusOptions(0)
+		if len(got) != len(logFilterStatuses) {
+			t.Fatalf("got %v, want %v", got, logFilterStatuses)
+		}
+	})
+
+	t.Run("a shortlisted status does not duplicate", func(t *testing.T) {
+		got := logFilterStatusOptions(404)
+		if len(got) != len(logFilterStatuses) {
+			t.Fatalf("got %v, want %v", got, logFilterStatuses)
+		}
+	})
+
+	t.Run("an unlisted status is folded in, in order", func(t *testing.T) {
+		got := logFilterStatusOptions(302)
+		if len(got) != len(logFilterStatuses)+1 {
+			t.Fatalf("got %v, want one extra entry", got)
+		}
+		found := false
+		for i, s := range got {
+			if s == 302 {
+				found = true
+			}
+			if i > 0 && got[i-1] > s {
+				t.Fatalf("options are not ascending: %v", got)
+			}
+		}
+		if !found {
+			t.Fatalf("302 missing from %v", got)
+		}
+	})
+
+	t.Run("a status above the shortlist lands last", func(t *testing.T) {
+		got := logFilterStatusOptions(503)
+		if got[len(got)-1] != 503 {
+			t.Fatalf("got %v, want 503 last", got)
+		}
+	})
+}
+
+// TestLogsPartialRendersStatusMarkup covers what the status column actually
+// renders: a colour class per status band (a 500 must not look like a 200),
+// the "?" sentinel for a request whose status was never recorded, and a
+// selected <option> for a status outside the dropdown's shortlist.
+func TestLogsPartialRendersStatusMarkup(t *testing.T) {
+	u := testUI(t)
+	data := map[string]any{
+		"Mock": &model.Mock{Slug: "abc123"},
+		"Logs": []model.RequestLog{
+			{ID: "1", RequestMethod: "GET", ResponseStatus: 302, CreatedAt: time.Now()},
+			{ID: "2", RequestMethod: "GET", ResponseStatus: 500, CreatedAt: time.Now()},
+			{ID: "3", RequestMethod: "GET", ResponseStatus: 0, CreatedAt: time.Now()},
+		},
+		"Method":         "",
+		"Status":         302,
+		"FilterMethods":  logFilterMethods,
+		"FilterStatuses": logFilterStatusOptions(302),
+	}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/mock/abc123/logs?status=302", nil)
+	u.renderer.Render(w, req, "partials_logs", http.StatusOK, data)
+	body := w.Body.String()
+
+	for _, want := range []string{
+		`<option value="302" selected>`,
+		"badge-success",
+		"badge-error",
+		"badge-unknown",
+		"/mock/abc123/logs/export?status=302",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("missing %q in rendered markup: %s", want, body)
+		}
+	}
+}
+
 // TestLogsPartialRendersFilteredMarkup exercises the "partials_logs"
 // template directly with the data LogsPartial builds for a ?method=POST
 // request. LogsPartial itself needs a live *service.MockService and
