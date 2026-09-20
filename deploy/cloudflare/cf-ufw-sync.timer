@@ -1,0 +1,14 @@
+[Unit]
+Description=Weekly refresh of the Cloudflare ufw allow-list
+
+[Timer]
+# Cloudflare changes these ranges perhaps once a year; weekly is ample and
+# keeps a failure visible in `systemctl list-timers` long before it matters.
+OnCalendar=weekly
+# Spread the fetch so every box running this doesn't hit Cloudflare at once.
+RandomizedDelaySec=1h
+# Run on next boot if the machine was off when the timer was due.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

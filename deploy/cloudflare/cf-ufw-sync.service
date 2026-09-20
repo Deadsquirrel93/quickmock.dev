@@ -1,0 +1,9 @@
+[Unit]
+Description=Sync the ufw allow-list with Cloudflare's edge ranges
+Documentation=https://www.cloudflare.com/ips/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/cf-ufw-sync.sh

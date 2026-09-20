@@ -124,6 +124,28 @@ That's the entire list.
 
 ---
 
+## Origin hardening
+
+Three of Quickmock's controls key on the visitor's IP: the per-IP cap on active mocks, the
+rate limit, and the operator blocklist. Behind a CDN that address does not arrive in the TCP
+connection — it arrives in a header, and most of the obvious headers are append-only and
+therefore forgeable by the client.
+
+Quickmock reads `CF-Connecting-IP`, which Cloudflare overwrites on every request, and only
+when the immediate peer is our own nginx (`internal/middleware/realip.go`). That is sound only
+while the origin refuses to talk to anyone but Cloudflare — otherwise anyone who finds the
+origin address can connect to it directly and claim to be any IP they like, evading all three
+controls and pinning their traffic on an innocent address in the process.
+
+So the origin accepts web traffic from Cloudflare's ranges only, at two independent layers: a
+firewall allow-list kept current by a weekly timer, and Authenticated Origin Pulls, where
+nginx demands Cloudflare's TLS client certificate. Neither is sufficient alone.
+
+[**deploy/cloudflare/**](deploy/cloudflare/) has the scripts and the full write-up — why each
+layer is needed, the order that avoids taking the site down, how the sync fails safe, and the
+pitfalls (including the one that bit us: Cloudflare's IP lists have no trailing newline, so
+`cat`-ing them together produces a malformed range).
+
 ## Tech stack
 
 - **Backend:** Go 1.27+
