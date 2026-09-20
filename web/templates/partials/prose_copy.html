@@ -1,0 +1,49 @@
+{{/* Attaches a copy button to every code block inside long-form prose.
+
+     The prose bodies come from the locale files through tHTML, so their
+     <pre><code> blocks cannot carry the wrapper-and-button markup that the
+     hand-written "Create the mock" / "Call it" blocks use. Anything we ask a
+     reader to type should be copyable, so the button is grafted on here
+     instead, reusing the same wrapper class, the same button class and the
+     same behaviour.
+
+     Appearance is handled in CSS, not here, so a prose code block still reads
+     as code when this script does not run. */}}
+{{ define "prose_copy" }}
+<script>
+  (function () {
+    var COPY = "{{ t "common.copy" }}";
+    var COPIED = "{{ t "common.copied" }}";
+    var blocks = document.querySelectorAll(".guide-prose pre, .guide-faq dd pre");
+
+    Array.prototype.forEach.call(blocks, function (pre) {
+      // Never double-wrap: the hand-written blocks already have both.
+      if (pre.parentElement && pre.parentElement.classList.contains("guide-code-block")) return;
+
+      var wrap = document.createElement("div");
+      wrap.className = "guide-code-block";
+      pre.parentNode.insertBefore(wrap, pre);
+      wrap.appendChild(pre);
+
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "guide-copy";
+      btn.textContent = COPY;
+      btn.addEventListener("click", function () {
+        // Older browsers and insecure origins have no clipboard API; leaving
+        // the label alone is a better failure than a thrown exception.
+        if (!navigator.clipboard) return;
+        navigator.clipboard.writeText(pre.textContent).then(function () {
+          btn.textContent = COPIED;
+          setTimeout(function () { btn.textContent = COPY; }, 1500);
+        }, function () {
+          // Permission can still be refused (no user activation, a hardened
+          // browser). Swallow it rather than leaving an unhandled rejection
+          // in the console; the label simply does not change.
+        });
+      });
+      wrap.insertBefore(btn, pre);
+    });
+  })();
+</script>
+{{ end }}

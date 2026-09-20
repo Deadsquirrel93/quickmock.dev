@@ -48,7 +48,7 @@
           <div class="support-crypto-row">
             <code class="support-address">TDfYMsk1hBxaZX7znM7yF1Zaezj3PRb4k5</code>
             <button type="button" class="support-copy"
-                    @click="navigator.clipboard.writeText('TDfYMsk1hBxaZX7znM7yF1Zaezj3PRb4k5').then(() => { copied = true; setTimeout(() => copied = false, 1500); })">
+                    @click="navigator.clipboard.writeText('TDfYMsk1hBxaZX7znM7yF1Zaezj3PRb4k5').then(() => { copied = true; setTimeout(() => copied = false, 1500); }, () => {})">
               <span x-show="!copied">{{ t "common.copy" }}</span>
               <span x-show="copied" x-cloak>{{ t "common.copied" }}</span>
             </button>

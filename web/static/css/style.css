@@ -1206,7 +1206,14 @@ input:focus, select:focus, textarea:focus {
    .last-updated (which is centered on the home page). */
 .guide-last-updated { color: var(--fg-muted); font-size: 0.85rem; margin-top: 1.5rem; }
 .guide-code-block { position: relative; }
-.guide-code {
+/* Code blocks inside the long-form prose arrive from the locale files as
+   bare <pre><code>, so they cannot carry the wrapper markup the hand-written
+   blocks use. They get the same appearance here -- in CSS rather than in the
+   script, so a prose code block still reads as code without JavaScript. The
+   copy button is attached by partials/prose_copy.html. */
+.guide-code,
+.guide-prose pre,
+.guide-faq dd pre {
   background: var(--bg-code);
   color: #e2e8f0;
   border-radius: var(--radius);
@@ -1218,14 +1225,23 @@ input:focus, select:focus, textarea:focus {
 /* Long commands wrap instead of scrolling sideways (the copy button grabs the
    full text either way), and the wrapped block leaves room on the right so the
    floating copy button never sits on top of the text. */
-.guide-code code {
+.guide-code code,
+.guide-prose pre code,
+.guide-faq dd pre code {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
   background: transparent;
   padding: 0;
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
-.guide-code-block .guide-code { padding-right: 5.5rem; }
+.guide-code-block .guide-code,
+.guide-code-block pre { padding-right: 5.5rem; }
+/* Prose code blocks sit in a flow of paragraphs, so unlike .guide-code they
+   need the same bottom gap a <p> gets. */
+.guide-prose pre,
+.guide-faq dd pre { margin-bottom: 0.85rem; }
+.guide-prose pre:last-child,
+.guide-faq dd pre:last-child { margin-bottom: 0; }
 /* Copy button overlaid on the dark code block — light-on-dark in both themes,
    so it doesn't use the page-themed .btn-ghost colors. */
 .guide-copy {

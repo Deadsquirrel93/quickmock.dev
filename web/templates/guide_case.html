@@ -34,7 +34,7 @@
   <h2>{{ t "guide.section.create" }}</h2>
   <div class="guide-code-block" x-data="{ copied: false }">
     <button type="button" class="guide-copy"
-            @click="navigator.clipboard.writeText($refs.createCode.textContent).then(() => { copied = true; setTimeout(() => copied = false, 1500); })">
+            @click="navigator.clipboard.writeText($refs.createCode.textContent).then(() => { copied = true; setTimeout(() => copied = false, 1500); }, () => {})">
       <span x-show="!copied">{{ t "common.copy" }}</span>
       <span x-show="copied" x-cloak>{{ t "common.copied" }}</span>
     </button>
@@ -44,7 +44,7 @@
   <h2>{{ t "guide.section.call" }}</h2>
   <div class="guide-code-block" x-data="{ copied: false }">
     <button type="button" class="guide-copy"
-            @click="navigator.clipboard.writeText($refs.callCode.textContent).then(() => { copied = true; setTimeout(() => copied = false, 1500); })">
+            @click="navigator.clipboard.writeText($refs.callCode.textContent).then(() => { copied = true; setTimeout(() => copied = false, 1500); }, () => {})">
       <span x-show="!copied">{{ t "common.copy" }}</span>
       <span x-show="copied" x-cloak>{{ t "common.copied" }}</span>
     </button>
@@ -90,4 +90,5 @@
 
   <p class="guide-last-updated">{{ t "common.last_updated" .LastUpdated }}</p>
 </section>
+{{ template "prose_copy" . }}
 {{ end }}
