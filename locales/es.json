@@ -286,7 +286,7 @@
   "home.author.body": "Quickmock lo construye y lo mantiene Nikita Chernykh — ingeniero de backend y tech lead — como un proyecto paralelo gratuito. Todo es de código abierto en GitHub: el código, el esquema, el script de despliegue; todo lo que ves está en el repositorio.",
   "home.author.links": "GitHub · LinkedIn · Telegram",
   "home.author.site_label": "Sitio personal",
-  "home.author.site_url": "https://deadsquirrel.dev/es/",
+  "home.author.site_url": "https://deadsquirrel.dev/en/",
   "home.author.title": "Quién construyó esto",
   "home.cli.body": "Usa nuestro CLI para crear y actualizar mocks directamente desde tu consola, CI/CD o scripts.",
   "home.cli.caption": "Creando un mock con quickmock CLI",
