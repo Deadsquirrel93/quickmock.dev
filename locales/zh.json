@@ -162,6 +162,7 @@
   "errors.invalid_request": "无效的请求。",
   "errors.mock_limit_reached": "您已达到此地址 %d 个活跃 mock 的限制。",
   "errors.not_found": "未找到 Mock",
+  "errors.payment_blocked": "Quickmock 不托管付款请求：真实网络上的 x402 响应已被拦截。测试 x402 客户端请使用测试网（例如 base-sepolia）。",
   "errors.rate_limit": "请求过多。请稍后再试。",
   "errors.slug_taken": "该 slug 已被占用。",
   "errors.spam_blocked": "此内容被垃圾邮件过滤器阻止。",

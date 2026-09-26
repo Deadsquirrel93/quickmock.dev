@@ -162,6 +162,7 @@
   "errors.invalid_request": "Solicitud no válida.",
   "errors.mock_limit_reached": "Has alcanzado el límite de %d mocks activos desde esta dirección.",
   "errors.not_found": "Mock no encontrado",
+  "errors.payment_blocked": "Quickmock no aloja solicitudes de pago: las respuestas x402 en una red real están bloqueadas. Para probar un cliente x402, usa una testnet (p. ej., base-sepolia).",
   "errors.rate_limit": "Demasiadas solicitudes. Por favor, inténtalo de nuevo más tarde.",
   "errors.slug_taken": "Ese slug ya está en uso.",
   "errors.spam_blocked": "Este contenido está bloqueado por el filtro de spam.",

@@ -120,6 +120,13 @@ func TestErrMsgPicksTheRightArg(t *testing.T) {
 			maxMocks:    50,
 			wantContain: localz.T("en", "errors.spam_blocked"),
 		},
+		{
+			name:        "payment_blocked has no placeholder either",
+			errKey:      "payment_blocked",
+			maxBodyKB:   100,
+			maxMocks:    50,
+			wantContain: localz.T("en", "errors.payment_blocked"),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

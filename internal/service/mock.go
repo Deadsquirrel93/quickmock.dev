@@ -22,6 +22,7 @@ var (
 	ErrMockLimitReached = errors.New("mock limit reached")
 	ErrNotFound         = errors.New("not found")
 	ErrSpamBlocked      = errors.New("content blocked by spam filter")
+	ErrPaymentBlocked   = errors.New("payment request blocked")
 	ErrTokenRequired    = errors.New("admin token required")
 	ErrTokenInvalid     = errors.New("admin token invalid")
 	ErrTTLCapReached    = errors.New("ttl cap reached")
@@ -175,6 +176,9 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 	if s.spam.Blocked(&in, creatorIP) {
 		return nil, ErrSpamBlocked
 	}
+	if paymentRequestBlocked(&in) {
+		return nil, ErrPaymentBlocked
+	}
 
 	if creatorIP != "" {
 		n, err := s.repo.CountActiveByCreatorIP(ctx, creatorIP)
@@ -273,6 +277,9 @@ func (s *MockService) Update(ctx context.Context, slug string, in model.MockInpu
 	}
 	if s.spam.Blocked(&in, creatorIP) {
 		return nil, ErrSpamBlocked
+	}
+	if paymentRequestBlocked(&in) {
+		return nil, ErrPaymentBlocked
 	}
 	existing.Name = strings.TrimSpace(in.Name)
 	existing.Method = in.Method

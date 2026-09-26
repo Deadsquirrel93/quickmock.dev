@@ -162,6 +162,7 @@
   "errors.invalid_request": "Invalid request.",
   "errors.mock_limit_reached": "You've reached the limit of %d active mocks from this address.",
   "errors.not_found": "Mock not found",
+  "errors.payment_blocked": "Quickmock doesn't host payment requests: x402 replies on a real network are blocked. Use a testnet (e.g. base-sepolia) to test an x402 client.",
   "errors.rate_limit": "Too many requests. Please try again later.",
   "errors.slug_taken": "That slug is already taken.",
   "errors.spam_blocked": "This content is blocked by the spam filter.",

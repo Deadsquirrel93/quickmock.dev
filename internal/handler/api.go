@@ -305,6 +305,8 @@ func (a *API) writeServiceError(w http.ResponseWriter, r *http.Request, err erro
 		writeError(w, r, http.StatusTooManyRequests, "mock_limit_reached", a.renderer)
 	case errors.Is(err, service.ErrSpamBlocked):
 		writeError(w, r, http.StatusUnprocessableEntity, "spam_blocked", a.renderer)
+	case errors.Is(err, service.ErrPaymentBlocked):
+		writeError(w, r, http.StatusUnprocessableEntity, "payment_blocked", a.renderer)
 	case errors.Is(err, service.ErrTTLCapReached):
 		writeError(w, r, http.StatusConflict, "ttl_cap_reached", a.renderer)
 	case isValidationErr(err):

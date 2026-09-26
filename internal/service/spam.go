@@ -103,16 +103,11 @@ func (f *SpamFilter) allowed(ip string) bool {
 	return false
 }
 
-// Blocked reports whether any user-controlled field of in matches a spam
-// pattern. Allowlisted creator IPs always pass (the false-positive escape
-// hatch from the backlog AC).
-func (f *SpamFilter) Blocked(in *model.MockInput, creatorIP string) bool {
-	if f == nil || len(f.patterns) == 0 {
-		return false
-	}
-	if creatorIP != "" && f.allowed(creatorIP) {
-		return false
-	}
+// contentFields collects every user-controlled text field the spam filter
+// (and the payment-request rule) scan: name, body, path suffix, header
+// values, the error response's body and header values, sequence steps, named
+// variants, and routes — including each route's nested variants.
+func contentFields(in *model.MockInput) []string {
 	fields := make([]string, 0, 8)
 	fields = append(fields, in.Name, in.ResponseBody, in.PathSuffix)
 	for _, v := range in.ResponseHeaders {
@@ -120,6 +115,9 @@ func (f *SpamFilter) Blocked(in *model.MockInput, creatorIP string) bool {
 	}
 	if in.ErrorResponse != nil {
 		fields = append(fields, in.ErrorResponse.Body)
+		for _, v := range in.ErrorResponse.Headers {
+			fields = append(fields, v)
+		}
 	}
 	for _, st := range in.SequenceSteps {
 		fields = append(fields, st.Body)
@@ -144,6 +142,20 @@ func (f *SpamFilter) Blocked(in *model.MockInput, creatorIP string) bool {
 		}
 	}
 	appendConfig(in.Variants, in.Routes)
+	return fields
+}
+
+// Blocked reports whether any user-controlled field of in matches a spam
+// pattern. Allowlisted creator IPs always pass (the false-positive escape
+// hatch from the backlog AC).
+func (f *SpamFilter) Blocked(in *model.MockInput, creatorIP string) bool {
+	if f == nil || len(f.patterns) == 0 {
+		return false
+	}
+	if creatorIP != "" && f.allowed(creatorIP) {
+		return false
+	}
+	fields := contentFields(in)
 	for i, re := range f.patterns {
 		for _, s := range fields {
 			if s != "" && re.MatchString(s) {

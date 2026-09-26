@@ -683,6 +683,8 @@ func errorKey(err error) string {
 		return "not_found"
 	case errors.Is(err, service.ErrSpamBlocked):
 		return "spam_blocked"
+	case errors.Is(err, service.ErrPaymentBlocked):
+		return "payment_blocked"
 	default:
 		return "internal"
 	}
