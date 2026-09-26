@@ -120,6 +120,8 @@
   "changelog.r0920.fixed2": "Os comandos dentro das seções longas de um guia apareciam como texto de parágrafo comum — sem estilo de código nem botão de copiar — embora sejam exatamente as linhas que o leitor deve digitar. Agora têm a mesma aparência dos demais blocos de código da página e são copiados com um clique.",
   "changelog.r0920.security1": "<strong>A origem agora aceita tráfego web apenas da Cloudflare</strong>, em duas camadas independentes: uma lista de permissões no firewall com os intervalos publicados pela Cloudflare, atualizada semanalmente por um timer, e o Authenticated Origin Pulls, em que o servidor web exige o certificado TLS de cliente da Cloudflare. É isso que torna o endereço do visitante confiável: a Cloudflare sobrescreve o cabeçalho que o carrega, mas só para o tráfego que realmente passa por ela. Enquanto o caminho direto esteve aberto, qualquer um que descobrisse a origem podia se conectar e se declarar qualquer IP.",
   "changelog.r0920.title": "2026-09-20 — IPs de cliente confiáveis",
+  "changelog.r0926.fixed1": "<strong>Uma aba do inspetor deixada aberta em um mock excluído ou expirado não consulta mais o servidor indefinidamente.</strong> A lista de requisições e o contador pediam dados a cada 2–5 segundos e recebiam um 404 que a página ignorava silenciosamente — uma única aba esquecida fez mais de duas mil requisições em poucos dias. Agora o servidor manda a página parar de consultar, e a página avisa que o mock não existe mais.",
+  "changelog.r0926.title": "2026-09-26 — O inspetor para de consultar mocks excluídos",
   "changelog.repo_link": "Histórico completo do git no GitHub",
   "changelog.section.added": "Adicionado",
   "changelog.section.changed": "Alterado",

@@ -120,6 +120,8 @@
   "changelog.r0920.fixed2": "Los comandos dentro de las secciones extensas de una guía se mostraban como texto de párrafo normal — sin estilo de código ni botón de copiar — pese a ser exactamente las líneas que el lector debe escribir. Ahora se ven como cualquier otro bloque de código de la página y se copian con un clic.",
   "changelog.r0920.security1": "<strong>El origen ahora solo acepta tráfico web de Cloudflare</strong>, en dos capas independientes: una lista de permitidos en el cortafuegos con los rangos publicados por Cloudflare, actualizada semanalmente por un temporizador, y Authenticated Origin Pulls, donde el servidor web exige el certificado TLS de cliente de Cloudflare. Esto es lo que hace fiable la dirección del visitante: Cloudflare sobrescribe la cabecera que la transporta, pero solo para el tráfico que realmente pasa por Cloudflare. Mientras la vía directa estuvo abierta, cualquiera que encontrara el origen podía conectarse y declararse cualquier IP.",
   "changelog.r0920.title": "2026-09-20 — IPs de cliente fiables",
+  "changelog.r0926.fixed1": "<strong>Una pestaña del inspector abierta sobre un mock eliminado o caducado ya no consulta al servidor indefinidamente.</strong> La lista de peticiones y el contador pedían datos cada 2–5 segundos y recibían un 404 que la página ignoraba en silencio: una sola pestaña olvidada hizo más de dos mil peticiones en unos días. Ahora el servidor indica a la página que deje de consultar, y la página avisa de que el mock ya no existe.",
+  "changelog.r0926.title": "2026-09-26 — El inspector deja de consultar mocks eliminados",
   "changelog.repo_link": "Historial de git completo en GitHub",
   "changelog.section.added": "Añadido",
   "changelog.section.changed": "Cambiado",

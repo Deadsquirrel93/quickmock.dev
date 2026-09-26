@@ -120,6 +120,8 @@
   "changelog.r0920.fixed2": "Commands inside a guide's long-form sections rendered as plain paragraph text — no code styling, no copy button — even though they are exactly the lines a reader is meant to type. They now look like every other code block on the page and carry the same one-click copy.",
   "changelog.r0920.security1": "<strong>The origin now accepts web traffic from Cloudflare only</strong>, at two independent layers: a firewall allow-list of Cloudflare's published ranges, refreshed weekly by a timer, and Authenticated Origin Pulls, where the web server demands Cloudflare's TLS client certificate. This is what makes the visitor's address trustworthy — Cloudflare overwrites the header carrying it, but only for traffic that actually goes through Cloudflare. Until the direct path was closed, anyone who found the origin could connect to it and claim to be any IP at all.",
   "changelog.r0920.title": "2026-09-20 — Trustworthy client IPs",
+  "changelog.r0926.fixed1": "<strong>An inspector tab left open on a deleted or expired mock no longer polls forever.</strong> The request list and the summary counter re-requested the server every 2–5 seconds and got a 404 that the page silently ignored — one forgotten tab made over two thousand requests in a few days. The server now tells the page to stop polling, and the page says the mock is gone.",
+  "changelog.r0926.title": "2026-09-26 — Inspector stops polling deleted mocks",
   "changelog.repo_link": "Full git history on GitHub",
   "changelog.section.added": "Added",
   "changelog.section.changed": "Changed",
