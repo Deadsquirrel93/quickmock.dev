@@ -497,6 +497,7 @@
   "mock.extend.capped": "Tempo de vida máximo atingido — este mock não pode ser mais estendido.",
   "mock.extend.done": "Estendido!",
   "mock.extend.error": "Não foi possível estender este mock. Por favor, tente novamente.",
+  "mock.gone": "Este mock foi excluído ou expirou.",
   "mock.logs.body": "Corpo",
   "mock.logs.clear": "Limpar logs",
   "mock.logs.clear_confirm": "Limpar todos os logs para este mock?",

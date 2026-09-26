@@ -497,6 +497,7 @@
   "mock.extend.capped": "已达到最长生命周期 — 此 mock 无法再延长。",
   "mock.extend.done": "已延长！",
   "mock.extend.error": "无法延长此 mock。请重试。",
+  "mock.gone": "此 mock 已被删除或已过期。",
   "mock.logs.body": "请求体",
   "mock.logs.clear": "清除日志",
   "mock.logs.clear_confirm": "清除此 mock 的所有日志？",

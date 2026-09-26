@@ -322,7 +322,7 @@ func (u *UI) LogsPartial(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 	m, err := u.svc.Get(r.Context(), slug)
 	if err != nil {
-		http.NotFound(w, r)
+		u.pollNotFound(w, r, err, false)
 		return
 	}
 	if !u.inspectorAuthorized(r, m) {
@@ -355,10 +355,27 @@ func (u *UI) SummaryPartial(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 	m, err := u.svc.Get(r.Context(), slug)
 	if err != nil {
-		http.NotFound(w, r)
+		u.pollNotFound(w, r, err, true)
 		return
 	}
 	u.renderer.Render(w, r, "partials_summary", http.StatusOK, map[string]any{"Mock": m})
+}
+
+// statusStopPolling is htmx's "cancel polling" response code.
+const statusStopPolling = 286
+
+// pollNotFound answers a polled inspector endpoint whose mock is missing.
+// htmx never swaps a 404, so a tab left open on a deleted or expired mock
+// kept polling for days. A confirmed not-found on an htmx request gets 286
+// plus a fragment without hx-trigger (the swap must not re-arm the loop);
+// anything else — a plain request, or a store error that may be transient —
+// keeps the old 404 and the polling.
+func (u *UI) pollNotFound(w http.ResponseWriter, r *http.Request, err error, card bool) {
+	if r.Header.Get("HX-Request") != "true" || !errors.Is(err, service.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	u.renderer.Render(w, r, "partials_gone", statusStopPolling, map[string]any{"Card": card})
 }
 
 // Changelog renders GET /changelog — a curated technical changelog. The

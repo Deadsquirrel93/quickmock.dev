@@ -1,0 +1,7 @@
+{{/* HTMX fragment for a polled inspector endpoint whose mock was deleted or
+     expired. Served with status 286 so htmx stops polling; it must never
+     carry hx-get / hx-trigger, or the swap would start the loop again.
+     Card=true when it replaces the whole summary card (outerHTML swap). */}}
+{{ define "partials_gone" }}
+{{ if .Card }}<div class="card"><p class="empty">{{ t "mock.gone" }}</p></div>{{ else }}<p class="empty">{{ t "mock.gone" }}</p>{{ end }}
+{{ end }}
