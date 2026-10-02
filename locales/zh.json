@@ -128,6 +128,7 @@
   "changelog.r1002.changed3": "<strong>内部清理</strong>：约 700 行手写代码被 Go 标准库和数据库驱动取代——API 和 mock 的行为均无变化。",
   "changelog.r1002.fixed1": "<strong>清除 mock 的日志现在也会重置其请求计数。</strong>此前日志列表会清空，但摘要仍显示旧的请求数和最后请求时间。",
   "changelog.r1002.fixed2": "对于没有捕获请求的 mock，<code>GET /api/mocks/:id/logs</code> 现在返回 <code>\"logs\": []</code>，而不是 <code>null</code>。",
+  "changelog.r1002.fixed3": "<strong>实时请求检查器从首次访问起即可实时推送。</strong>在私有 mock 上，页面会在检查器会话建立之前打开实时连接，被拒绝后悄悄退回到每 2 秒轮询一次服务器；现在会在会话就绪后再连接，锁定状态的检查器也不再轮询。“清除日志”会立即刷新列表，页面每次加载时也不再输出 htmx 错误。",
   "changelog.r1002.title": "2026-10-02 — 更精简的内部实现；清除日志会重置计数",
   "changelog.repo_link": "GitHub 上的完整 git 历史记录",
   "changelog.section.added": "已添加",

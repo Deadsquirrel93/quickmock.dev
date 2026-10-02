@@ -128,6 +128,7 @@
   "changelog.r1002.changed3": "<strong>Internal clean-up</strong>: about 700 lines of hand-rolled code were replaced by the Go standard library and the database driver — no change to the API or to how mocks behave.",
   "changelog.r1002.fixed1": "<strong>Clearing a mock’s logs now also resets its request counter.</strong> Before, the log list emptied but the summary kept showing the old request count and last-request time.",
   "changelog.r1002.fixed2": "<code>GET /api/mocks/:id/logs</code> returns <code>\"logs\": []</code> for a mock with no captured requests, instead of <code>null</code>.",
+  "changelog.r1002.fixed3": "<strong>The live request inspector streams from the first visit.</strong> On a private mock the page opened its live connection before the inspector session existed, got refused and quietly fell back to re-asking the server every 2 seconds; it now connects once the session is ready, and a locked inspector no longer polls at all. “Clear logs” also refreshes the list at once, and the page no longer logs an htmx error on every load.",
   "changelog.r1002.title": "2026-10-02 — Leaner internals; clearing logs resets the counter",
   "changelog.repo_link": "Full git history on GitHub",
   "changelog.section.added": "Added",

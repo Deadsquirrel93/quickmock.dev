@@ -128,6 +128,7 @@
   "changelog.r1002.changed3": "<strong>Limpeza interna</strong>: cerca de 700 linhas de código feito à mão foram substituídas pela biblioteca padrão do Go e pelo driver do banco de dados — sem mudanças na API nem no comportamento dos mocks.",
   "changelog.r1002.fixed1": "<strong>Limpar os logs de um mock agora também zera o contador de requisições.</strong> Antes a lista ficava vazia, mas o resumo continuava mostrando a contagem antiga e o horário da última requisição.",
   "changelog.r1002.fixed2": "<code>GET /api/mocks/:id/logs</code> retorna <code>\"logs\": []</code> para um mock sem requisições capturadas, em vez de <code>null</code>.",
+  "changelog.r1002.fixed3": "<strong>O inspetor de requisições ao vivo transmite desde a primeira visita.</strong> Em um mock privado a página abria a conexão ao vivo antes de a sessão do inspetor existir, era recusada e passava em silêncio a consultar o servidor a cada 2 segundos; agora conecta quando a sessão está pronta, e um inspetor bloqueado não faz mais polling. “Limpar logs” também atualiza a lista na hora, e a página não registra mais um erro do htmx a cada carregamento.",
   "changelog.r1002.title": "2026-10-02 — Interior mais enxuto; limpar logs zera o contador",
   "changelog.repo_link": "Histórico completo do git no GitHub",
   "changelog.section.added": "Adicionado",

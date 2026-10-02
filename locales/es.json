@@ -128,6 +128,7 @@
   "changelog.r1002.changed3": "<strong>Limpieza interna</strong>: unas 700 líneas de código hecho a mano se sustituyeron por la biblioteca estándar de Go y el driver de la base de datos, sin cambios en la API ni en el comportamiento de los mocks.",
   "changelog.r1002.fixed1": "<strong>Borrar los registros de un mock ahora también reinicia su contador de peticiones.</strong> Antes la lista quedaba vacía, pero el resumen seguía mostrando el número de peticiones y la hora de la última.",
   "changelog.r1002.fixed2": "<code>GET /api/mocks/:id/logs</code> devuelve <code>\"logs\": []</code> para un mock sin peticiones registradas, en lugar de <code>null</code>.",
+  "changelog.r1002.fixed3": "<strong>El inspector de peticiones en vivo transmite desde la primera visita.</strong> En un mock privado la página abría la conexión en vivo antes de que existiera la sesión del inspector, era rechazada y pasaba en silencio a consultar al servidor cada 2 segundos; ahora conecta cuando la sesión está lista, y un inspector bloqueado ya no consulta nada. «Borrar registros» también actualiza la lista al instante, y la página ya no registra un error de htmx en cada carga.",
   "changelog.r1002.title": "2026-10-02 — Interior más ligero; borrar registros reinicia el contador",
   "changelog.repo_link": "Historial de git completo en GitHub",
   "changelog.section.added": "Añadido",
