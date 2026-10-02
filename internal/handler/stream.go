@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-
-	mockmw "github.com/Deadsquirrel93/quickmock.dev/internal/middleware"
 )
 
 // streamLifetime caps one SSE connection. EventSource reconnects
@@ -29,7 +27,7 @@ func (u *UI) LogsStream(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "private inspector", http.StatusUnauthorized)
 		return
 	}
-	ip := mockmw.IPFromContext(r.Context())
+	ip := r.RemoteAddr
 	if !u.streams.Acquire(ip) {
 		// Client-side JS treats a dead stream as "fall back to polling".
 		http.Error(w, "too many streams", http.StatusTooManyRequests)

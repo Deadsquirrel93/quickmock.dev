@@ -14,7 +14,6 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
-	mockmw "github.com/Deadsquirrel93/quickmock.dev/internal/middleware"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
@@ -54,7 +53,7 @@ func (u *UI) writeAllowed(r *http.Request) bool {
 	if u.writes == nil {
 		return true
 	}
-	ip := mockmw.IPFromContext(r.Context())
+	ip := r.RemoteAddr
 	dec, err := u.writes.Allow(r.Context(), "rl:uiwrite:"+ip)
 	if err != nil {
 		return true
@@ -158,7 +157,7 @@ func (u *UI) CreateForm(w http.ResponseWriter, r *http.Request) {
 		}))
 		return
 	}
-	ip := mockmw.IPFromContext(r.Context())
+	ip := r.RemoteAddr
 	m, err := u.svc.Create(r.Context(), in, ip)
 	if err != nil {
 		u.renderer.Render(w, r, "index", http.StatusOK, u.homeData(r, map[string]any{

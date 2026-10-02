@@ -61,8 +61,7 @@ func creatingUI(t *testing.T, store *fakeCreateStore, maxMocks int) *UI {
 }
 
 // withClientIP runs h behind the real-IP middleware, so handlers see the
-// same mockmw.IPFromContext value they see in production. The context key is
-// unexported, so the middleware is the only way to set it from here.
+// same bare-IP r.RemoteAddr they see in production.
 func withClientIP(h http.HandlerFunc, w http.ResponseWriter, r *http.Request) {
 	mockmw.RealIP("")(h).ServeHTTP(w, r)
 }

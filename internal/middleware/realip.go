@@ -6,15 +6,11 @@
 package middleware
 
 import (
-	"context"
 	"net"
 	"net/http"
 	"net/netip"
 	"strings"
 )
-
-// realIPCtxKey is private — use IPFromContext to read.
-type realIPCtxKey struct{}
 
 // RealIP builds a middleware that rewrites r.RemoteAddr to the client's
 // actual IP, read from header (when set) — never from the classic
@@ -29,8 +25,7 @@ type realIPCtxKey struct{}
 // header is the single header name to trust; pass "" to disable header
 // lookups entirely and always use the TCP peer address (the safe default
 // for deployments with no such proxy, or where the operator hasn't
-// confirmed the header is rewrite-not-append). The original RemoteAddr is
-// preserved in context for future debugging if needed.
+// confirmed the header is rewrite-not-append).
 //
 // Even with header set, it is only trusted when the immediate peer is
 // loopback or a private/link-local address — i.e. when the request
@@ -40,10 +35,8 @@ type realIPCtxKey struct{}
 func RealIP(header string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := clientIP(r, header)
-			ctx := context.WithValue(r.Context(), realIPCtxKey{}, ip)
-			r.RemoteAddr = ip
-			next.ServeHTTP(w, r.WithContext(ctx))
+			r.RemoteAddr = clientIP(r, header)
+			next.ServeHTTP(w, r)
 		})
 	}
 }
@@ -80,10 +73,4 @@ func isTrustedProxy(host string) bool {
 		return false
 	}
 	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
-}
-
-// IPFromContext returns the resolved client IP, or "" if absent.
-func IPFromContext(ctx context.Context) string {
-	v, _ := ctx.Value(realIPCtxKey{}).(string)
-	return v
 }

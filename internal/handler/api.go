@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	mockmw "github.com/Deadsquirrel93/quickmock.dev/internal/middleware"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
@@ -92,7 +91,7 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", a.renderer)
 		return
 	}
-	ip := mockmw.IPFromContext(r.Context())
+	ip := r.RemoteAddr
 	m, err := a.svc.Create(r.Context(), req.toInput(), ip)
 	if err != nil {
 		a.writeServiceError(w, r, err)
@@ -120,7 +119,7 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusBadRequest, "invalid_request", a.renderer)
 		return
 	}
-	m, err := a.svc.Update(r.Context(), slug, req.toInput(), mockmw.IPFromContext(r.Context()), bearerToken(r))
+	m, err := a.svc.Update(r.Context(), slug, req.toInput(), r.RemoteAddr, bearerToken(r))
 	if err != nil {
 		a.writeServiceError(w, r, err)
 		return

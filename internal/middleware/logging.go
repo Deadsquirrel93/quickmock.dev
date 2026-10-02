@@ -53,7 +53,7 @@ func AccessLog(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.Int("status", rec.status),
 				slog.Int("bytes", rec.bytes),
 				slog.Duration("dur", time.Since(start)),
-				slog.String("ip", IPFromContext(r.Context())),
+				slog.String("ip", r.RemoteAddr),
 			)
 		})
 	}

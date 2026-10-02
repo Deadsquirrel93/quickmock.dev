@@ -65,10 +65,9 @@ func TestRealIP(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotRemoteAddr, gotCtxIP string
+			var gotRemoteAddr string
 			h := RealIP(tc.header)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				gotRemoteAddr = r.RemoteAddr
-				gotCtxIP = IPFromContext(r.Context())
 				w.WriteHeader(http.StatusNoContent)
 			}))
 
@@ -82,9 +81,6 @@ func TestRealIP(t *testing.T) {
 
 			if gotRemoteAddr != tc.want {
 				t.Errorf("RemoteAddr = %q, want %q", gotRemoteAddr, tc.want)
-			}
-			if gotCtxIP != tc.want {
-				t.Errorf("IPFromContext = %q, want %q", gotCtxIP, tc.want)
 			}
 		})
 	}

@@ -13,11 +13,7 @@ import (
 func RateLimit(limiter *repository.RateLimiter, bucket string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := IPFromContext(r.Context())
-			if ip == "" {
-				ip = r.RemoteAddr
-			}
-			dec, err := limiter.Allow(r.Context(), "rl:"+bucket+":"+ip)
+			dec, err := limiter.Allow(r.Context(), "rl:"+bucket+":"+r.RemoteAddr)
 			if err != nil {
 				// Fail open — better serve a request than 500 the user.
 				next.ServeHTTP(w, r)

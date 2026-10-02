@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	mockmw "github.com/Deadsquirrel93/quickmock.dev/internal/middleware"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
@@ -119,7 +118,7 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !m.CaptureBody {
 		logBody = ""
 	}
-	logIP := mockmw.IPFromContext(r.Context())
+	logIP := r.RemoteAddr
 	if !m.CaptureIP {
 		logIP = ""
 	}
@@ -202,7 +201,7 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Method:  r.Method,
 		Path:    r.URL.Path,
 		Host:    r.Host,
-		IP:      mockmw.IPFromContext(r.Context()),
+		IP:      r.RemoteAddr,
 		Query:   r.URL.Query(),
 		Header:  r.Header,
 		Body:    bodyBytes,

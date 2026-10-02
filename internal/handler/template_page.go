@@ -11,7 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
-	mockmw "github.com/Deadsquirrel93/quickmock.dev/internal/middleware"
 )
 
 // templateFieldRow pairs a JSON path from MockTemplate.Fields with its
@@ -87,7 +86,7 @@ func (u *UI) TemplateCreate(w http.ResponseWriter, r *http.Request) {
 	// checked by default, so apply the same capture defaults explicitly.
 	in.CaptureBody = true
 	in.CaptureIP = true
-	ip := mockmw.IPFromContext(r.Context())
+	ip := r.RemoteAddr
 	m, err := u.svc.Create(r.Context(), in, ip)
 	if err != nil {
 		data := u.templateCaseData(r, tpl)

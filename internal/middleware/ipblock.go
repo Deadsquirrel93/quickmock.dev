@@ -12,7 +12,7 @@ import (
 func IPBlocklist(prefixes []netip.Prefix) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if addr, err := netip.ParseAddr(IPFromContext(r.Context())); err == nil &&
+			if addr, err := netip.ParseAddr(r.RemoteAddr); err == nil &&
 				slices.ContainsFunc(prefixes, func(p netip.Prefix) bool { return p.Contains(addr) }) {
 				http.Error(w, `{"error":{"code":"forbidden","message":"Forbidden"}}`, http.StatusForbidden)
 				return
