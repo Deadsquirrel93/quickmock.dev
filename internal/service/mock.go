@@ -381,7 +381,7 @@ func (s *MockService) ClearLogs(ctx context.Context, slug, adminToken string) er
 	if err := authorize(m, adminToken); err != nil {
 		return err
 	}
-	return s.logs.DeleteByMockID(ctx, m.ID)
+	return s.logs.Clear(ctx, m.ID)
 }
 
 // AuthorizeSlug fetches a mock by slug and checks adminToken against it,

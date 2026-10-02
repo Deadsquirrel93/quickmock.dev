@@ -85,7 +85,7 @@ func (r *LogRepo) ListByMockID(ctx context.Context, mockID string, limit int, si
 	}
 	defer rows.Close()
 
-	var out []model.RequestLog
+	out := []model.RequestLog{}
 	for rows.Next() {
 		var (
 			l       model.RequestLog
@@ -108,8 +108,13 @@ func (r *LogRepo) ListByMockID(ctx context.Context, mockID string, limit int, si
 	return out, rows.Err()
 }
 
-// DeleteByMockID purges every log row for a mock (clear-logs button).
-func (r *LogRepo) DeleteByMockID(ctx context.Context, mockID string) error {
-	_, err := r.pool.Exec(ctx, `DELETE FROM request_logs WHERE mock_id = $1`, mockID)
+// Clear purges every log row for a mock and resets its request counter and
+// last-request time (clear-logs button). One statement, so both happen or
+// neither does.
+func (r *LogRepo) Clear(ctx context.Context, mockID string) error {
+	_, err := r.pool.Exec(ctx, `
+		WITH purged AS (DELETE FROM request_logs WHERE mock_id = $1)
+		UPDATE mocks SET request_count = 0, last_request_at = NULL WHERE id = $1
+	`, mockID)
 	return err
 }

@@ -128,8 +128,9 @@ func TestLogRepoListByMockIDMethodFilter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListByMockID: %v", err)
 		}
-		if len(logs) != 0 {
-			t.Fatalf("got %d logs, want 0", len(logs))
+		// Non-nil, so the logs API encodes [] rather than null.
+		if logs == nil || len(logs) != 0 {
+			t.Fatalf("got %#v, want an empty non-nil slice", logs)
 		}
 	})
 }
@@ -215,4 +216,49 @@ func TestLogRepoStatusFilter(t *testing.T) {
 			t.Fatalf("got %d logs, want 1", len(logs))
 		}
 	})
+}
+
+// TestLogRepoClearResetsCounter: "Clear logs" must leave the mock looking
+// untouched — no rows, request_count 0, last_request_at NULL — while another
+// mock's logs and counter stay as they were.
+func TestLogRepoClearResetsCounter(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+	mockRepo := NewMockRepo(pool)
+	logRepo := NewLogRepo(pool)
+
+	stamp := time.Now().UnixNano()
+	target := seedMock(ctx, t, mockRepo, fmt.Sprintf("clear-target-%d", stamp))
+	other := seedMock(ctx, t, mockRepo, fmt.Sprintf("clear-other-%d", stamp))
+	for _, m := range []*model.Mock{target, target, other} {
+		if err := logRepo.Insert(ctx, &model.RequestLog{MockID: m.ID, RequestMethod: "GET", RequestIP: "127.0.0.1"}); err != nil {
+			t.Fatalf("insert log: %v", err)
+		}
+		if err := mockRepo.RecordHit(ctx, m.ID); err != nil {
+			t.Fatalf("record hit: %v", err)
+		}
+	}
+
+	if err := logRepo.Clear(ctx, target.ID); err != nil {
+		t.Fatalf("Clear: %v", err)
+	}
+
+	state := func(m *model.Mock) (logs int, count int64, lastSet bool) {
+		t.Helper()
+		got, err := logRepo.ListByMockID(ctx, m.ID, 50, time.Time{}, LogFilter{})
+		if err != nil {
+			t.Fatalf("ListByMockID: %v", err)
+		}
+		row, err := mockRepo.BySlug(ctx, m.Slug)
+		if err != nil {
+			t.Fatalf("BySlug: %v", err)
+		}
+		return len(got), row.RequestCount, row.LastRequestAt != nil
+	}
+	if logs, count, lastSet := state(target); logs != 0 || count != 0 || lastSet {
+		t.Errorf("cleared mock: logs=%d count=%d last_request_at set=%v, want 0/0/false", logs, count, lastSet)
+	}
+	if logs, count, lastSet := state(other); logs != 1 || count != 1 || !lastSet {
+		t.Errorf("other mock: logs=%d count=%d last_request_at set=%v, want 1/1/true", logs, count, lastSet)
+	}
 }
