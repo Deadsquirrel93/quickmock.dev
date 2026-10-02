@@ -33,26 +33,26 @@ func ParseOpenAPI(raw string) ([]model.MockRoute, error) {
 	if !strings.HasPrefix(version, "3.") {
 		return nil, errors.New("only OpenAPI 3.x is supported")
 	}
-	paths, ok := stringMap(doc["paths"])
+	paths, ok := doc["paths"].(map[string]any)
 	if !ok || len(paths) == 0 {
 		return nil, errors.New("OpenAPI paths are missing")
 	}
-	components, _ := stringMap(doc["components"])
-	schemas, _ := stringMap(components["schemas"])
+	components, _ := doc["components"].(map[string]any)
+	schemas, _ := components["schemas"].(map[string]any)
 
 	pathNames := sortedKeys(paths)
 	routes := make([]model.MockRoute, 0, len(pathNames))
 	for _, path := range pathNames {
-		pathItem, ok := stringMap(paths[path])
+		pathItem, ok := paths[path].(map[string]any)
 		if !ok {
 			continue
 		}
 		for _, method := range []string{"get", "post", "put", "patch", "delete"} {
-			op, ok := stringMap(pathItem[method])
+			op, ok := pathItem[method].(map[string]any)
 			if !ok {
 				continue
 			}
-			responses, ok := stringMap(op["responses"])
+			responses, ok := op["responses"].(map[string]any)
 			if !ok || len(responses) == 0 {
 				continue
 			}
@@ -96,25 +96,25 @@ func ParseOpenAPI(raw string) ([]model.MockRoute, error) {
 }
 
 func openAPIResponse(value any, schemas map[string]any) (string, string) {
-	response, _ := stringMap(value)
-	content, _ := stringMap(response["content"])
+	response, _ := value.(map[string]any)
+	content, _ := response["content"].(map[string]any)
 	contentType := "application/json"
-	media, ok := stringMap(content[contentType])
+	media, ok := content[contentType].(map[string]any)
 	if !ok {
 		keys := sortedKeys(content)
 		if len(keys) == 0 {
 			return "", "text/plain; charset=utf-8"
 		}
 		contentType = keys[0]
-		media, _ = stringMap(content[contentType])
+		media, _ = content[contentType].(map[string]any)
 	}
 	var example any
 	if media != nil {
 		example = media["example"]
 		if example == nil {
-			if examples, ok := stringMap(media["examples"]); ok {
+			if examples, ok := media["examples"].(map[string]any); ok {
 				for _, key := range sortedKeys(examples) {
-					if item, ok := stringMap(examples[key]); ok {
+					if item, ok := examples[key].(map[string]any); ok {
 						example = item["value"]
 						break
 					}
@@ -122,7 +122,7 @@ func openAPIResponse(value any, schemas map[string]any) (string, string) {
 			}
 		}
 		if example == nil {
-			if schema, ok := stringMap(media["schema"]); ok {
+			if schema, ok := media["schema"].(map[string]any); ok {
 				example = exampleFromSchema(schema, schemas, 0)
 			}
 		}
@@ -146,7 +146,7 @@ func exampleFromSchema(schema map[string]any, schemas map[string]any, depth int)
 	}
 	if ref, _ := schema["$ref"].(string); strings.HasPrefix(ref, "#/components/schemas/") {
 		name := strings.TrimPrefix(ref, "#/components/schemas/")
-		if target, ok := stringMap(schemas[name]); ok {
+		if target, ok := schemas[name].(map[string]any); ok {
 			return exampleFromSchema(target, schemas, depth+1)
 		}
 	}
@@ -154,16 +154,16 @@ func exampleFromSchema(schema map[string]any, schemas map[string]any, depth int)
 	switch typeName {
 	case "object", "":
 		out := map[string]any{}
-		if properties, ok := stringMap(schema["properties"]); ok {
+		if properties, ok := schema["properties"].(map[string]any); ok {
 			for _, name := range sortedKeys(properties) {
-				if child, ok := stringMap(properties[name]); ok {
+				if child, ok := properties[name].(map[string]any); ok {
 					out[name] = exampleFromSchema(child, schemas, depth+1)
 				}
 			}
 		}
 		return out
 	case "array":
-		if items, ok := stringMap(schema["items"]); ok {
+		if items, ok := schema["items"].(map[string]any); ok {
 			return []any{exampleFromSchema(items, schemas, depth+1)}
 		}
 		return []any{}
@@ -177,11 +177,6 @@ func exampleFromSchema(schema map[string]any, schemas map[string]any, depth int)
 		}
 		return "string"
 	}
-}
-
-func stringMap(value any) (map[string]any, bool) {
-	m, ok := value.(map[string]any)
-	return m, ok
 }
 
 func sortedKeys(m map[string]any) []string { return slices.Sorted(maps.Keys(m)) }

@@ -1,16 +1,16 @@
 package service
 
 import (
-	"crypto/rand"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 )
 
 // tokenRe matches {{namespace.name}} with optional whitespace inside.
@@ -194,7 +194,7 @@ func substituteExtraTokens(body string, req *RequestData) string {
 		for i, it := range items {
 			items[i] = strings.TrimSpace(it)
 		}
-		return items[randUint32()%uint32(len(items))]
+		return items[rand.IntN(len(items))]
 	})
 }
 
@@ -305,24 +305,24 @@ func fakerToken(name string) (string, bool) {
 	case "lastname":
 		return pick(lastNames), true
 	case "username":
-		return strings.ToLower(pick(firstNames)) + strings.ToLower(pick(lastNames)) + fmt.Sprintf("%d", randUint32()%100), true
+		return strings.ToLower(pick(firstNames)) + strings.ToLower(pick(lastNames)) + fmt.Sprintf("%d", rand.Uint32()%100), true
 	case "email":
 		return strings.ToLower(pick(firstNames)) + "." +
 			strings.ToLower(pick(lastNames)) +
-			fmt.Sprintf("%d", randUint32()%1000) + "@example.com", true
+			fmt.Sprintf("%d", rand.Uint32()%1000) + "@example.com", true
 	case "phone":
-		return fmt.Sprintf("+1%03d%03d%04d", randUint32()%800+200, randUint32()%1000, randUint32()%10000), true
+		return fmt.Sprintf("+1%03d%03d%04d", rand.Uint32()%800+200, rand.Uint32()%1000, rand.Uint32()%10000), true
 	case "url":
 		return "https://example.com/" + strings.ToLower(pick(words)) + "/" + strings.ToLower(pick(words)), true
 	case "ipv4":
 		return fmt.Sprintf("%d.%d.%d.%d",
-			randUint32()%223+1, randUint32()%256, randUint32()%256, randUint32()%255+1), true
+			rand.Uint32()%223+1, rand.Uint32()%256, rand.Uint32()%256, rand.Uint32()%255+1), true
 	case "uuid":
-		return fakerUUID(), true
+		return uuid.NewV4().String(), true
 	case "int":
-		return fmt.Sprintf("%d", randUint32()%1000000), true
+		return fmt.Sprintf("%d", rand.Uint32()%1000000), true
 	case "bool":
-		if randUint32()%2 == 0 {
+		if rand.Uint32()%2 == 0 {
 			return "true", true
 		}
 		return "false", true
@@ -331,13 +331,13 @@ func fakerToken(name string) (string, bool) {
 	case "sentence":
 		return fakerSentence(), true
 	case "color":
-		return fmt.Sprintf("#%06x", randUint32()%0x1000000), true
+		return fmt.Sprintf("#%06x", rand.Uint32()%0x1000000), true
 	case "company":
 		return pick(companies), true
 	case "city":
 		return pick(cities), true
 	case "price":
-		return fmt.Sprintf("%d.%02d", randUint32()%1000, randUint32()%100), true
+		return fmt.Sprintf("%d.%02d", rand.Uint32()%1000, rand.Uint32()%100), true
 	case "lorem":
 		return fakerLorem(), true
 	}
@@ -363,16 +363,8 @@ func nowToken(name string) (string, bool) {
 	return "", false
 }
 
-func fakerUUID() string {
-	var b [16]byte
-	_, _ = rand.Read(b[:])
-	b[6] = (b[6] & 0x0F) | 0x40 // version 4
-	b[8] = (b[8] & 0x3F) | 0x80 // variant 10
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}
-
 func fakerSentence() string {
-	n := 4 + int(randUint32()%5) // 4..8 words
+	n := 4 + int(rand.Uint32()%5) // 4..8 words
 	parts := make([]string, n)
 	for i := 0; i < n; i++ {
 		parts[i] = strings.ToLower(pick(words))
@@ -385,7 +377,7 @@ func fakerSentence() string {
 // fakerLorem returns a short lorem-ipsum paragraph — a few faker.sentence
 // results joined together, so it reads like body copy rather than one line.
 func fakerLorem() string {
-	n := 2 + int(randUint32()%3) // 2..4 sentences
+	n := 2 + int(rand.Uint32()%3) // 2..4 sentences
 	parts := make([]string, n)
 	for i := range parts {
 		parts[i] = fakerSentence()
@@ -393,15 +385,7 @@ func fakerLorem() string {
 	return strings.Join(parts, " ")
 }
 
-func pick(list []string) string {
-	return list[randUint32()%uint32(len(list))]
-}
-
-func randUint32() uint32 {
-	var b [4]byte
-	_, _ = rand.Read(b[:])
-	return binary.BigEndian.Uint32(b[:])
-}
+func pick(list []string) string { return list[rand.IntN(len(list))] }
 
 // Pools are ASCII-only and quote-free so substitution never breaks JSON.
 

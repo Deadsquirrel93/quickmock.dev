@@ -23,9 +23,8 @@ func HighlightJSON(s string) template.HTML {
 	if trimmed == "" {
 		return ""
 	}
-	// Cheap validity check. If it's not JSON, return escaped plaintext.
-	var v any
-	if err := json.Unmarshal([]byte(trimmed), &v); err != nil {
+	// If it's not JSON, return escaped plaintext.
+	if !json.Valid([]byte(trimmed)) {
 		return template.HTML(html.EscapeString(s))
 	}
 
