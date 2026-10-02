@@ -318,7 +318,7 @@ func (a *API) writeServiceError(w http.ResponseWriter, r *http.Request, err erro
 
 func isValidationErr(err error) bool {
 	var v *service.ValidationError
-	return errors.As(err, &v) || errors.Is(err, service.ErrValidation)
+	return errors.As(err, &v)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

@@ -134,18 +134,8 @@ type RequestData struct {
 	Seq func() uint64
 }
 
-// RenderResponseBody substitutes {{faker.*}} and {{now.*}} tokens with
-// freshly generated values. Unknown tokens — including request.* ones,
-// which need request context — are left untouched so existing templating
-// syntax in the body is not corrupted.
-//
-// The original body is never mutated — callers persist the raw template
-// and call Render only on the serving path.
-func RenderResponseBody(body string) string {
-	return RenderResponseBodyForRequest(body, nil)
-}
-
-// RenderResponseBodyForRequest is RenderResponseBody plus {{request.*}} echo
+// RenderResponseBodyForRequest substitutes {{faker.*}} and {{now.*}} tokens
+// (unknown tokens are left untouched), plus {{request.*}} echo
 // tokens resolved against req. Request values are substituted after the
 // faker/now pass and inserted verbatim — token-looking text inside a query
 // param or body field is never re-expanded.

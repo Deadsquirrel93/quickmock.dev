@@ -16,20 +16,20 @@ import (
 
 func TestRenderResponseBody_NoTokens(t *testing.T) {
 	in := `{"hello":"world"}`
-	if got := RenderResponseBody(in); got != in {
+	if got := RenderResponseBodyForRequest(in, nil); got != in {
 		t.Fatalf("expected body untouched, got %q", got)
 	}
 }
 
 func TestRenderResponseBody_UnknownTokenIsLeftAsIs(t *testing.T) {
 	in := `{"v":"{{faker.unknown}}","other":"{{custom.thing}}"}`
-	if got := RenderResponseBody(in); got != in {
+	if got := RenderResponseBodyForRequest(in, nil); got != in {
 		t.Fatalf("expected unknown tokens preserved, got %q", got)
 	}
 }
 
 func TestRenderResponseBody_FakerUUID(t *testing.T) {
-	out := RenderResponseBody(`{"id":"{{faker.uuid}}"}`)
+	out := RenderResponseBodyForRequest(`{"id":"{{faker.uuid}}"}`, nil)
 	var parsed struct {
 		ID string `json:"id"`
 	}
@@ -43,7 +43,7 @@ func TestRenderResponseBody_FakerUUID(t *testing.T) {
 }
 
 func TestRenderResponseBody_FakerNameEmail(t *testing.T) {
-	out := RenderResponseBody(`{"name":"{{faker.name}}","email":"{{faker.email}}"}`)
+	out := RenderResponseBodyForRequest(`{"name":"{{faker.name}}","email":"{{faker.email}}"}`, nil)
 	var parsed struct {
 		Name  string `json:"name"`
 		Email string `json:"email"`
@@ -60,7 +60,7 @@ func TestRenderResponseBody_FakerNameEmail(t *testing.T) {
 }
 
 func TestRenderResponseBody_NowISO8601(t *testing.T) {
-	out := RenderResponseBody(`{"at":"{{now.iso8601}}"}`)
+	out := RenderResponseBodyForRequest(`{"at":"{{now.iso8601}}"}`, nil)
 	var parsed struct {
 		At string `json:"at"`
 	}
@@ -77,15 +77,15 @@ func TestRenderResponseBody_NowISO8601(t *testing.T) {
 }
 
 func TestRenderResponseBody_WhitespaceTolerated(t *testing.T) {
-	out := RenderResponseBody(`{{ faker.uuid }}`)
+	out := RenderResponseBodyForRequest(`{{ faker.uuid }}`, nil)
 	if strings.Contains(out, "{{") {
 		t.Fatalf("expected substitution despite spaces, got %q", out)
 	}
 }
 
 func TestRenderResponseBody_EachHitDiffers(t *testing.T) {
-	a := RenderResponseBody(`{{faker.uuid}}`)
-	b := RenderResponseBody(`{{faker.uuid}}`)
+	a := RenderResponseBodyForRequest(`{{faker.uuid}}`, nil)
+	b := RenderResponseBodyForRequest(`{{faker.uuid}}`, nil)
 	if a == b {
 		t.Fatalf("two UUID renders collided — extremely unlikely")
 	}
@@ -93,7 +93,7 @@ func TestRenderResponseBody_EachHitDiffers(t *testing.T) {
 
 func TestRenderResponseBody_AllSupportedTokensResolve(t *testing.T) {
 	for _, tok := range SupportedTokens {
-		out := RenderResponseBody(tok)
+		out := RenderResponseBodyForRequest(tok, nil)
 		if out == tok {
 			t.Errorf("token %q was not substituted", tok)
 		}
@@ -101,7 +101,7 @@ func TestRenderResponseBody_AllSupportedTokensResolve(t *testing.T) {
 }
 
 func TestRenderResponseBody_NowFormats(t *testing.T) {
-	out := RenderResponseBody(`{"u":{{now.unix}},"ms":{{now.unix_ms}},"d":"{{now.date}}","t":"{{now.time}}"}`)
+	out := RenderResponseBodyForRequest(`{"u":{{now.unix}},"ms":{{now.unix_ms}},"d":"{{now.date}}","t":"{{now.time}}"}`, nil)
 	var parsed struct {
 		U  int64  `json:"u"`
 		MS int64  `json:"ms"`
@@ -124,7 +124,7 @@ func TestRenderResponseBody_NowFormats(t *testing.T) {
 
 func TestRenderResponseBody_BoolIsTrueOrFalse(t *testing.T) {
 	for i := 0; i < 20; i++ {
-		out := RenderResponseBody(`{{faker.bool}}`)
+		out := RenderResponseBodyForRequest(`{{faker.bool}}`, nil)
 		if out != "true" && out != "false" {
 			t.Fatalf("expected true/false, got %q", out)
 		}
@@ -132,7 +132,7 @@ func TestRenderResponseBody_BoolIsTrueOrFalse(t *testing.T) {
 }
 
 func TestRenderResponseBody_ColorIsHex(t *testing.T) {
-	out := RenderResponseBody(`{{faker.color}}`)
+	out := RenderResponseBodyForRequest(`{{faker.color}}`, nil)
 	re := regexp.MustCompile(`^#[0-9a-f]{6}$`)
 	if !re.MatchString(out) {
 		t.Fatalf("expected #rrggbb, got %q", out)
@@ -140,7 +140,7 @@ func TestRenderResponseBody_ColorIsHex(t *testing.T) {
 }
 
 func TestRenderResponseBody_IPv4(t *testing.T) {
-	out := RenderResponseBody(`{{faker.ipv4}}`)
+	out := RenderResponseBodyForRequest(`{{faker.ipv4}}`, nil)
 	re := regexp.MustCompile(`^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$`)
 	if !re.MatchString(out) {
 		t.Fatalf("expected dotted quad, got %q", out)
@@ -234,7 +234,7 @@ func TestRenderRequest_BodyJSONPathOnInvalidJSONLeftAsIs(t *testing.T) {
 
 func TestRenderRequest_NilRequestLeavesTokens(t *testing.T) {
 	in := `{{request.method}} {{request.query.id}}`
-	if out := RenderResponseBody(in); out != in {
+	if out := RenderResponseBodyForRequest(in, nil); out != in {
 		t.Fatalf("expected request tokens preserved without request data, got %q", out)
 	}
 }
@@ -285,7 +285,7 @@ func TestRenderRequest_UnknownRequestFieldLeftAsIs(t *testing.T) {
 func TestRenderResponseBody_RandomPickWithinSet(t *testing.T) {
 	seen := map[string]bool{}
 	for i := 0; i < 50; i++ {
-		out := RenderResponseBody(`{{random.pick:a|b|c}}`)
+		out := RenderResponseBodyForRequest(`{{random.pick:a|b|c}}`, nil)
 		if out != "a" && out != "b" && out != "c" {
 			t.Fatalf("expected pick result in {a,b,c}, got %q", out)
 		}
@@ -300,20 +300,20 @@ func TestRenderResponseBody_RandomPickWithinSet(t *testing.T) {
 
 func TestRenderResponseBody_RandomPickEmptyListLeftAsIs(t *testing.T) {
 	in := `{{random.pick:}}`
-	if out := RenderResponseBody(in); out != in {
+	if out := RenderResponseBodyForRequest(in, nil); out != in {
 		t.Fatalf("expected empty pick list preserved, got %q", out)
 	}
 }
 
 func TestRenderResponseBody_RandomPickSingleItem(t *testing.T) {
-	if out := RenderResponseBody(`{{random.pick:a}}`); out != "a" {
+	if out := RenderResponseBodyForRequest(`{{random.pick:a}}`, nil); out != "a" {
 		t.Fatalf("expected single-item pick to return it, got %q", out)
 	}
 }
 
 func TestRenderResponseBody_RandomPickNoRecursion(t *testing.T) {
 	for i := 0; i < 20; i++ {
-		out := RenderResponseBody(`{{random.pick:{{faker.name}}|x}}`)
+		out := RenderResponseBodyForRequest(`{{random.pick:{{faker.name}}|x}}`, nil)
 		if strings.Contains(out, "{{") || strings.Contains(out, "}}") {
 			t.Fatalf("expected no leftover token braces, got %q", out)
 		}
@@ -351,7 +351,7 @@ func TestRenderResponseBody_SeqIncreasesBetweenCalls(t *testing.T) {
 
 func TestRenderResponseBody_SeqWithoutCounterLeftAsIs(t *testing.T) {
 	in := `{{seq}}`
-	if out := RenderResponseBody(in); out != in {
+	if out := RenderResponseBodyForRequest(in, nil); out != in {
 		t.Fatalf("expected seq token preserved without request data, got %q", out)
 	}
 	if out := RenderResponseBodyForRequest(in, &RequestData{}); out != in {
@@ -360,12 +360,12 @@ func TestRenderResponseBody_SeqWithoutCounterLeftAsIs(t *testing.T) {
 }
 
 func TestRenderResponseBody_FakerPriceAndLorem(t *testing.T) {
-	price := RenderResponseBody(`{{faker.price}}`)
+	price := RenderResponseBodyForRequest(`{{faker.price}}`, nil)
 	priceRe := regexp.MustCompile(`^\d+\.\d{2}$`)
 	if !priceRe.MatchString(price) {
 		t.Fatalf("expected an NN.NN price, got %q", price)
 	}
-	lorem := RenderResponseBody(`{{faker.lorem}}`)
+	lorem := RenderResponseBodyForRequest(`{{faker.lorem}}`, nil)
 	if lorem == "" || !strings.Contains(lorem, " ") {
 		t.Fatalf("expected a non-empty multi-word lorem paragraph, got %q", lorem)
 	}
@@ -411,7 +411,7 @@ func TestRenderMock_AllMockTokensResolve(t *testing.T) {
 // a stored body on any code path that renders without one.
 func TestRenderMock_WithoutContextLeavesTokens(t *testing.T) {
 	in := `{{mock.url}} {{request.host}}`
-	if out := RenderResponseBody(in); out != in {
+	if out := RenderResponseBodyForRequest(in, nil); out != in {
 		t.Fatalf("expected tokens preserved without a request, got %q", out)
 	}
 	if out := RenderResponseBodyForRequest(in, &RequestData{}); out != in {

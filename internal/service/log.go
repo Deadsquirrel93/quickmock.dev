@@ -20,7 +20,6 @@ type LogWriter struct {
 	stats   *StatsCache
 	queue   chan model.RequestLog
 	wg      sync.WaitGroup
-	done    chan struct{}
 	logger  *slog.Logger
 	maxBody int
 	broker  *sse.Broker
@@ -34,7 +33,6 @@ func NewLogWriter(repo *repository.LogRepo, mocks *repository.MockRepo, stats *S
 		mocks:   mocks,
 		stats:   stats,
 		queue:   make(chan model.RequestLog, capacity),
-		done:    make(chan struct{}),
 		logger:  logger,
 		maxBody: 16 * 1024, // request body truncation
 		broker:  broker,

@@ -17,7 +17,6 @@ import (
 // Errors returned by the service layer. Handlers map these to HTTP status
 // codes + i18n message keys; nothing else should switch on them.
 var (
-	ErrValidation       = errors.New("validation failed")
 	ErrBodyTooLarge     = errors.New("body too large")
 	ErrMockLimitReached = errors.New("mock limit reached")
 	ErrNotFound         = errors.New("not found")

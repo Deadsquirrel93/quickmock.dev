@@ -113,10 +113,3 @@ func (r *LogRepo) DeleteByMockID(ctx context.Context, mockID string) error {
 	_, err := r.pool.Exec(ctx, `DELETE FROM request_logs WHERE mock_id = $1`, mockID)
 	return err
 }
-
-// ResetCounter sets a mock's `request_count` back to zero. Used together
-// with DeleteByMockID by the clear-logs handler.
-func (r *LogRepo) ResetCounter(ctx context.Context, mockID string) error {
-	_, err := r.pool.Exec(ctx, `UPDATE mocks SET request_count = 0, last_request_at = NULL WHERE id = $1`, mockID)
-	return err
-}
