@@ -7,6 +7,7 @@ package config
 import (
 	"fmt"
 	"net/http"
+	"net/netip"
 	"os"
 	"sort"
 	"strconv"
@@ -37,8 +38,8 @@ type Config struct {
 	RealIPHeader     string
 
 	SpamPatternsFile string
-	SpamAllowIPs     []string
-	BlockedIPs       []string
+	SpamAllowIPs     []netip.Prefix
+	BlockedIPs       []netip.Prefix
 }
 
 // Load reads configuration from the environment.
@@ -109,19 +110,11 @@ func Load() (Config, error) {
 	}
 
 	c.SpamPatternsFile = os.Getenv("QUICKMOCK_SPAM_PATTERNS_FILE")
-	if v := os.Getenv("QUICKMOCK_SPAM_ALLOW_IPS"); v != "" {
-		for _, s := range strings.Split(v, ",") {
-			if s = strings.TrimSpace(s); s != "" {
-				c.SpamAllowIPs = append(c.SpamAllowIPs, s)
-			}
-		}
+	if c.SpamAllowIPs, err = getPrefixes("QUICKMOCK_SPAM_ALLOW_IPS"); err != nil {
+		return c, err
 	}
-	if v := os.Getenv("QUICKMOCK_BLOCK_IPS"); v != "" {
-		for _, s := range strings.Split(v, ",") {
-			if s = strings.TrimSpace(s); s != "" {
-				c.BlockedIPs = append(c.BlockedIPs, s)
-			}
-		}
+	if c.BlockedIPs, err = getPrefixes("QUICKMOCK_BLOCK_IPS"); err != nil {
+		return c, err
 	}
 
 	return c, nil
@@ -173,6 +166,29 @@ func getInt(k string, def int) (int, error) {
 		return 0, fmt.Errorf("invalid int for %s: %w", k, err)
 	}
 	return n, nil
+}
+
+// getPrefixes parses a comma-separated list of exact IPs and CIDR prefixes.
+// An exact IP becomes a single-address prefix; CIDRs are masked.
+func getPrefixes(k string) ([]netip.Prefix, error) {
+	var out []netip.Prefix
+	for _, s := range strings.Split(os.Getenv(k), ",") {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		p, err := netip.ParsePrefix(s)
+		if !strings.Contains(s, "/") {
+			var addr netip.Addr
+			addr, err = netip.ParseAddr(s)
+			p = netip.PrefixFrom(addr, addr.BitLen())
+		}
+		if err != nil {
+			return nil, fmt.Errorf("invalid IP or CIDR %q in %s: %w", s, k, err)
+		}
+		out = append(out, p.Masked())
+	}
+	return out, nil
 }
 
 func getDuration(k string, def time.Duration) (time.Duration, error) {

@@ -110,11 +110,6 @@ func runHealthcheck(cfg config.Config) int {
 func runServe(logger *slog.Logger, cfg config.Config) int {
 	rootCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	blockedIPs, err := mockmw.NewIPBlocklist(cfg.BlockedIPs)
-	if err != nil {
-		logger.Error("IP blocklist", slog.Any("err", err))
-		return 1
-	}
 
 	// Storage clients
 	pool, err := pgxpool.New(rootCtx, cfg.PGDSN)
@@ -216,7 +211,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	// Universal hardening headers: applied to every response, including
 	// /m/* (mock_router force-overrides the CSP it needs locally).
 	r.Use(mockmw.SecurityHeaders(secureSite))
-	r.Use(blockedIPs.Middleware)
+	r.Use(mockmw.IPBlocklist(cfg.BlockedIPs))
 
 	// Static (no i18n, no rate limit, long cache)
 	r.Handle("/static/*", http.StripPrefix("/static/",

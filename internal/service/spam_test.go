@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +14,7 @@ import (
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 )
 
-func testSpamFilter(t *testing.T, patterns, allow []string) *SpamFilter {
+func testSpamFilter(t *testing.T, patterns []string, allow []netip.Prefix) *SpamFilter {
 	t.Helper()
 	f, err := NewSpamFilter(patterns, allow, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
@@ -146,7 +147,7 @@ func TestBlockedScansAllUserFields(t *testing.T) {
 }
 
 func TestAllowlistSkipsFilter(t *testing.T) {
-	f := testSpamFilter(t, []string{`(?i)spamword`}, []string{"203.0.113.9", "10.0.0.0/8"})
+	f := testSpamFilter(t, []string{`(?i)spamword`}, []netip.Prefix{netip.MustParsePrefix("203.0.113.9/32"), netip.MustParsePrefix("10.0.0.0/8")})
 	in := model.MockInput{ResponseBody: "spamword"}
 	if f.Blocked(&in, "203.0.113.9") {
 		t.Error("exact allowlisted IP must pass")
@@ -183,9 +184,6 @@ func TestNewSpamFilterRejectsInvalidInput(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	if _, err := NewSpamFilter([]string{"("}, nil, logger); err == nil {
 		t.Fatal("invalid regex must error")
-	}
-	if _, err := NewSpamFilter(nil, []string{"not-an-ip"}, logger); err == nil {
-		t.Fatal("invalid allow IP must error")
 	}
 }
 

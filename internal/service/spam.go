@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
@@ -57,10 +58,10 @@ func parseSpamPatterns(raw string) []string {
 	return out
 }
 
-// NewSpamFilter compiles patterns and parses the allowlist (exact IPs and
-// CIDR blocks). Any invalid entry is a hard error — fail fast at startup.
-func NewSpamFilter(patterns, allowIPs []string, logger *slog.Logger) (*SpamFilter, error) {
-	f := &SpamFilter{logger: logger}
+// NewSpamFilter compiles patterns; an invalid one is a hard error — fail
+// fast at startup. allowIPs is parsed by config.
+func NewSpamFilter(patterns []string, allowIPs []netip.Prefix, logger *slog.Logger) (*SpamFilter, error) {
+	f := &SpamFilter{allow: allowIPs, logger: logger}
 	for _, p := range patterns {
 		re, err := regexp.Compile(p)
 		if err != nil {
@@ -68,39 +69,12 @@ func NewSpamFilter(patterns, allowIPs []string, logger *slog.Logger) (*SpamFilte
 		}
 		f.patterns = append(f.patterns, re)
 	}
-	for _, s := range allowIPs {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-		if strings.Contains(s, "/") {
-			pfx, err := netip.ParsePrefix(s)
-			if err != nil {
-				return nil, fmt.Errorf("spam allow IP %q: %w", s, err)
-			}
-			f.allow = append(f.allow, pfx)
-			continue
-		}
-		addr, err := netip.ParseAddr(s)
-		if err != nil {
-			return nil, fmt.Errorf("spam allow IP %q: %w", s, err)
-		}
-		f.allow = append(f.allow, netip.PrefixFrom(addr, addr.BitLen()))
-	}
 	return f, nil
 }
 
 func (f *SpamFilter) allowed(ip string) bool {
 	addr, err := netip.ParseAddr(ip)
-	if err != nil {
-		return false
-	}
-	for _, p := range f.allow {
-		if p.Contains(addr) {
-			return true
-		}
-	}
-	return false
+	return err == nil && slices.ContainsFunc(f.allow, func(p netip.Prefix) bool { return p.Contains(addr) })
 }
 
 // contentFields collects every user-controlled text field the spam filter

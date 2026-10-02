@@ -4,15 +4,13 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"testing"
 )
 
 func TestIPBlocklist(t *testing.T) {
-	blocklist, err := NewIPBlocklist([]string{"203.0.113.7", "2001:db8:abcd::/48"})
-	if err != nil {
-		t.Fatalf("NewIPBlocklist: %v", err)
-	}
-	h := RealIP("")(blocklist.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	blocklist := IPBlocklist([]netip.Prefix{netip.MustParsePrefix("203.0.113.7/32"), netip.MustParsePrefix("2001:db8:abcd::/48")})
+	h := RealIP("")(blocklist(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})))
 
@@ -35,11 +33,5 @@ func TestIPBlocklist(t *testing.T) {
 				t.Fatalf("status = %d, want %d", rec.Code, tc.want)
 			}
 		})
-	}
-}
-
-func TestIPBlocklistRejectsInvalidEntry(t *testing.T) {
-	if _, err := NewIPBlocklist([]string{"not-an-ip"}); err == nil {
-		t.Fatal("want error, got nil")
 	}
 }

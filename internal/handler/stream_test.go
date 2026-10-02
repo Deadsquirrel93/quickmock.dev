@@ -17,20 +17,14 @@ func (u unwrapOnly) Unwrap() http.ResponseWriter { return u.ResponseWriter }
 // unflushable chain.
 type opaque struct{ http.ResponseWriter }
 
-func TestFlusherReachesWriterThroughUnwrap(t *testing.T) {
-	rec := httptest.NewRecorder() // implements http.Flusher
-	if _, ok := flusher(unwrapOnly{rec}); !ok {
-		t.Fatal("flusher must reach the base writer through the Unwrap chain")
+// LogsStream flushes via http.ResponseController, which must reach the base
+// writer through middleware wrappers that only expose Unwrap.
+func TestResponseControllerFlushesThroughUnwrap(t *testing.T) {
+	rec := httptest.NewRecorder()
+	if err := http.NewResponseController(unwrapOnly{unwrapOnly{rec}}).Flush(); err != nil || !rec.Flushed {
+		t.Fatalf("Flush through Unwrap chain: err=%v flushed=%v", err, rec.Flushed)
 	}
-	// Two layers deep still resolves.
-	if _, ok := flusher(unwrapOnly{unwrapOnly{rec}}); !ok {
-		t.Fatal("flusher must follow nested Unwrap wrappers")
-	}
-}
-
-func TestFlusherReportsUnsupported(t *testing.T) {
-	// opaque neither flushes nor unwraps → genuinely unsupported.
-	if _, ok := flusher(opaque{httptest.NewRecorder()}); ok {
-		t.Fatal("flusher must report false when no flusher is in the chain")
+	if err := http.NewResponseController(opaque{httptest.NewRecorder()}).Flush(); err == nil {
+		t.Fatal("want an error when no flusher is in the chain")
 	}
 }
