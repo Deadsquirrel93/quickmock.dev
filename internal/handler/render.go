@@ -5,14 +5,12 @@ package handler
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"html/template"
 	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -39,7 +37,6 @@ type Renderer struct {
 	logger   *slog.Logger
 	baseURL  string
 	assetVer string
-	defaults map[string]any
 }
 
 // assetVersion returns a short content hash of the embedded static asset tree
@@ -90,7 +87,6 @@ func NewRenderer(fsys fs.FS, localz *i18n.Localizer, logger *slog.Logger, baseUR
 		logger:   logger,
 		baseURL:  baseURL,
 		assetVer: assetVer,
-		defaults: map[string]any{"BaseURL": baseURL},
 	}
 
 	partials, err := fs.Glob(fsys, "templates/partials/*.html")
@@ -119,7 +115,7 @@ func NewRenderer(fsys fs.FS, localz *i18n.Localizer, logger *slog.Logger, baseUR
 
 	for _, p := range pageFiles {
 		name := strings.TrimSuffix(strings.TrimPrefix(p, "templates/"), ".html")
-		isPartial := strings.HasPrefix(name, "partials_") || name == "header_response"
+		isPartial := strings.HasPrefix(name, "partials_")
 		// Order matters: the FIRST file in ParseFS becomes the tree's root
 		// template (named after its filename). For full pages we want
 		// base.html as the root — otherwise html/template complains that
@@ -186,10 +182,9 @@ func (r *Renderer) Render(w http.ResponseWriter, req *http.Request, name string,
 	w.WriteHeader(status)
 
 	// Pages prefixed with "partials_" are HTMX fragments — they render
-	// themselves, not the full base layout. Same for header_response,
-	// which the language switcher uses to re-paint just the header.
+	// themselves, not the full base layout.
 	entry := "base"
-	if strings.HasPrefix(name, "partials_") || name == "header_response" {
+	if strings.HasPrefix(name, "partials_") {
 		entry = name
 	}
 	if err := clone.ExecuteTemplate(w, entry, full); err != nil {
@@ -239,14 +234,6 @@ func (r *Renderer) baseFuncMap(lang string) template.FuncMap {
 				return "en_US"
 			case "ru":
 				return "ru_RU"
-			case "kk":
-				return "kk_KZ"
-			case "ky":
-				return "ky_KG"
-			case "uz":
-				return "uz_UZ"
-			case "ar":
-				return "ar_AR"
 			case "zh":
 				return "zh_CN"
 			case "pt":
@@ -257,29 +244,11 @@ func (r *Renderer) baseFuncMap(lang string) template.FuncMap {
 				return code
 			}
 		},
-		"sortedHeaders": func(h map[string]string) [][2]string {
-			keys := make([]string, 0, len(h))
-			for k := range h {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-			out := make([][2]string, 0, len(keys))
-			for _, k := range keys {
-				out = append(out, [2]string{k, h[k]})
-			}
-			return out
-		},
 		"fmtTime": func(t *time.Time) string {
 			if t == nil {
 				return ""
 			}
 			return t.Format("2006-01-02 15:04:05 MST")
-		},
-		"safeHTML": func(s string) template.HTML {
-			// Trusted: only used for static, in-repo locale strings that
-			// already contain markup (e.g. <code>, <strong>) — never for
-			// user input.
-			return template.HTML(s)
 		},
 		"tHTML": func(key string, args ...any) template.HTML {
 			return template.HTML(r.localz.T(lang, key, args...))
@@ -310,18 +279,6 @@ func (r *Renderer) baseFuncMap(lang string) template.FuncMap {
 				return 0
 			}
 			return stats[key]
-		},
-		"isHTMX": func(req *http.Request) bool {
-			return req != nil && req.Header.Get("HX-Request") == "true"
-		},
-		"errIs": func(err error, target error) bool {
-			return errors.Is(err, target)
-		},
-		"div": func(a, b int) int {
-			if b == 0 {
-				return 0
-			}
-			return a / b
 		},
 	}
 }
