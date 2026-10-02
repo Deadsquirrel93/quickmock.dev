@@ -135,3 +135,40 @@ func TestHubsEmitJSONLD(t *testing.T) {
 		})
 	}
 }
+
+// TestRobotsTxtSingleGroup: every crawler gets the same rules, so one
+// "User-agent: *" group says it all (a named group would only repeat it).
+func TestRobotsTxtSingleGroup(t *testing.T) {
+	w := httptest.NewRecorder()
+	RobotsTxt("https://example.test/")(w, httptest.NewRequest("GET", "/robots.txt", nil))
+	body := w.Body.String()
+	if n := strings.Count(body, "User-agent:"); n != 1 || !strings.Contains(body, "User-agent: *\n") {
+		t.Fatalf("want exactly one \"User-agent: *\" group, got %d:\n%s", n, body)
+	}
+	for _, want := range []string{"Allow: /\n", "Disallow: /m/\n", "Disallow: /mock/\n", "Disallow: /share/\n", "Disallow: /my\n", "Disallow: /api/\n", "Sitemap: https://example.test/sitemap.xml\n"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("robots.txt missing %q", want)
+		}
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "text/plain; charset=utf-8" {
+		t.Errorf("Content-Type = %q", ct)
+	}
+}
+
+// TestLLMsTxtGuidesMatchRegistry: the guide list is generated from UseCases,
+// titled and summarized from the English locale.
+func TestLLMsTxtGuidesMatchRegistry(t *testing.T) {
+	localz := testLocalizer(t)
+	w := httptest.NewRecorder()
+	LLMsTxt("https://example.test", localz)(w, httptest.NewRequest("GET", "/llms.txt", nil))
+	body := w.Body.String()
+	for _, c := range UseCases {
+		line := "- [" + localz.T("en", c.KeyPrefix+".title") + "](https://example.test/guide/" + c.Slug + "): " + localz.T("en", c.KeyPrefix+".summary")
+		if !strings.Contains(body, line) {
+			t.Errorf("llms.txt missing line %q", line)
+		}
+	}
+	if strings.Contains(body, "guide.case.") || strings.Contains(body, "templates.case.") {
+		t.Error("llms.txt leaked a raw locale key")
+	}
+}

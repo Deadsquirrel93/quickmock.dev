@@ -382,7 +382,7 @@ func TestSitemapIncludesTemplates(t *testing.T) {
 }
 
 func TestLLMsTxtIncludesTemplates(t *testing.T) {
-	h := LLMsTxt("https://example.test")
+	h := LLMsTxt("https://example.test", testLocalizer(t))
 	w := httptest.NewRecorder()
 	h(w, httptest.NewRequest("GET", "/llms.txt", nil))
 	body := w.Body.String()
@@ -405,7 +405,7 @@ func TestLLMsTxtIncludesTemplates(t *testing.T) {
 // plain "/templates" index link (no trailing slug) must not be picked up by
 // the regexp as a slug.
 func TestLLMsTxtTemplatesMatchRegistry(t *testing.T) {
-	h := LLMsTxt("https://example.test")
+	h := LLMsTxt("https://example.test", testLocalizer(t))
 	w := httptest.NewRecorder()
 	h(w, httptest.NewRequest("GET", "/llms.txt", nil))
 	body := w.Body.String()
@@ -453,7 +453,7 @@ func TestTemplateCaseNoRawKeys(t *testing.T) {
 // reachable — it is the only dated freshness signal the site publishes.
 func TestLLMsTxtSurfacesDocsAndChangelog(t *testing.T) {
 	w := httptest.NewRecorder()
-	LLMsTxt("https://example.test/")(w, httptest.NewRequest("GET", "/llms.txt", nil))
+	LLMsTxt("https://example.test/", testLocalizer(t))(w, httptest.NewRequest("GET", "/llms.txt", nil))
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d", w.Code)
 	}

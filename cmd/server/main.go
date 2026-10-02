@@ -227,7 +227,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 
 	r.Get("/robots.txt", handler.RobotsTxt(cfg.BaseURL))
 	r.Get("/sitemap.xml", handler.SitemapXML(cfg.BaseURL, localz.Supported(), cfg.DefaultLang))
-	r.Get("/llms.txt", handler.LLMsTxt(cfg.BaseURL))
+	r.Get("/llms.txt", handler.LLMsTxt(cfg.BaseURL, localz))
 	r.Get("/openapi.json", handler.OpenAPISpec(cfg.BaseURL))
 
 	// Public mock router — own rate limit bucket, no i18n.

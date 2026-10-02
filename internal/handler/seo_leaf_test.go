@@ -20,19 +20,40 @@ func testLocalizer(t *testing.T) *i18n.Localizer {
 }
 
 // parseGraph decodes a JSON-LD document's top-level @graph array into
-// generic nodes, first undoing the "</" defang applied by the JSON-LD
-// builders (a no-op for json.Unmarshal since "\/" is already a legal JSON
-// escape for "/", but the brief calls for reversing it explicitly).
+// generic nodes.
 func parseGraph(t *testing.T, js string) []map[string]any {
 	t.Helper()
-	unescaped := strings.ReplaceAll(js, `<\/`, "</")
 	var payload struct {
 		Graph []map[string]any `json:"@graph"`
 	}
-	if err := json.Unmarshal([]byte(unescaped), &payload); err != nil {
+	if err := json.Unmarshal([]byte(js), &payload); err != nil {
 		t.Fatalf("JSON-LD is not valid JSON: %v", err)
 	}
 	return payload.Graph
+}
+
+// TestLDJSONCannotCloseScript: localized strings land inside an inline
+// <script>, so the encoded document must never contain a literal "</".
+func TestLDJSONCannotCloseScript(t *testing.T) {
+	const evil = "</script><script>alert(1)</script>"
+	out := string(ldJSON(map[string]any{"@type": "Thing", "name": evil}))
+	if strings.Contains(out, "</") {
+		t.Fatalf("JSON-LD contains a raw \"</\": %s", out)
+	}
+	if got := findNode(parseGraph(t, out), "Thing")["name"]; got != evil {
+		t.Fatalf("name round-trip = %v, want %q", got, evil)
+	}
+}
+
+func TestBreadcrumbPositions(t *testing.T) {
+	b := breadcrumb([2]string{"Home", "https://x/"}, [2]string{"Docs", "https://x/docs"})
+	items := b["itemListElement"].([]map[string]any)
+	if b["@type"] != "BreadcrumbList" || len(items) != 2 {
+		t.Fatalf("breadcrumb = %v", b)
+	}
+	if items[1]["position"] != 2 || items[1]["name"] != "Docs" || items[1]["item"] != "https://x/docs" {
+		t.Fatalf("second item = %v", items[1])
+	}
 }
 
 func findNode(graph []map[string]any, typ string) map[string]any {
