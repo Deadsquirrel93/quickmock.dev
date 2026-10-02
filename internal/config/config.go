@@ -129,10 +129,9 @@ const legacyPrefix = "MOCKAPI_"
 //
 // Load ignores these completely, which is exactly the problem: a stale key
 // produces no error and no log line, so the server quietly runs on defaults
-// while the operator reads the value they think they set. The failure mode is
-// nastiest for QUICKMOCK_BASE_URL, which since 2026-08-10 feeds the
-// cross-site origin check — get it wrong and browser-initiated mock creation
-// stops working with nothing pointing at the cause.
+// while the operator reads the value they think they set — e.g. a stale
+// MOCKAPI_BASE_URL leaves every generated mock URL, canonical link and
+// sitemap entry pointing at the localhost default.
 //
 // environ is os.Environ()-shaped ("KEY=VALUE"); values are never returned or
 // logged, only names.

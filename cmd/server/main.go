@@ -264,7 +264,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		// State-changing UI routes only: a third-party page cannot browser-fetch
 		// its way into creating a mock and burning the visitor's IP quota.
 		r.Group(func(r chi.Router) {
-			r.Use(mockmw.RejectCrossSite(cfg.BaseURL, logger))
+			r.Use(mockmw.RejectCrossSite())
 			r.Post("/", ui.CreateForm)
 			r.Post("/templates/{slug}/create", ui.TemplateCreate)
 		})
