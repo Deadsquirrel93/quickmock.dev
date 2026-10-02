@@ -150,10 +150,7 @@ func (r *Renderer) Render(w http.ResponseWriter, req *http.Request, name string,
 		return
 	}
 
-	lang := i18n.LangFromContext(req.Context())
-	if lang == "" {
-		lang = r.localz.Fallback()
-	}
+	lang := r.localz.Lang(req.Context())
 
 	full := map[string]any{
 		"Lang":         lang,

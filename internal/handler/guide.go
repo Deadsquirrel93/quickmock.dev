@@ -1,5 +1,7 @@
 package handler
 
+import "slices"
+
 // SectionKind selects how a GuideSection's body is presented on the page.
 type SectionKind string
 
@@ -232,47 +234,36 @@ var UseCases = []UseCase{
 
 // UseCaseBySlug returns the case for a /guide/<slug> request.
 func UseCaseBySlug(slug string) (UseCase, bool) {
-	for _, c := range UseCases {
-		if c.Slug == slug {
-			return c, true
+	i := slices.IndexFunc(UseCases, func(c UseCase) bool { return c.Slug == slug })
+	if i < 0 {
+		return UseCase{}, false
+	}
+	return UseCases[i], true
+}
+
+// resolve looks each slug up in order, skipping unknown ones, so a typo in a
+// curated list degrades to a shorter list instead of a broken page.
+func resolve[T any](slugs []string, lookup func(string) (T, bool)) []T {
+	var out []T
+	for _, slug := range slugs {
+		if v, ok := lookup(slug); ok {
+			out = append(out, v)
 		}
 	}
-	return UseCase{}, false
+	return out
 }
 
 // FeaturedGuideSlugs is the curated pick shown on the home page.
 var FeaturedGuideSlugs = []string{"mock-rest-api", "mock-webhook-receiver", "test-retry-logic", "simulate-slow-api", "fake-json-data"}
 
-// FeaturedGuides resolves FeaturedGuideSlugs into their full UseCase records,
-// in the order they were listed. An unknown slug is skipped rather than
-// surfaced as an error.
-func FeaturedGuides() []UseCase {
-	var out []UseCase
-	for _, slug := range FeaturedGuideSlugs {
-		if c, ok := UseCaseBySlug(slug); ok {
-			out = append(out, c)
-		}
-	}
-	return out
-}
+// FeaturedGuides resolves FeaturedGuideSlugs into their UseCase records.
+func FeaturedGuides() []UseCase { return resolve(FeaturedGuideSlugs, UseCaseBySlug) }
 
 // RelatedUseCases resolves the curated Related slugs of the case identified
-// by slug into their full UseCase records, in the order they were listed.
-// An unknown slug within Related is skipped rather than surfaced as an
-// error, so a typo in the registry degrades to a shorter list instead of a
-// broken page; an unknown slug (no such case) returns nil.
+// by slug; an unknown case returns nil.
 func RelatedUseCases(slug string) []UseCase {
-	c, ok := UseCaseBySlug(slug)
-	if !ok {
-		return nil
-	}
-	var out []UseCase
-	for _, related := range c.Related {
-		if rc, ok := UseCaseBySlug(related); ok {
-			out = append(out, rc)
-		}
-	}
-	return out
+	c, _ := UseCaseBySlug(slug)
+	return resolve(c.Related, UseCaseBySlug)
 }
 
 // TemplatesForGuide returns the MockTemplates whose RelatedGuide points back

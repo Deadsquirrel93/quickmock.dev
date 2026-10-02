@@ -2,6 +2,8 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -137,5 +139,30 @@ func TestWriteServiceErrorTokenMapping(t *testing.T) {
 				t.Fatalf("error code = %q, want %q", body.Error.Code, c.wantCode)
 			}
 		})
+	}
+}
+
+func TestServiceErrorMapping(t *testing.T) {
+	for _, c := range []struct {
+		err        error
+		wantStatus int
+		wantCode   string
+	}{
+		{service.ErrNotFound, http.StatusNotFound, "not_found"},
+		{service.ErrTokenRequired, http.StatusUnauthorized, "admin_token_required"},
+		{service.ErrTokenInvalid, http.StatusForbidden, "admin_token_invalid"},
+		{service.ErrBodyTooLarge, http.StatusBadRequest, "body_too_large"},
+		{service.ErrMockLimitReached, http.StatusTooManyRequests, "mock_limit_reached"},
+		{service.ErrSpamBlocked, http.StatusUnprocessableEntity, "spam_blocked"},
+		{service.ErrPaymentBlocked, http.StatusUnprocessableEntity, "payment_blocked"},
+		{service.ErrTTLCapReached, http.StatusConflict, "ttl_cap_reached"},
+		{&service.ValidationError{Field: "method", Message: "bad"}, http.StatusUnprocessableEntity, "validation_failed"},
+		{fmt.Errorf("wrapped: %w", service.ErrNotFound), http.StatusNotFound, "not_found"},
+		{errors.New("db down"), http.StatusInternalServerError, "internal"},
+	} {
+		status, code := serviceError(c.err)
+		if status != c.wantStatus || code != c.wantCode {
+			t.Errorf("serviceError(%v) = %d %q, want %d %q", c.err, status, code, c.wantStatus, c.wantCode)
+		}
 	}
 }

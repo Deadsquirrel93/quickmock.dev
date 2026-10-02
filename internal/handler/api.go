@@ -290,34 +290,40 @@ func (a *API) mockView(m *model.Mock) map[string]any {
 	}
 }
 
-func (a *API) writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
-	switch {
-	case errors.Is(err, service.ErrNotFound):
-		writeError(w, r, http.StatusNotFound, "not_found", a.renderer)
-	case errors.Is(err, service.ErrTokenRequired):
-		writeError(w, r, http.StatusUnauthorized, "admin_token_required", a.renderer)
-	case errors.Is(err, service.ErrTokenInvalid):
-		writeError(w, r, http.StatusForbidden, "admin_token_invalid", a.renderer)
-	case errors.Is(err, service.ErrBodyTooLarge):
-		writeError(w, r, http.StatusBadRequest, "body_too_large", a.renderer)
-	case errors.Is(err, service.ErrMockLimitReached):
-		writeError(w, r, http.StatusTooManyRequests, "mock_limit_reached", a.renderer)
-	case errors.Is(err, service.ErrSpamBlocked):
-		writeError(w, r, http.StatusUnprocessableEntity, "spam_blocked", a.renderer)
-	case errors.Is(err, service.ErrPaymentBlocked):
-		writeError(w, r, http.StatusUnprocessableEntity, "payment_blocked", a.renderer)
-	case errors.Is(err, service.ErrTTLCapReached):
-		writeError(w, r, http.StatusConflict, "ttl_cap_reached", a.renderer)
-	case isValidationErr(err):
-		writeError(w, r, http.StatusUnprocessableEntity, "validation_failed", a.renderer)
-	default:
-		writeError(w, r, http.StatusInternalServerError, "internal", a.renderer)
-	}
+// serviceErrors maps service sentinel errors to an HTTP status and the
+// errors.<code> locale key. Anything unlisted is a 500 "internal".
+var serviceErrors = []struct {
+	err    error
+	status int
+	code   string
+}{
+	{service.ErrNotFound, http.StatusNotFound, "not_found"},
+	{service.ErrTokenRequired, http.StatusUnauthorized, "admin_token_required"},
+	{service.ErrTokenInvalid, http.StatusForbidden, "admin_token_invalid"},
+	{service.ErrBodyTooLarge, http.StatusBadRequest, "body_too_large"},
+	{service.ErrMockLimitReached, http.StatusTooManyRequests, "mock_limit_reached"},
+	{service.ErrSpamBlocked, http.StatusUnprocessableEntity, "spam_blocked"},
+	{service.ErrPaymentBlocked, http.StatusUnprocessableEntity, "payment_blocked"},
+	{service.ErrTTLCapReached, http.StatusConflict, "ttl_cap_reached"},
 }
 
-func isValidationErr(err error) bool {
+// serviceError resolves err to its HTTP status and error code.
+func serviceError(err error) (int, string) {
 	var v *service.ValidationError
-	return errors.As(err, &v)
+	if errors.As(err, &v) {
+		return http.StatusUnprocessableEntity, "validation_failed"
+	}
+	for _, e := range serviceErrors {
+		if errors.Is(err, e.err) {
+			return e.status, e.code
+		}
+	}
+	return http.StatusInternalServerError, "internal"
+}
+
+func (a *API) writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
+	status, code := serviceError(err)
+	writeError(w, r, status, code, a.renderer)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

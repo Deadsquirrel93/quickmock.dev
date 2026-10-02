@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-
-	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
 )
 
 // templateFieldRow pairs a JSON path from MockTemplate.Fields with its
@@ -30,10 +28,7 @@ type templateCategorySection struct {
 
 // Templates renders GET /templates — the gallery index, grouped by category.
 func (u *UI) Templates(w http.ResponseWriter, r *http.Request) {
-	lang := i18n.LangFromContext(r.Context())
-	if lang == "" {
-		lang = u.localz.Fallback()
-	}
+	lang := u.localz.Lang(r.Context())
 
 	sections := make([]templateCategorySection, 0, len(TemplateCategories))
 	for _, c := range TemplateCategories {
@@ -102,10 +97,7 @@ func (u *UI) TemplateCreate(w http.ResponseWriter, r *http.Request) {
 // one-click create re-renders the exact same case page it was submitted
 // from, instead of drifting out of sync with it.
 func (u *UI) templateCaseData(r *http.Request, tpl MockTemplate) map[string]any {
-	lang := i18n.LangFromContext(r.Context())
-	if lang == "" {
-		lang = u.localz.Fallback()
-	}
+	lang := u.localz.Lang(r.Context())
 	title := u.localz.T(lang, tpl.KeyPrefix+".title")
 
 	fields := make([]templateFieldRow, 0, len(tpl.Fields))

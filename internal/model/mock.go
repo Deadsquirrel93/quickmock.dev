@@ -2,6 +2,7 @@
 package model
 
 import (
+	"slices"
 	"time"
 )
 
@@ -23,14 +24,7 @@ var AllMethods = []Method{
 }
 
 // ValidMethod reports whether s is one of the allowed mock methods.
-func ValidMethod(s string) bool {
-	for _, m := range AllMethods {
-		if string(m) == s {
-			return true
-		}
-	}
-	return false
-}
+func ValidMethod(s string) bool { return slices.Contains(AllMethods, Method(s)) }
 
 // ResponseStep is one alternate response: a sequence step, or the error-rate
 // alternate (which ignores Headers — the mock's own headers apply there).

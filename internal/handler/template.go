@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 )
@@ -319,48 +320,24 @@ func init() {
 
 // TemplateBySlug returns the template for a /templates/<slug> request.
 func TemplateBySlug(slug string) (MockTemplate, bool) {
-	for _, t := range MockTemplates {
-		if t.Slug == slug {
-			return t, true
-		}
+	i := slices.IndexFunc(MockTemplates, func(t MockTemplate) bool { return t.Slug == slug })
+	if i < 0 {
+		return MockTemplate{}, false
 	}
-	return MockTemplate{}, false
+	return MockTemplates[i], true
 }
 
 // FeaturedTemplateSlugs is the curated pick shown on the home page.
 var FeaturedTemplateSlugs = []string{"stripe-webhook", "github-webhook-push", "slack-events-api", "oauth2-token-response", "problem-json-error"}
 
-// FeaturedTemplates resolves FeaturedTemplateSlugs into their full
-// MockTemplate records, in the order they were listed. An unknown slug is
-// skipped rather than surfaced as an error.
-func FeaturedTemplates() []MockTemplate {
-	var out []MockTemplate
-	for _, slug := range FeaturedTemplateSlugs {
-		if t, ok := TemplateBySlug(slug); ok {
-			out = append(out, t)
-		}
-	}
-	return out
-}
+// FeaturedTemplates resolves FeaturedTemplateSlugs into their MockTemplate records.
+func FeaturedTemplates() []MockTemplate { return resolve(FeaturedTemplateSlugs, TemplateBySlug) }
 
 // RelatedTemplates resolves the curated Related slugs of the template
-// identified by slug into their full MockTemplate records, in the order
-// they were listed. An unknown slug within Related is skipped rather than
-// surfaced as an error, so a typo in the registry degrades to a shorter
-// list instead of a broken page; an unknown slug (no such template)
-// returns nil.
+// identified by slug; an unknown template returns nil.
 func RelatedTemplates(slug string) []MockTemplate {
-	tpl, ok := TemplateBySlug(slug)
-	if !ok {
-		return nil
-	}
-	var out []MockTemplate
-	for _, related := range tpl.Related {
-		if rt, ok := TemplateBySlug(related); ok {
-			out = append(out, rt)
-		}
-	}
-	return out
+	t, _ := TemplateBySlug(slug)
+	return resolve(t.Related, TemplateBySlug)
 }
 
 // TemplateInput returns the parsed model.MockInput for slug, built once at

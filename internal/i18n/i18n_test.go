@@ -1,6 +1,7 @@
 package i18n
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -92,7 +93,7 @@ func TestMiddlewareResolvesLang(t *testing.T) {
 	l := testLocalizer(t)
 	var got string
 	h := l.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = LangFromContext(r.Context())
+		got = l.Lang(r.Context())
 	}))
 	for _, tc := range []struct {
 		name, url, cookie, accept, want string
@@ -116,5 +117,11 @@ func TestMiddlewareResolvesLang(t *testing.T) {
 		if got != tc.want || w.Header().Get("X-Lang") != tc.want {
 			t.Errorf("%s: lang = %q, X-Lang = %q, want %q", tc.name, got, w.Header().Get("X-Lang"), tc.want)
 		}
+	}
+}
+
+func TestLangFallsBackOutsideMiddleware(t *testing.T) {
+	if got := testLocalizer(t).Lang(context.Background()); got != "en" {
+		t.Errorf("Lang without middleware = %q, want the fallback en", got)
 	}
 }

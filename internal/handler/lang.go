@@ -11,33 +11,13 @@ import (
 
 // Lang returns the POST /language handler.
 //
-// Accepts either form-encoded `lang=ru` or JSON `{"lang":"ru"}`. Sets the
-// cookie and, for HTMX clients, returns the rendered header partial so the
-// dropdown swaps in place. For plain clients returns 200 JSON.
+// Accepts the switcher's form-encoded `lang=ru` and sets the cookie. HTMX
+// clients get HX-Refresh; plain form submits are redirected back.
 //
 // `secureCookie` is plumbed from main (true when BaseURL is https://).
 func Lang(r *Renderer, secureCookie bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		var lang string
-		ct := req.Header.Get("Content-Type")
-		switch {
-		case strings.HasPrefix(ct, "application/json"):
-			var body struct {
-				Lang string `json:"lang"`
-			}
-			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-				writeError(w, req, http.StatusBadRequest, "invalid_request", r)
-				return
-			}
-			lang = body.Lang
-		default:
-			if err := req.ParseForm(); err != nil {
-				writeError(w, req, http.StatusBadRequest, "invalid_request", r)
-				return
-			}
-			lang = req.PostFormValue("lang")
-		}
-
+		lang := req.PostFormValue("lang")
 		if !r.localz.IsSupported(lang) {
 			writeError(w, req, http.StatusBadRequest, "unknown_lang", r)
 			return
@@ -55,17 +35,8 @@ func Lang(r *Renderer, secureCookie bool) http.HandlerFunc {
 		}
 
 		// Plain HTML form submit (no JS) → redirect back to where the
-		// user came from, falling back to "/". Returning JSON here would
-		// dump raw text onto the page.
-		if strings.HasPrefix(req.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
-			target := safeReferer(req.Header.Get("Referer"), req.Host)
-			http.Redirect(w, req, target, http.StatusSeeOther)
-			return
-		}
-
-		// Pure JSON client (e.g. future CLI) — keep machine-readable shape.
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"lang": lang})
+		// user came from, falling back to "/".
+		http.Redirect(w, req, safeReferer(req.Header.Get("Referer"), req.Host), http.StatusSeeOther)
 	}
 }
 
@@ -106,10 +77,7 @@ func safeReferer(ref, trustedHost string) string {
 
 // writeError centralizes JSON error responses for non-HTML routes.
 func writeError(w http.ResponseWriter, req *http.Request, status int, code string, r *Renderer) {
-	lang := i18n.LangFromContext(req.Context())
-	if lang == "" {
-		lang = r.localz.Fallback()
-	}
+	lang := r.localz.Lang(req.Context())
 	msg := r.localz.T(lang, "errors."+code)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

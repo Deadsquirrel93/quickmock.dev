@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -610,14 +611,7 @@ func (s *MockService) validateResponseConfig(variants *[]model.NamedVariant, rul
 
 var variantNameRegexp = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 
-func oneOf(value string, allowed ...string) bool {
-	for _, candidate := range allowed {
-		if value == candidate {
-			return true
-		}
-	}
-	return false
-}
+func oneOf(value string, allowed ...string) bool { return slices.Contains(allowed, value) }
 
 func validateHeaderMap(headers map[string]string, field string) error {
 	for name, value := range headers {

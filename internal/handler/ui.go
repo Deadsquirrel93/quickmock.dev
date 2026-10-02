@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -66,10 +67,7 @@ func (u *UI) writeAllowed(r *http.Request) bool {
 // redirecting — so an error or a throttled submit comes back on the same
 // page the user submitted, not a thinner copy of it. extra is merged last.
 func (u *UI) homeData(r *http.Request, extra map[string]any) map[string]any {
-	lang := i18n.LangFromContext(r.Context())
-	if lang == "" {
-		lang = u.localz.Fallback()
-	}
+	lang := u.localz.Lang(r.Context())
 	// u.stats is nil in the render-only test fixture (no DB behind it); the
 	// real server always wires one up via NewUI.
 	stats := map[string]int64{}
@@ -111,9 +109,6 @@ func (u *UI) Home(w http.ResponseWriter, r *http.Request) {
 // guidePrefill returns a use-case's create body as inline JS for the home form
 // to apply, when slug names a known guide. The body is in-repo trusted content.
 func guidePrefill(slug string) (template.JS, bool) {
-	if slug == "" {
-		return "", false
-	}
 	if c, ok := UseCaseBySlug(slug); ok {
 		return template.JS(c.CreateBody), true
 	}
@@ -124,9 +119,6 @@ func guidePrefill(slug string) (template.JS, bool) {
 // the home form to apply, when slug names a known /templates/<slug> entry.
 // The body is in-repo trusted content, same as guidePrefill.
 func templatePrefill(slug string) (template.JS, bool) {
-	if slug == "" {
-		return "", false
-	}
 	if tpl, ok := TemplateBySlug(slug); ok {
 		return template.JS(tpl.CreateBody), true
 	}
@@ -265,27 +257,11 @@ var logFilterStatuses = []int{200, 201, 204, 400, 401, 403, 404, 500}
 // the browser would then display the first entry, "all statuses", above a
 // list that is in fact filtered.
 func logFilterStatusOptions(current int) []int {
-	if current == 0 {
+	if current == 0 || slices.Contains(logFilterStatuses, current) {
 		return logFilterStatuses
 	}
-	for _, s := range logFilterStatuses {
-		if s == current {
-			return logFilterStatuses
-		}
-	}
-	out := make([]int, 0, len(logFilterStatuses)+1)
-	inserted := false
-	for _, s := range logFilterStatuses {
-		if !inserted && current < s {
-			out = append(out, current)
-			inserted = true
-		}
-		out = append(out, s)
-	}
-	if !inserted {
-		out = append(out, current)
-	}
-	return out
+	i, _ := slices.BinarySearch(logFilterStatuses, current)
+	return slices.Insert(slices.Clone(logFilterStatuses), i, current)
 }
 
 // logsPartialMethod normalizes the "method" query parameter for the HTMX
@@ -295,10 +271,8 @@ func logFilterStatusOptions(current int) []int {
 // the same as "no filter" instead of failing the request.
 func logsPartialMethod(raw string) string {
 	raw = strings.ToUpper(strings.TrimSpace(raw))
-	for _, m := range logFilterMethods {
-		if string(m) == raw {
-			return raw
-		}
+	if slices.Contains(logFilterMethods, model.Method(raw)) {
+		return raw
 	}
 	return ""
 }
@@ -381,10 +355,7 @@ func (u *UI) pollNotFound(w http.ResponseWriter, r *http.Request, err error, car
 // entries are fully static, hand-picked from the git history and living in
 // the template; the schema.org markup is computed from LastUpdated.
 func (u *UI) Changelog(w http.ResponseWriter, r *http.Request) {
-	lang := i18n.LangFromContext(r.Context())
-	if lang == "" {
-		lang = u.localz.Fallback()
-	}
+	lang := u.localz.Lang(r.Context())
 	u.renderer.Render(w, r, "changelog", http.StatusOK, map[string]any{
 		"JSONLD": ChangelogJSONLD(u.localz, lang, u.baseURL),
 	})
@@ -392,10 +363,7 @@ func (u *UI) Changelog(w http.ResponseWriter, r *http.Request) {
 
 // Guide renders GET /guide — the use-case index.
 func (u *UI) Guide(w http.ResponseWriter, r *http.Request) {
-	lang := i18n.LangFromContext(r.Context())
-	if lang == "" {
-		lang = u.localz.Fallback()
-	}
+	lang := u.localz.Lang(r.Context())
 	u.renderer.Render(w, r, "guide", http.StatusOK, map[string]any{
 		"Cases":           UseCases,
 		"MetaTitle":       u.localz.T(lang, "guide.meta_title"),
@@ -412,32 +380,18 @@ func (u *UI) GuideCase(w http.ResponseWriter, r *http.Request) {
 		u.renderer.Render(w, r, "404", http.StatusNotFound, nil)
 		return
 	}
-	lang := i18n.LangFromContext(r.Context())
-	if lang == "" {
-		lang = u.localz.Fallback()
-	}
+	lang := u.localz.Lang(r.Context())
 	title := u.localz.T(lang, c.KeyPrefix+".title")
 	u.renderer.Render(w, r, "guide_case", http.StatusOK, map[string]any{
 		"Case":             c,
-		"CreateCurl":       guideCreateCurl(u.baseURL, c),
-		"CallCurl":         guideCallCurl(u.baseURL, c),
+		"CreateCurl":       createCurl(u.baseURL, c.CreateBody),
+		"CallCurl":         callCurl(u.baseURL, c.CallVerb, c.CallHeader, c.CallData, ""),
 		"MetaTitle":        title + " — " + u.localz.T(lang, "app.name"),
 		"MetaDescription":  u.localz.T(lang, c.KeyPrefix+".summary"),
 		"JSONLD":           GuideCaseJSONLD(u.localz, lang, u.baseURL, c),
 		"Related":          RelatedUseCases(c.Slug),
 		"RelatedTemplates": TemplatesForGuide(c.Slug),
 	})
-}
-
-// guideCreateCurl renders the copy-paste create command for a case.
-func guideCreateCurl(baseURL string, c UseCase) string {
-	return createCurl(baseURL, c.CreateBody)
-}
-
-// guideCallCurl renders the command that calls the created mock. The slug is a
-// placeholder the reader replaces with the slug from the create response.
-func guideCallCurl(baseURL string, c UseCase) string {
-	return callCurl(baseURL, c.CallVerb, c.CallHeader, c.CallData, "")
 }
 
 // createCurl renders the copy-paste command that creates a mock from
@@ -486,13 +440,8 @@ func (u *UI) MyMocks(w http.ResponseWriter, r *http.Request) {
 // comma-separated query param. Missing/expired slugs are silently skipped
 // so the client can prune its localStorage.
 func (u *UI) BySlugs(w http.ResponseWriter, r *http.Request) {
-	slugs := r.URL.Query().Get("slugs")
-	if slugs == "" {
-		writeJSON(w, http.StatusOK, map[string]any{"mocks": []any{}})
-		return
-	}
 	out := make([]map[string]any, 0)
-	for _, s := range strings.Split(slugs, ",") {
+	for _, s := range strings.Split(r.URL.Query().Get("slugs"), ",") {
 		s = strings.TrimSpace(s)
 		if s == "" {
 			continue
@@ -669,22 +618,8 @@ func parseHeaderLines(s string) map[string]string {
 	return out
 }
 
+// errorKey is the errors.<key> locale key for err, shown on re-rendered forms.
 func errorKey(err error) string {
-	var v *service.ValidationError
-	switch {
-	case errors.As(err, &v):
-		return "validation_failed"
-	case errors.Is(err, service.ErrBodyTooLarge):
-		return "body_too_large"
-	case errors.Is(err, service.ErrMockLimitReached):
-		return "mock_limit_reached"
-	case errors.Is(err, service.ErrNotFound):
-		return "not_found"
-	case errors.Is(err, service.ErrSpamBlocked):
-		return "spam_blocked"
-	case errors.Is(err, service.ErrPaymentBlocked):
-		return "payment_blocked"
-	default:
-		return "internal"
-	}
+	_, code := serviceError(err)
+	return code
 }

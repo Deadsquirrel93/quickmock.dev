@@ -16,15 +16,13 @@ const cookieName = "lang"
 // ctxKey is a private type to prevent collisions with other packages.
 type ctxKey struct{}
 
-// WithLang stores lang in ctx.
-func WithLang(ctx context.Context, lang string) context.Context {
-	return context.WithValue(ctx, ctxKey{}, lang)
-}
-
-// LangFromContext returns the language stored in ctx, or "" if none.
-func LangFromContext(ctx context.Context) string {
-	v, _ := ctx.Value(ctxKey{}).(string)
-	return v
+// Lang returns the language Middleware resolved for this request, or the
+// fallback language outside it.
+func (l *Localizer) Lang(ctx context.Context) string {
+	if v, _ := ctx.Value(ctxKey{}).(string); v != "" {
+		return v
+	}
+	return l.fallback
 }
 
 // Middleware returns an http.Handler middleware that picks a language for
@@ -44,7 +42,7 @@ func (l *Localizer) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lang := l.resolveLang(r)
 		w.Header().Set("X-Lang", lang)
-		next.ServeHTTP(w, r.WithContext(WithLang(r.Context(), lang)))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, lang)))
 	})
 }
 

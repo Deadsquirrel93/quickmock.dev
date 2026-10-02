@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -261,6 +262,17 @@ func TestLogFilterStatusOptions(t *testing.T) {
 			t.Fatalf("got %v, want 503 last", got)
 		}
 	})
+
+	t.Run("a status below the shortlist lands first, shortlist untouched", func(t *testing.T) {
+		before := slices.Clone(logFilterStatuses)
+		got := logFilterStatusOptions(102)
+		if got[0] != 102 || len(got) != len(before)+1 {
+			t.Fatalf("got %v, want 102 first", got)
+		}
+		if !slices.Equal(logFilterStatuses, before) {
+			t.Fatalf("shortlist mutated: %v", logFilterStatuses)
+		}
+	})
 }
 
 // TestLogsPartialRendersStatusMarkup covers what the status column actually
@@ -353,5 +365,16 @@ func TestBySlugViewOmitsAdminToken(t *testing.T) {
 	}
 	if _, ok := v["admin_token_hash"]; ok {
 		t.Fatal("by-slugs view must not include admin_token_hash")
+	}
+}
+
+func TestBySlugsEmptyInputReturnsEmptyList(t *testing.T) {
+	u := testUI(t)
+	for _, q := range []string{"", "?slugs=", "?slugs=,%20,"} {
+		w := httptest.NewRecorder()
+		u.BySlugs(w, httptest.NewRequest("GET", "/api/mocks/by-slugs"+q, nil))
+		if w.Code != http.StatusOK || strings.TrimSpace(w.Body.String()) != `{"mocks":[]}` {
+			t.Errorf("%q: %d %s, want 200 {\"mocks\":[]}", q, w.Code, w.Body.String())
+		}
 	}
 }

@@ -4,15 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-
-	"github.com/Deadsquirrel93/quickmock.dev/internal/i18n"
 )
 
 func (u *UI) Docs(w http.ResponseWriter, r *http.Request) {
-	lang := i18n.LangFromContext(r.Context())
-	if lang == "" {
-		lang = u.localz.Fallback()
-	}
+	lang := u.localz.Lang(r.Context())
 	u.renderer.Render(w, r, "docs", http.StatusOK, map[string]any{
 		"MetaTitle":       u.localz.T(lang, "docs.meta_title"),
 		"MetaDescription": u.localz.T(lang, "docs.meta_description"),

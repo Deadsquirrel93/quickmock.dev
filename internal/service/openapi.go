@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -182,14 +184,7 @@ func stringMap(value any) (map[string]any, bool) {
 	return m, ok
 }
 
-func sortedKeys(m map[string]any) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
+func sortedKeys(m map[string]any) []string { return slices.Sorted(maps.Keys(m)) }
 
 func sortedResponseStatuses(responses map[string]any) []int {
 	var statuses []int

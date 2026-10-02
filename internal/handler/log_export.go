@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/repository"
-	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
 )
 
 // logsExportLimit is the number of rows fetched per export. It matches the
@@ -115,18 +113,8 @@ func logsExportFilename(slug string) string {
 	return "quickmock-" + slug + "-logs.json"
 }
 
-// writeLogsExportError maps the AuthorizeSlug error set to a response,
-// mirroring API.writeServiceError's token branches for the errors this
-// read-only path can actually return.
+// writeLogsExportError writes the AuthorizeSlug error as a JSON response.
 func (u *UI) writeLogsExportError(w http.ResponseWriter, r *http.Request, err error) {
-	switch {
-	case errors.Is(err, service.ErrNotFound):
-		writeError(w, r, http.StatusNotFound, "not_found", u.renderer)
-	case errors.Is(err, service.ErrTokenRequired):
-		writeError(w, r, http.StatusUnauthorized, "admin_token_required", u.renderer)
-	case errors.Is(err, service.ErrTokenInvalid):
-		writeError(w, r, http.StatusForbidden, "admin_token_invalid", u.renderer)
-	default:
-		writeError(w, r, http.StatusInternalServerError, "internal", u.renderer)
-	}
+	status, code := serviceError(err)
+	writeError(w, r, status, code, u.renderer)
 }
