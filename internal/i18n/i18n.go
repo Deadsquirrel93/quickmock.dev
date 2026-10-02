@@ -16,15 +16,13 @@ import (
 	"io/fs"
 	"path"
 	"strings"
-	"sync"
 )
 
 // Localizer holds loaded message catalogs and resolves translations.
 //
-// A Localizer is safe for concurrent use after construction — its maps are
-// only mutated by Load*.
+// LoadFS runs once at startup; after that a Localizer is read-only and safe
+// for concurrent use.
 type Localizer struct {
-	mu        sync.RWMutex
 	messages  map[string]map[string]string // lang → key → message
 	supported []string                     // ordered list, for UI dropdown
 	fallback  string                       // language used when key missing
@@ -80,29 +78,18 @@ func (l *Localizer) LoadFS(fsys fs.FS, dir string) error {
 		return fmt.Errorf("i18n: fallback language %q missing from loaded locales", l.fallback)
 	}
 
-	l.mu.Lock()
 	l.messages = loaded
 	l.supported = order
-	l.mu.Unlock()
 
 	return nil
 }
 
-// Supported returns the list of language codes loaded into the Localizer.
-// Order is the order in which files were read; callers that need a stable
-// UI order should sort the result.
-func (l *Localizer) Supported() []string {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-	out := make([]string, len(l.supported))
-	copy(out, l.supported)
-	return out
-}
+// Supported returns the list of language codes loaded into the Localizer,
+// in the order the files were read. Callers must not modify it.
+func (l *Localizer) Supported() []string { return l.supported }
 
 // IsSupported reports whether lang has a loaded catalog.
 func (l *Localizer) IsSupported(lang string) bool {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
 	_, ok := l.messages[lang]
 	return ok
 }
@@ -119,12 +106,10 @@ func (l *Localizer) Fallback() string { return l.fallback }
 //
 // If args are provided, the message is treated as a fmt.Sprintf format string.
 func (l *Localizer) T(lang, key string, args ...any) string {
-	l.mu.RLock()
-	msg, ok := lookup(l.messages, lang, key)
+	msg, ok := l.messages[lang][key]
 	if !ok {
-		msg, ok = lookup(l.messages, l.fallback, key)
+		msg, ok = l.messages[l.fallback][key]
 	}
-	l.mu.RUnlock()
 
 	if !ok {
 		return key
@@ -137,13 +122,4 @@ func (l *Localizer) T(lang, key string, args ...any) string {
 		return msg
 	}
 	return fmt.Sprintf(msg, args...)
-}
-
-func lookup(m map[string]map[string]string, lang, key string) (string, bool) {
-	if cat, ok := m[lang]; ok {
-		if v, ok := cat[key]; ok {
-			return v, true
-		}
-	}
-	return "", false
 }

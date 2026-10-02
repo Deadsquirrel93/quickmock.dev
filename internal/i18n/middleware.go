@@ -1,8 +1,11 @@
 package i18n
 
 import (
+	"cmp"
 	"context"
 	"net/http"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -86,116 +89,40 @@ func SetLangCookie(w http.ResponseWriter, lang string, secure bool) {
 }
 
 // parseAcceptLanguage returns the language tags from an Accept-Language
-// header in descending q-value order. Quality parsing is intentionally
-// minimal: tags with q=0 are dropped, the rest are stable-sorted by q
-// descending. Region subtags are stripped ("en-US" → "en") because our
-// catalogs are keyed by base language.
+// header in descending q-value order. Tags with q<=0 are dropped, the rest
+// are stable-sorted by q; an unparsable q keeps the default 1. Region
+// subtags are stripped ("en-US" → "en") because our catalogs are keyed by
+// base language.
 func parseAcceptLanguage(h string) []string {
 	type pair struct {
 		tag string
 		q   float64
 	}
 	var pairs []pair
-
 	for _, part := range strings.Split(h, ",") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		tag := part
+		tag, params, _ := strings.Cut(part, ";")
 		q := 1.0
-		if i := strings.Index(part, ";"); i >= 0 {
-			tag = strings.TrimSpace(part[:i])
-			for _, p := range strings.Split(part[i+1:], ";") {
-				p = strings.TrimSpace(p)
-				if strings.HasPrefix(p, "q=") {
-					if v, err := parseQ(p[2:]); err == nil {
-						q = v
-					}
+		for _, p := range strings.Split(params, ";") {
+			if v, ok := strings.CutPrefix(strings.TrimSpace(p), "q="); ok {
+				if f, err := strconv.ParseFloat(v, 64); err == nil {
+					q = f
 				}
 			}
 		}
-		if q <= 0 {
-			continue
-		}
-		// Strip region subtag: "en-US" → "en".
-		if i := strings.Index(tag, "-"); i >= 0 {
-			tag = tag[:i]
-		}
+		tag, _, _ = strings.Cut(strings.TrimSpace(tag), "-")
 		tag = strings.ToLower(tag)
-		if tag == "" || tag == "*" {
+		if q <= 0 || tag == "" || tag == "*" {
 			continue
 		}
 		pairs = append(pairs, pair{tag, q})
 	}
-
-	// Stable insertion-sort by q desc. The list is tiny (≤ ~5) in practice.
-	for i := 1; i < len(pairs); i++ {
-		for j := i; j > 0 && pairs[j-1].q < pairs[j].q; j-- {
-			pairs[j-1], pairs[j] = pairs[j], pairs[j-1]
-		}
-	}
+	slices.SortStableFunc(pairs, func(a, b pair) int { return cmp.Compare(b.q, a.q) })
 
 	out := make([]string, 0, len(pairs))
-	seen := make(map[string]struct{}, len(pairs))
 	for _, p := range pairs {
-		if _, dup := seen[p.tag]; dup {
-			continue
+		if !slices.Contains(out, p.tag) {
+			out = append(out, p.tag)
 		}
-		seen[p.tag] = struct{}{}
-		out = append(out, p.tag)
 	}
 	return out
 }
-
-func parseQ(s string) (float64, error) {
-	// Accept "0", "1", "0.x", "0.xx", "0.xxx". Anything weirder → default to 1.
-	var (
-		whole int
-		frac  int
-		div   = 1
-	)
-	if i := strings.Index(s, "."); i >= 0 {
-		if i > 0 {
-			if _, err := fmtAtoi(s[:i], &whole); err != nil {
-				return 0, err
-			}
-		}
-		f := s[i+1:]
-		if len(f) > 3 {
-			f = f[:3]
-		}
-		for range f {
-			div *= 10
-		}
-		if f != "" {
-			if _, err := fmtAtoi(f, &frac); err != nil {
-				return 0, err
-			}
-		}
-	} else {
-		if _, err := fmtAtoi(s, &whole); err != nil {
-			return 0, err
-		}
-	}
-	return float64(whole) + float64(frac)/float64(div), nil
-}
-
-// fmtAtoi is a tiny ASCII-decimal parser. It avoids importing strconv just
-// for one call, and keeps this file self-contained.
-func fmtAtoi(s string, out *int) (int, error) {
-	n := 0
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c < '0' || c > '9' {
-			return 0, &parseErr{s}
-		}
-		n = n*10 + int(c-'0')
-	}
-	*out = n
-	return n, nil
-}
-
-type parseErr struct{ s string }
-
-func (e *parseErr) Error() string { return "i18n: bad number: " + e.s }
