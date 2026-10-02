@@ -5,23 +5,22 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"path"
 	"sort"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// RunMigrations applies every .sql file in `dir` of `fsys` in lexical order.
+// RunMigrations applies every .sql file at the root of fsys in lexical order.
 // Each file's name (without extension) is recorded in schema_migrations and
 // skipped on subsequent runs.
 //
 // Files are expected to be self-contained transactions — they may, but need
 // not, wrap themselves in BEGIN/COMMIT. RunMigrations does not implicitly
 // wrap them, so a multi-statement file that fails mid-way will leave the DB
-// in a partial state. For MVP this is fine; we only ship 001_init.sql.
-func RunMigrations(ctx context.Context, pool *pgxpool.Pool, fsys fs.FS, dir string) error {
-	entries, err := fs.ReadDir(fsys, dir)
+// in a partial state.
+func RunMigrations(ctx context.Context, pool *pgxpool.Pool, fsys fs.FS) error {
+	entries, err := fs.ReadDir(fsys, ".")
 	if err != nil {
 		return fmt.Errorf("read migrations dir: %w", err)
 	}
@@ -62,11 +61,7 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, fsys fs.FS, dir stri
 			continue
 		}
 
-		fp := name
-		if dir != "" && dir != "." {
-			fp = path.Join(dir, name)
-		}
-		sqlBytes, err := fs.ReadFile(fsys, fp)
+		sqlBytes, err := fs.ReadFile(fsys, name)
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", name, err)
 		}

@@ -81,7 +81,7 @@ func runMigrate(logger *slog.Logger, cfg config.Config) int {
 		logger.Error("migrations fs", slog.Any("err", err))
 		return 1
 	}
-	if err := repository.RunMigrations(ctx, pool, sub, "."); err != nil {
+	if err := repository.RunMigrations(ctx, pool, sub); err != nil {
 		logger.Error("migrate", slog.Any("err", err))
 		return 1
 	}

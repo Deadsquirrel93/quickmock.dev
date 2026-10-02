@@ -39,7 +39,7 @@ func testPool(t *testing.T) *pgxpool.Pool {
 	if err != nil {
 		t.Fatalf("migrations fs: %v", err)
 	}
-	if err := RunMigrations(ctx, pool, sub, "."); err != nil {
+	if err := RunMigrations(ctx, pool, sub); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
 	return pool

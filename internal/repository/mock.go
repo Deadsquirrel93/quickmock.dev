@@ -30,10 +30,6 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 	if err != nil {
 		return fmt.Errorf("marshal headers: %w", err)
 	}
-	errResp, seq, err := marshalFlaky(m)
-	if err != nil {
-		return err
-	}
 	var suffix *string
 	if m.PathSuffix != "" {
 		suffix = &m.PathSuffix
@@ -41,10 +37,6 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 	var tokenHash *string
 	if m.AdminTokenHash != "" {
 		tokenHash = &m.AdminTokenHash
-	}
-	variants, rules, routes, err := marshalAdvanced(m)
-	if err != nil {
-		return err
 	}
 	return r.pool.QueryRow(ctx, `
 		INSERT INTO mocks (
@@ -61,8 +53,8 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 		m.Slug, m.Name, string(m.Method), m.ResponseBody, m.ResponseStatus,
 		headers, m.ResponseDelayMS, m.ContentType,
 		suffix, m.ExpiresAt, m.CreatorIP,
-		m.ResponseDelayMaxMS, m.ErrorRatePct, errResp, seq,
-		m.CORSEnabled, tokenHash, variants, rules, routes,
+		m.ResponseDelayMaxMS, m.ErrorRatePct, m.ErrorResponse, m.SequenceSteps,
+		m.CORSEnabled, tokenHash, m.Variants, m.Rules, m.Routes,
 		m.LogsPublic, m.CaptureBody, m.CaptureIP,
 	).Scan(&m.ID, &m.CreatedAt)
 }
@@ -93,17 +85,9 @@ func (r *MockRepo) Update(ctx context.Context, m *model.Mock) error {
 	if err != nil {
 		return fmt.Errorf("marshal headers: %w", err)
 	}
-	errResp, seq, err := marshalFlaky(m)
-	if err != nil {
-		return err
-	}
 	var suffix *string
 	if m.PathSuffix != "" {
 		suffix = &m.PathSuffix
-	}
-	variants, rules, routes, err := marshalAdvanced(m)
-	if err != nil {
-		return err
 	}
 	tag, err := r.pool.Exec(ctx, `
 		UPDATE mocks SET
@@ -132,8 +116,8 @@ func (r *MockRepo) Update(ctx context.Context, m *model.Mock) error {
 	`,
 		m.Slug, m.Name, string(m.Method), m.ResponseBody, m.ResponseStatus,
 		headers, m.ResponseDelayMS, m.ContentType, suffix, m.ExpiresAt,
-		m.ResponseDelayMaxMS, m.ErrorRatePct, errResp, seq,
-		m.CORSEnabled, variants, rules, routes,
+		m.ResponseDelayMaxMS, m.ErrorRatePct, m.ErrorResponse, m.SequenceSteps,
+		m.CORSEnabled, m.Variants, m.Rules, m.Routes,
 		m.LogsPublic, m.CaptureBody, m.CaptureIP,
 	)
 	if err != nil {
@@ -206,28 +190,29 @@ func (r *MockRepo) SlugExists(ctx context.Context, slug string) (bool, error) {
 	return exists, err
 }
 
+// scanMock reads one mocks row. pgx decodes the JSONB columns straight into
+// their Go types; SQL NULL leaves the optional config nil.
 func scanMock(row pgx.Row) (*model.Mock, error) {
 	var (
 		m         model.Mock
 		name      *string
-		method    string
-		headers   []byte
 		suffix    *string
-		errResp   []byte
-		seq       []byte
-		variants  []byte
-		rules     []byte
-		routes    []byte
 		tokenHash *string
 	)
 	err := row.Scan(
-		&m.ID, &m.Slug, &name, &method, &m.ResponseBody, &m.ResponseStatus,
-		&headers, &m.ResponseDelayMS, &m.ContentType, &suffix,
+		&m.ID, &m.Slug, &name, &m.Method, &m.ResponseBody, &m.ResponseStatus,
+		&m.ResponseHeaders, &m.ResponseDelayMS, &m.ContentType, &suffix,
 		&m.ExpiresAt, &m.CreatedAt, &m.RequestCount, &m.LastRequestAt, &m.CreatorIP,
-		&m.ResponseDelayMaxMS, &m.ErrorRatePct, &errResp, &seq,
-		&m.CORSEnabled, &tokenHash, &variants, &rules, &routes,
+		&m.ResponseDelayMaxMS, &m.ErrorRatePct, &m.ErrorResponse, &m.SequenceSteps,
+		&m.CORSEnabled, &tokenHash, &m.Variants, &m.Rules, &m.Routes,
 		&m.LogsPublic, &m.CaptureBody, &m.CaptureIP,
 	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
 	if name != nil {
 		m.Name = *name
 	}
@@ -237,68 +222,8 @@ func scanMock(row pgx.Row) (*model.Mock, error) {
 	if tokenHash != nil {
 		m.AdminTokenHash = *tokenHash
 	}
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	m.Method = model.Method(method)
-	if len(headers) > 0 {
-		_ = json.Unmarshal(headers, &m.ResponseHeaders)
-	}
 	if m.ResponseHeaders == nil {
 		m.ResponseHeaders = map[string]string{}
 	}
-	if len(errResp) > 0 {
-		_ = json.Unmarshal(errResp, &m.ErrorResponse)
-	}
-	if len(seq) > 0 {
-		_ = json.Unmarshal(seq, &m.SequenceSteps)
-	}
-	if len(variants) > 0 {
-		_ = json.Unmarshal(variants, &m.Variants)
-	}
-	if len(rules) > 0 {
-		_ = json.Unmarshal(rules, &m.Rules)
-	}
-	if len(routes) > 0 {
-		_ = json.Unmarshal(routes, &m.Routes)
-	}
 	return &m, nil
-}
-
-// marshalFlaky serialises the optional flaky-config blobs. nil slices map
-// to SQL NULL so plain mocks keep NULL columns.
-func marshalFlaky(m *model.Mock) (errResp, seq []byte, err error) {
-	if m.ErrorResponse != nil {
-		if errResp, err = json.Marshal(m.ErrorResponse); err != nil {
-			return nil, nil, fmt.Errorf("marshal error response: %w", err)
-		}
-	}
-	if len(m.SequenceSteps) > 0 {
-		if seq, err = json.Marshal(m.SequenceSteps); err != nil {
-			return nil, nil, fmt.Errorf("marshal response sequence: %w", err)
-		}
-	}
-	return errResp, seq, nil
-}
-
-func marshalAdvanced(m *model.Mock) (variants, rules, routes []byte, err error) {
-	if len(m.Variants) > 0 {
-		if variants, err = json.Marshal(m.Variants); err != nil {
-			return nil, nil, nil, fmt.Errorf("marshal variants: %w", err)
-		}
-	}
-	if len(m.Rules) > 0 {
-		if rules, err = json.Marshal(m.Rules); err != nil {
-			return nil, nil, nil, fmt.Errorf("marshal rules: %w", err)
-		}
-	}
-	if len(m.Routes) > 0 {
-		if routes, err = json.Marshal(m.Routes); err != nil {
-			return nil, nil, nil, fmt.Errorf("marshal routes: %w", err)
-		}
-	}
-	return variants, rules, routes, nil
 }
