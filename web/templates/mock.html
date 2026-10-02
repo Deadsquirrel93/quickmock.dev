@@ -142,10 +142,22 @@
         {{ t "mock.logs.clear" }}
       </button>
     </div>
+    {{/* hx-include: the box itself — htmx then sends every input inside it,
+         so each refetch, SSE-driven ones included, carries the selected
+         filters once the first partial has brought the selects in (a
+         ".log-filter" selector would error while they are absent).
+         hx-sync: "load" and the session's qm:log fire together on page load;
+         queueing keeps them in order, so the newest view lands last without
+         aborting (and logging) the older request.
+         data-authorized: the server already authorized this inspector, so
+         the live stream may start before the session exchange. */}}
     <div id="qm-logs"
-         data-stream="/mock/{{ .Mock.Slug }}/logs/stream"
+         data-stream="/mock/{{ .Mock.Slug }}/logs/stream"{{ if not .InspectorLocked }}
+         data-authorized{{ end }}
          hx-get="/mock/{{ .Mock.Slug }}/logs"
          hx-trigger="load, qm:log"
+         hx-include="#qm-logs"
+         hx-sync="this:queue last"
          hx-swap="innerHTML">
       {{ template "logs_inner" . }}
     </div>
@@ -216,6 +228,7 @@
           if (!r.ok) return false;
           const box = document.getElementById('qm-logs');
           if (box) htmx.trigger(box, 'qm:log');
+          qmStartInspector();
           this.promptOpen = false;
           this.promptInvalid = false;
           return true;
@@ -292,7 +305,8 @@
         if (!confirm('{{ t "mock.logs.clear_confirm" }}')) return;
         const r = await fetch('/api/mocks/' + slug + '/logs', { method: 'DELETE', headers: this.authHeaders(slug) });
         if (r.ok) {
-          document.querySelector('.logs-card [hx-get]').dispatchEvent(new Event('htmx:trigger'));
+          const box = document.getElementById('qm-logs');
+          if (box) htmx.trigger(box, 'qm:log');
           return;
         }
         if (r.status === 401 || r.status === 403) {
@@ -329,31 +343,42 @@
   // The stream sends empty "log" events; each one triggers an HTMX refetch
   // of the logs partial. No EventSource (old browser), or a stream that
   // ends up closed (e.g. 429 over the connection cap) => polling.
-  (function () {
-    var box = document.getElementById('qm-logs');
-    if (!box) return;
-    function usePolling() {
-      if ((box.getAttribute('hx-trigger') || '').indexOf('every') !== -1) return;
-      box.setAttribute('hx-trigger', 'load, every 2s');
-      htmx.process(box);
-    }
-    if (!window.EventSource) { usePolling(); return; }
-    var es = new EventSource(box.dataset.stream);
-    var failures = 0;
-    es.onopen = function () { failures = 0; };
-    es.addEventListener('log', function () {
-      failures = 0;
-      htmx.trigger(box, 'qm:log');
-    });
-    es.onerror = function () {
-      failures++;
-      // CLOSED = the browser gave up (non-200 response). Repeated errors
-      // without a successful open mean the endpoint is unreachable.
-      if (es.readyState === EventSource.CLOSED || failures >= 3) {
-        es.close();
-        usePolling();
+  //
+  // A private inspector's stream 401s until POST /session has set the
+  // cookie, and a 401 closes it for good — so the stream starts right away
+  // only when the server already authorized this view (data-authorized:
+  // public logs or a live session cookie); otherwise openInspectorSession
+  // starts it once the session exists. Idempotent.
+  var qmStartInspector = (function () {
+    var started = false;
+    return function () {
+      var box = document.getElementById('qm-logs');
+      if (started || !box) return;
+      started = true;
+      function usePolling() {
+        if ((box.getAttribute('hx-trigger') || '').indexOf('every') !== -1) return;
+        box.setAttribute('hx-trigger', 'load, every 2s');
+        htmx.process(box);
       }
+      if (!window.EventSource) { usePolling(); return; }
+      var es = new EventSource(box.dataset.stream);
+      var failures = 0;
+      es.onopen = function () { failures = 0; };
+      es.addEventListener('log', function () {
+        failures = 0;
+        htmx.trigger(box, 'qm:log');
+      });
+      es.onerror = function () {
+        failures++;
+        // CLOSED = the browser gave up (non-200 response). Repeated errors
+        // without a successful open mean the endpoint is unreachable.
+        if (es.readyState === EventSource.CLOSED || failures >= 3) {
+          es.close();
+          usePolling();
+        }
+      };
     };
   })();
+  if (document.querySelector('#qm-logs[data-authorized]')) qmStartInspector();
 </script>
 {{ end }}
