@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -637,5 +638,57 @@ func TestValidateLocationRejectedAtEveryHeaderSite(t *testing.T) {
 				t.Fatalf("absolute Location accepted at %s", site.name)
 			}
 		})
+	}
+}
+
+// TestValidateHeaderValueControlChars is the regression test for header
+// smuggling: a CR/LF in a header value ("ok\r\nLocation: http://...") was
+// stored as-is. net/http folds it to spaces on the wire, but the value must be
+// rejected at create time, at every header site, like an absolute Location.
+func TestValidateHeaderValueControlChars(t *testing.T) {
+	s := testService()
+
+	sites := map[string]func(in *model.MockInput, h map[string]string){
+		"response headers": func(in *model.MockInput, h map[string]string) { in.ResponseHeaders = h },
+		"named variant": func(in *model.MockInput, h map[string]string) {
+			in.Variants = []model.NamedVariant{{Name: "v1", Status: 200, Headers: h}}
+		},
+		"route": func(in *model.MockInput, h map[string]string) {
+			in.Routes = []model.MockRoute{{Method: model.MethodGET, Path: "/x", ResponseHeaders: h}}
+		},
+		"nested route variant": func(in *model.MockInput, h map[string]string) {
+			in.Routes = []model.MockRoute{{Method: model.MethodGET, Path: "/x",
+				Variants: []model.NamedVariant{{Name: "v1", Status: 200, Headers: h}}}}
+		},
+		"sequence step": func(in *model.MockInput, h map[string]string) {
+			in.SequenceSteps = []model.ResponseStep{{Status: 200, Headers: h}}
+		},
+		"error response": func(in *model.MockInput, h map[string]string) {
+			in.ErrorRatePct = 10
+			in.ErrorResponse = &model.ResponseStep{Status: 503, Headers: h}
+		},
+	}
+	bad := []string{"ok\r\nLocation: http://127.0.0.1/", "a\nb", "a\rb", "a\x00b", "a\x1bb", "a\x7fb"}
+	good := []string{"plain", "a\tb", "Привет, 世界", "text/x-component"}
+
+	for name, set := range sites {
+		for _, v := range bad {
+			t.Run(name+"/reject "+strconv.Quote(v), func(t *testing.T) {
+				in := baseInput()
+				set(&in, map[string]string{"X-Test": v})
+				if err := s.validate(&in); err == nil {
+					t.Fatalf("control character accepted: %q", v)
+				}
+			})
+		}
+		for _, v := range good {
+			t.Run(name+"/accept "+strconv.Quote(v), func(t *testing.T) {
+				in := baseInput()
+				set(&in, map[string]string{"X-Test": v})
+				if err := s.validate(&in); err != nil {
+					t.Fatalf("valid value %q rejected: %v", v, err)
+				}
+			})
+		}
 	}
 }

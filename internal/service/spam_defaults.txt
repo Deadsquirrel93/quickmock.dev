@@ -60,3 +60,12 @@
 (?i)\bdocument\.domain\s*=
 (?i)\bwindow\.open\b[^\n]{0,300}\bsetInterval\b
 (?i)\bsetInterval\b[^\n]{0,300}\bwindow\.open\b
+
+# Fake LLM endpoints that answer with a shell-execution tool call (OpenAI
+# tool_calls / function_call, Anthropic tool_use; plain or escaped JSON):
+# pointing an agent's base URL at such a mock runs the creator's command.
+# Ordinary tool calls (get_weather, search_docs) are untouched.
+(?is)"(?:tool_calls|tool_use|function_call)\\?".{0,400}?\\?"name\\?"\s*:\s*\\?"(?:exec|execute|execute_command|shell|shell_exec|local_shell|run_shell|run_shell_command|run_command|bash|sh|zsh|cmd|powershell|terminal)\\?"
+
+# Sandbox network recon (ARP table, local addresses, open sockets, routes).
+/proc/net/(?:arp|fib_trie|tcp6?|udp6?|route)\b

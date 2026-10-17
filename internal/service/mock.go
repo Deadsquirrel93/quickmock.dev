@@ -618,6 +618,10 @@ func validateHeaderMap(headers map[string]string, field string) error {
 		if !headerNameRegexp.MatchString(name) {
 			return &ValidationError{Field: field, Message: "invalid header name: " + name}
 		}
+		// RFC 9110 field-value: no CTLs except HTAB — CR/LF would smuggle headers.
+		if strings.ContainsFunc(value, func(r rune) bool { return (r < ' ' && r != '\t') || r == 0x7f }) {
+			return &ValidationError{Field: field, Message: "header value contains control characters: " + name}
+		}
 		if strings.EqualFold(strings.TrimSpace(name), "location") && !SafeRedirectLocation(value) {
 			return &ValidationError{Field: field, Message: "Location must be a relative path (e.g. /m/abc123)"}
 		}
