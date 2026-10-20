@@ -551,7 +551,8 @@ Admin Token: qm_...</code></pre>
         this.applyConfig(p);
       },
       // Populate the form from a mock-config object in the POST /api/mocks
-      // JSON shape. Used by guide prefills and by JSON import.
+      // JSON shape. Used by guide prefills, JSON import, and to restore the
+      // user's input after the server rejects a submission.
       // Blank / 0 / false values in p are treated as "leave the field
       // untouched" (setVal skips empty), so an empty string never clears a field.
       applyConfig(p) {
@@ -575,6 +576,7 @@ Admin Token: qm_...</code></pre>
         setVal('select[name=content_type]', p.content_type);
         setVal('input[name=response_delay_ms]', p.response_delay_ms);
         setVal('input[name=response_delay_max_ms]', p.response_delay_max_ms);
+        setVal('select[name=ttl]', p.ttl);
         if (typeof p.response_body === 'string') this.body = p.response_body;
         if (p.response_headers) {
           this.headers = Object.entries(p.response_headers).map(([name, value]) => ({ name, value }));
@@ -599,6 +601,9 @@ Admin Token: qm_...</code></pre>
 		if (Array.isArray(p.response_variants)) this.variantsJSON = JSON.stringify(p.response_variants, null, 2);
 		if (Array.isArray(p.response_rules)) this.rulesJSON = JSON.stringify(p.response_rules, null, 2);
 		if (Array.isArray(p.routes)) this.routesJSON = JSON.stringify(p.routes, null, 2);
+		if (typeof p.response_variants_json === 'string') this.variantsJSON = p.response_variants_json;
+		if (typeof p.response_rules_json === 'string') this.rulesJSON = p.response_rules_json;
+		if (typeof p.routes_json === 'string') this.routesJSON = p.routes_json;
 		const setChecked = (name, value) => {
 		  const el = document.querySelector('input[name=' + name + ']');
 		  if (el && typeof value === 'boolean') el.checked = value;

@@ -136,16 +136,16 @@ func (u *UI) CreateForm(w http.ResponseWriter, r *http.Request) {
 	}
 	if !u.writeAllowed(r) {
 		u.renderer.Render(w, r, "index", http.StatusOK, u.homeData(r, map[string]any{
-			"Error": "rate_limit",
-			"Input": readFormInput(r),
+			"Error":   "rate_limit",
+			"Prefill": formPrefill(r, readFormInput(r)),
 		}))
 		return
 	}
 	in, parseErr := readFormInputChecked(r)
 	if parseErr != nil {
 		u.renderer.Render(w, r, "index", http.StatusOK, u.homeData(r, map[string]any{
-			"Error": "validation_failed",
-			"Input": readFormInput(r),
+			"Error":   "validation_failed",
+			"Prefill": formPrefill(r, in),
 		}))
 		return
 	}
@@ -153,12 +153,47 @@ func (u *UI) CreateForm(w http.ResponseWriter, r *http.Request) {
 	m, err := u.svc.Create(r.Context(), in, ip)
 	if err != nil {
 		u.renderer.Render(w, r, "index", http.StatusOK, u.homeData(r, map[string]any{
-			"Error": errorKey(err),
-			"Input": in,
+			"Error":   errorKey(err),
+			"Prefill": formPrefill(r, in),
 		}))
 		return
 	}
 	http.Redirect(w, r, mockRedirectLocation(m), http.StatusSeeOther)
+}
+
+// submittedForm is a rejected create-form submission in the POST /api/mocks
+// shape the form's applyConfig reads, so the error re-render hands the user
+// their input back. It adds what an export never carries (slug, the raw ttl
+// option) and keeps an empty body: that is a choice, not "show the example".
+type submittedForm struct {
+	mockExport
+	Slug         string `json:"slug,omitempty"`
+	ResponseBody string `json:"response_body"`
+	TTL          string `json:"ttl,omitempty"`
+	// The JSON textareas come back as typed: a parse error is exactly what
+	// the user has to fix, and re-encoding would drop their formatting.
+	VariantsJSON string `json:"response_variants_json,omitempty"`
+	RulesJSON    string `json:"response_rules_json,omitempty"`
+	RoutesJSON   string `json:"routes_json,omitempty"`
+}
+
+func formPrefill(r *http.Request, in model.MockInput) submittedForm {
+	return submittedForm{
+		mockExport: toExport(&model.Mock{
+			Name: in.Name, Method: in.Method, ResponseStatus: in.ResponseStatus,
+			ResponseHeaders: in.ResponseHeaders, ResponseDelayMS: in.ResponseDelayMS,
+			ResponseDelayMaxMS: in.ResponseDelayMaxMS, ErrorRatePct: in.ErrorRatePct,
+			ErrorResponse: in.ErrorResponse, SequenceSteps: in.SequenceSteps,
+			ContentType: in.ContentType, PathSuffix: in.PathSuffix, CORSEnabled: in.CORSEnabled,
+			LogsPublic: in.LogsPublic, CaptureBody: in.CaptureBody, CaptureIP: in.CaptureIP,
+		}),
+		Slug:         in.Slug,
+		ResponseBody: in.ResponseBody,
+		TTL:          r.FormValue("ttl"),
+		VariantsJSON: r.FormValue("response_variants_json"),
+		RulesJSON:    r.FormValue("response_rules_json"),
+		RoutesJSON:   r.FormValue("routes_json"),
+	}
 }
 
 // mockRedirectLocation builds the Post/Redirect/Get target for a freshly
@@ -560,6 +595,9 @@ func readFormInputChecked(r *http.Request) (model.MockInput, error) {
 	var variants []model.NamedVariant
 	var rules []model.ResponseRule
 	var routes []model.MockRoute
+	// A bad JSON field still returns the rest of the input, so the error
+	// re-render can give the user everything back.
+	var parseErr error
 	for _, item := range []struct {
 		raw string
 		to  any
@@ -569,8 +607,8 @@ func readFormInputChecked(r *http.Request) (model.MockInput, error) {
 		{r.FormValue("routes_json"), &routes},
 	} {
 		if strings.TrimSpace(item.raw) != "" {
-			if err := json.Unmarshal([]byte(item.raw), item.to); err != nil {
-				return model.MockInput{}, err
+			if err := json.Unmarshal([]byte(item.raw), item.to); err != nil && parseErr == nil {
+				parseErr = err
 			}
 		}
 	}
@@ -597,7 +635,7 @@ func readFormInputChecked(r *http.Request) (model.MockInput, error) {
 		CaptureBody:        r.FormValue("capture_body") == "on",
 		CaptureIP:          r.FormValue("capture_ip") == "on",
 		TTL:                ttl,
-	}, nil
+	}, parseErr
 }
 
 // parseHeaderLines turns a "Name: value" per-line textarea into a header
