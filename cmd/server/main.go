@@ -143,6 +143,9 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	uiWriteLimiter := repository.NewRateLimiter(rdb, cfg.RateUIWrite, cfg.RateUIWindow)
 	uiReadLimiter := repository.NewRateLimiter(rdb, cfg.RateUIRead, cfg.RateUIReadWindow)
 	seqCounter := repository.NewSeqCounter(rdb)
+	// 25 distinct callers a day: test mocks peak around 6, the license-server
+	// mock removed on 2026-10-20 had 30+.
+	callerTracker := repository.NewCallerTracker(rdb, 25)
 
 	// Services
 	statsCache := service.NewStatsCache(statsRepo, 30*time.Second, logger)
@@ -189,7 +192,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 
 	api := handler.NewAPI(mockSvc, logRepo, mockRepo, renderer, cfg.BaseURL)
 	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks, sseBroker, sseStreams, uiWriteLimiter)
-	mockRouter := handler.NewMockRouter(mockSvc, logWriter, seqCounter, logger, cfg.BaseURL)
+	mockRouter := handler.NewMockRouter(mockSvc, logWriter, seqCounter, callerTracker, logger, cfg.BaseURL)
 	healthHandler := handler.Health(pool, mockLimiter)
 	langHandler := handler.Lang(renderer, secureSite)
 

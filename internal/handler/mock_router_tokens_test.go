@@ -25,7 +25,7 @@ func servingRouter(t *testing.T, m *model.Mock, baseURL string) *MockRouter {
 	svc := service.NewMockService(store, nil, nil, 512*1024, 50, 168*time.Hour, 720*time.Hour, nil)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	logs := service.NewLogWriter(nil, nil, nil, 16, logger, nil)
-	return NewMockRouter(svc, logs, nil, logger, baseURL)
+	return NewMockRouter(svc, logs, nil, nil, logger, baseURL)
 }
 
 func servedBody(t *testing.T, m *model.Mock, baseURL, host string) string {

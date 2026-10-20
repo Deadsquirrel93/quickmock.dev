@@ -22,19 +22,20 @@ import (
 // (mock callers aren't browsers). It does include real-IP and rate-limit
 // middlewares — see cmd/server/main.go.
 type MockRouter struct {
-	svc    *service.MockService
-	logs   *service.LogWriter
-	seq    *repository.SeqCounter
-	logger *slog.Logger
-	maxLog int
+	svc     *service.MockService
+	logs    *service.LogWriter
+	seq     *repository.SeqCounter
+	callers *repository.CallerTracker
+	logger  *slog.Logger
+	maxLog  int
 	// baseURL is the site's configured public origin. It backs the
 	// {{mock.url}} token, which therefore names the same address the UI
 	// offers for copy-paste instead of whatever Host the caller sent.
 	baseURL string
 }
 
-func NewMockRouter(svc *service.MockService, logs *service.LogWriter, seq *repository.SeqCounter, logger *slog.Logger, baseURL string) *MockRouter {
-	return &MockRouter{svc: svc, logs: logs, seq: seq, logger: logger, maxLog: 16 * 1024,
+func NewMockRouter(svc *service.MockService, logs *service.LogWriter, seq *repository.SeqCounter, callers *repository.CallerTracker, logger *slog.Logger, baseURL string) *MockRouter {
+	return &MockRouter{svc: svc, logs: logs, seq: seq, callers: callers, logger: logger, maxLog: 16 * 1024,
 		baseURL: strings.TrimSuffix(baseURL, "/")}
 }
 
@@ -51,6 +52,14 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeNotFound(w)
 		return
+	}
+
+	// Abuse signal for the operator's audit; never changes the response.
+	if n, crossed := h.callers.Observe(r.Context(), m.ID, r.RemoteAddr); crossed {
+		h.logger.Warn("mock has many distinct callers",
+			slog.String("slug", m.Slug),
+			slog.String("creator_ip", m.CreatorIP),
+			slog.Int64("callers_today", n))
 	}
 
 	// Answer the browser's CORS preflight before method matching, so a
