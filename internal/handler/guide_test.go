@@ -21,8 +21,8 @@ func TestUseCaseBySlug(t *testing.T) {
 }
 
 func TestUseCasesIntegrity(t *testing.T) {
-	if len(UseCases) != 11 {
-		t.Fatalf("want 11 cases, got %d", len(UseCases))
+	if len(UseCases) != 12 {
+		t.Fatalf("want 12 cases, got %d", len(UseCases))
 	}
 	seen := map[string]bool{}
 	for _, c := range UseCases {

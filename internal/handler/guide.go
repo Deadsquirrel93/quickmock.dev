@@ -212,7 +212,7 @@ var UseCases = []UseCase{
 }`,
 		"GET", "", "",
 		"GET /m/<slug> -> 200 {\"ok\":true}  (works from any device, no token)\nPUT/DELETE /api/mocks/<slug> and DELETE .../logs need Authorization: Bearer <admin_token>\nno header -> 401 admin_token_required\nwrong token -> 403 admin_token_invalid", true,
-		[]string{"mock-webhook-receiver", "mock-rest-api", "echo-request-data"}),
+		[]string{"mock-webhook-receiver", "mock-rest-api", "echo-request-data", "stable-mock-url"}),
 
 	longForm(uc("api-cli",
 		`{
@@ -222,7 +222,7 @@ var UseCases = []UseCase{
 }`,
 		"POST", "", ``,
 		`{"status":"created"}`, false,
-		[]string{"manage-mocks-from-any-device", "mock-rest-api", "echo-request-data"}),
+		[]string{"manage-mocks-from-any-device", "mock-rest-api", "echo-request-data", "stable-mock-url"}),
 		[]GuideSection{
 			{Key: "install", Kind: SectionProse},
 			{Key: "usage", Kind: SectionProse},
@@ -230,6 +230,25 @@ var UseCases = []UseCase{
 			{Key: "mistakes", Kind: SectionMistakes},
 		},
 		[]string{"auth", "cleanup", "language"}),
+
+	longForm(uc("stable-mock-url",
+		`{
+  "slug": "my-app-payments-dev",
+  "method": "GET",
+  "response_status": 200,
+  "content_type": "application/json",
+  "response_body": "{\"status\":\"ok\"}"
+}`,
+		"GET", "", "",
+		"GET /m/my-app-payments-dev -> 200 {\"status\":\"ok\"}\nsecond create with the same slug -> 409 slug_taken\n(until the first mock is deleted or expires)", false,
+		[]string{"api-cli", "manage-mocks-from-any-device", "mock-rest-api"}),
+		[]GuideSection{
+			{Key: "why", Kind: SectionProse},
+			{Key: "create", Kind: SectionProse},
+			{Key: "lifecycle", Kind: SectionProse},
+			{Key: "mistakes", Kind: SectionMistakes},
+		},
+		[]string{"taken", "private", "rename"}),
 }
 
 // UseCaseBySlug returns the case for a /guide/<slug> request.
