@@ -133,6 +133,8 @@
   "changelog.r1017.security1": "<strong>Header values with control characters are rejected.</strong> A mock header value containing a line break or another control character (an attempt to smuggle an extra header) now fails validation with a clear error everywhere headers are set — response headers, variants, routes, sequence steps and the error response. Such values were already neutralised on the wire.",
   "changelog.r1017.security2": "<strong>Mocks that impersonate an LLM API to make an AI agent run shell commands are blocked.</strong> The anti-spam filter now rejects tool calls to shell-execution tools (OpenAI <code>tool_calls</code> / <code>function_call</code>, Anthropic <code>tool_use</code>) and sandbox network reconnaissance. Ordinary tool-call mocks such as <code>get_weather</code> keep working.",
   "changelog.r1017.title": "2026-10-17 — Abuse hardening",
+  "changelog.r1020.security1": "<strong>Mocks that serve someone's production traffic are flagged for review.</strong> Quickmock now notices when one mock is called by an unusually large number of different machines in a day — a sign it is being used as a live backend rather than for testing — and flags it for the operator. Nothing about the response changes. Only a probabilistic count is kept, never the callers' addresses, and it expires after two days.",
+  "changelog.r1020.title": "2026-10-20 — Production-use signal",
   "changelog.repo_link": "Full git history on GitHub",
   "changelog.section.added": "Added",
   "changelog.section.changed": "Changed",

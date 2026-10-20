@@ -133,6 +133,8 @@
   "changelog.r1017.security1": "<strong>包含控制字符的请求头值将被拒绝。</strong>如果 mock 的请求头值含有换行符或其他控制字符（试图夹带额外的请求头），现在会在所有设置请求头的位置——响应头、变体、路由、序列步骤和错误响应——校验失败并给出明确错误。此前这类值在实际响应中已被无害化处理。",
   "changelog.r1017.security2": "<strong>冒充 LLM API、诱使 AI 代理执行 shell 命令的 mock 将被拦截。</strong>反垃圾过滤器现在会拒绝调用 shell 执行类工具的 tool call（OpenAI <code>tool_calls</code> / <code>function_call</code>、Anthropic <code>tool_use</code>）以及沙箱内的网络侦察。像 <code>get_weather</code> 这样的普通 tool call mock 不受影响。",
   "changelog.r1017.title": "2026-10-17 — 滥用防护加固",
+  "changelog.r1020.security1": "<strong>为他人生产流量提供服务的 mock 会被标记以供审查。</strong>当某个 mock 在一天内被异常多的不同机器调用时（说明它被当作线上后端而非用于测试），Quickmock 现在会发现并向运营者标记。响应本身不受影响。只保留一个概率性计数，从不保存调用方地址，两天后自动过期。",
+  "changelog.r1020.title": "2026-10-20 — 生产使用信号",
   "changelog.repo_link": "GitHub 上的完整 git 历史记录",
   "changelog.section.added": "已添加",
   "changelog.section.changed": "已更改",

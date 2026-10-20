@@ -133,6 +133,8 @@
   "changelog.r1017.security1": "<strong>Se rechazan los valores de cabecera con caracteres de control.</strong> Un valor de cabecera de un mock con un salto de línea u otro carácter de control (un intento de colar una cabecera extra) ahora falla la validación con un error claro en todos los lugares donde se definen cabeceras: respuesta, variantes, rutas, pasos de secuencia y respuesta de error. En la respuesta ya se neutralizaban.",
   "changelog.r1017.security2": "<strong>Se bloquean los mocks que se hacen pasar por una API de LLM para que un agente de IA ejecute comandos de shell.</strong> El filtro antispam ahora rechaza llamadas a herramientas de ejecución de shell (OpenAI <code>tool_calls</code> / <code>function_call</code>, Anthropic <code>tool_use</code>) y el reconocimiento de red dentro del sandbox. Los mocks normales con llamadas a herramientas, como <code>get_weather</code>, siguen funcionando.",
   "changelog.r1017.title": "2026-10-17 — Protección contra abusos",
+  "changelog.r1020.security1": "<strong>Los mocks que atienden tráfico de producción ajeno se marcan para revisión.</strong> Quickmock ahora detecta cuando un mock recibe llamadas de un número inusualmente alto de máquinas distintas en un día — señal de que se usa como backend real y no para pruebas — y lo marca para el operador. La respuesta no cambia. Solo se guarda un recuento probabilístico, nunca las direcciones de quienes llaman, y caduca a los dos días.",
+  "changelog.r1020.title": "2026-10-20 — Señal de uso en producción",
   "changelog.repo_link": "Historial de git completo en GitHub",
   "changelog.section.added": "Añadido",
   "changelog.section.changed": "Cambiado",
