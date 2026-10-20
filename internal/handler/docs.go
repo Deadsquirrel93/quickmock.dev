@@ -31,7 +31,10 @@ func OpenAPISpec(baseURL string) http.HandlerFunc {
 			"/api/mocks": map[string]any{"post": map[string]any{
 				"summary":     "Create a mock or multi-route workspace",
 				"requestBody": jsonBodyRef("#/components/schemas/MockInput"),
-				"responses":   map[string]any{"201": jsonResponseRef("#/components/schemas/Mock")},
+				"responses": map[string]any{
+					"201": jsonResponseRef("#/components/schemas/Mock"),
+					"409": map[string]any{"description": "Custom slug is not available (code slug_taken)"},
+				},
 			}},
 			"/api/mocks/{slug}": map[string]any{
 				"get":    map[string]any{"summary": "Get a mock configuration", "parameters": slugParameter(), "responses": map[string]any{"200": jsonResponseRef("#/components/schemas/Mock")}},
@@ -78,7 +81,12 @@ func mockInputSchema() map[string]any {
 	return map[string]any{
 		"type": "object", "required": []string{"method"},
 		"properties": map[string]any{
-			"name":              map[string]any{"type": "string", "maxLength": 100},
+			"name": map[string]any{"type": "string", "maxLength": 100},
+			"slug": map[string]any{
+				// No "pattern": Mock is allOf MockInput, and generated slugs are mixed case.
+				"type": "string", "minLength": 4, "maxLength": 48,
+				"description": "Optional custom slug, create-only, ignored on update: lowercase letters, digits and dashes, starting and ending with a letter or digit (^[a-z0-9][a-z0-9-]{2,46}[a-z0-9]$; input is lower-cased). Omit to get a generated one; 409 slug_taken if unavailable.",
+			},
 			"method":            map[string]any{"type": "string", "enum": []string{"GET", "POST", "PUT", "PATCH", "DELETE", "ANY"}},
 			"response_status":   map[string]any{"type": "integer", "minimum": 100, "maximum": 599, "default": 200},
 			"response_body":     map[string]any{"type": "string", "maxLength": 524288},

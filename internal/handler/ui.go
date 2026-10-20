@@ -591,6 +591,7 @@ func readFormInputChecked(r *http.Request) (model.MockInput, error) {
 		Routes:             routes,
 		ContentType:        r.FormValue("content_type"),
 		PathSuffix:         r.FormValue("path_suffix"),
+		Slug:               r.FormValue("slug"),
 		CORSEnabled:        r.FormValue("cors_enabled") == "on",
 		LogsPublic:         r.FormValue("logs_public") == "on",
 		CaptureBody:        r.FormValue("capture_body") == "on",

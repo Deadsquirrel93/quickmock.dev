@@ -172,3 +172,16 @@ func TestLLMsTxtGuidesMatchRegistry(t *testing.T) {
 		t.Error("llms.txt leaked a raw locale key")
 	}
 }
+
+// TestLLMsTxtDocumentsCustomSlug: the custom-slug feature and its 409 contract
+// must be discoverable by an AI crawler.
+func TestLLMsTxtDocumentsCustomSlug(t *testing.T) {
+	w := httptest.NewRecorder()
+	LLMsTxt("https://example.test", testLocalizer(t))(w, httptest.NewRequest("GET", "/llms.txt", nil))
+	body := w.Body.String()
+	for _, want := range []string{"custom slug", "4-48", "409 slug_taken", "immutable"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("llms.txt missing %q", want)
+		}
+	}
+}

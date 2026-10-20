@@ -100,6 +100,18 @@ Admin Token: qm_...</code></pre>
     </div>
 
     <label class="path-suffix-field">
+      <span class="label-text">{{ t "mock.create.slug" }}</span>
+      <div class="path-suffix-input">
+        <span class="path-prefix">/m/</span>
+        <input type="text" name="slug" maxlength="48" autocomplete="off" spellcheck="false"
+               x-model="slug" @input="onSlugInput"
+               placeholder='{{ t "mock.create.slug_placeholder" }}'>
+      </div>
+      <span class="form-hint" x-show="!slugError">{{ t "mock.create.slug_hint" }}</span>
+      <span class="form-hint form-error" x-show="slugError" x-text="slugError" x-cloak></span>
+    </label>
+
+    <label class="path-suffix-field">
       <span class="label-text">{{ t "mock.create.path_suffix" }}</span>
       <div class="path-suffix-input">
         <span class="path-prefix">/m/&lt;slug&gt;/</span>
@@ -506,6 +518,8 @@ Admin Token: qm_...</code></pre>
       importError: '',
       importText: '',
       showImport: false,
+      slug: '',
+      slugError: '',
       pathSuffix: '',
       pathError: '',
       errorRate: 0,
@@ -592,11 +606,21 @@ Admin Token: qm_...</code></pre>
 		setChecked('logs_public', p.logs_public);
 		setChecked('capture_body', p.capture_body);
 		setChecked('capture_ip', p.capture_ip);
+        if (typeof p.slug === 'string' && p.slug) {
+          this.slug = p.slug;
+          this.onSlugInput();
+        }
         if (typeof p.path_suffix === 'string' && p.path_suffix) {
           this.pathSuffix = p.path_suffix;
           this.onPathInput();
         }
         this.onBodyInput();
+      },
+      onSlugInput() {
+        const v = this.slug.trim().toLowerCase();
+        // Same rule as the server (service.customSlugRegexp).
+        this.slugError = v === '' || /^[a-z0-9][a-z0-9-]{2,46}[a-z0-9]$/.test(v)
+          ? '' : '{{ t "mock.create.slug_invalid" }}';
       },
       onPathInput() {
         const v = this.pathSuffix.trim();

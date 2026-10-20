@@ -41,6 +41,7 @@ func main() {
 	baseURL := createCmd.String("url", "https://quickmock.dev", "Base URL of the Quickmock instance")
 	contentType := createCmd.String("c", "application/json", "Content-Type for the response")
 	ttl := createCmd.Int("ttl", 0, "Lifetime in seconds (0 keeps the server default)")
+	slug := createCmd.String("slug", "", "Custom slug (optional)")
 
 	// Repeatable, like curl's own -H. The name is capital H on purpose: the
 	// flag package reserves -h for its usage output, and shadowing it turns
@@ -62,16 +63,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	reqBody := map[string]any{
-		"method":           *method,
-		"response_status":  *status,
-		"response_body":    *body,
-		"content_type":     *contentType,
-		"response_headers": headerMap,
-	}
-	if *ttl > 0 {
-		reqBody["ttl_seconds"] = *ttl
-	}
+	reqBody := createPayload(*method, *status, *body, *contentType, headerMap, *ttl, *slug)
 
 	payload, err := json.Marshal(reqBody)
 	if err != nil {
@@ -120,6 +112,25 @@ func main() {
 
 	fmt.Printf("Public URL:  %s\n", result.URL)
 	fmt.Printf("Admin Token: %s\n", result.AdminToken)
+}
+
+// createPayload builds the POST /api/mocks body; ttl_seconds and slug are sent
+// only when set, so the server defaults apply otherwise.
+func createPayload(method string, status int, body, contentType string, headers map[string]string, ttl int, slug string) map[string]any {
+	p := map[string]any{
+		"method":           method,
+		"response_status":  status,
+		"response_body":    body,
+		"content_type":     contentType,
+		"response_headers": headers,
+	}
+	if ttl > 0 {
+		p["ttl_seconds"] = ttl
+	}
+	if slug != "" {
+		p["slug"] = slug
+	}
+	return p
 }
 
 // parseHeaders turns repeated -H values into the response_headers map.

@@ -132,6 +132,83 @@ func TestCreateFormSuccessPersistsAndRedirects(t *testing.T) {
 	}
 }
 
+func postCreateForm(u *UI, form url.Values) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	withClientIP(u.CreateForm, w, r)
+	return w
+}
+
+func TestCreateFormCustomSlug(t *testing.T) {
+	base := func(slug string) url.Values {
+		return url.Values{"method": {"GET"}, "response_body": {"{}"}, "response_status": {"200"}, "slug": {slug}}
+	}
+
+	t.Run("custom slug is used and redirected to", func(t *testing.T) {
+		store := &fakeCreateStore{}
+		w := postCreateForm(creatingUI(t, store, 50), base("my-form-mock"))
+		if w.Code != http.StatusSeeOther {
+			t.Fatalf("status = %d, want 303; body: %s", w.Code, w.Body.String())
+		}
+		if len(store.created) != 1 || store.created[0].Slug != "my-form-mock" {
+			t.Fatalf("persisted = %+v, want one mock with slug my-form-mock", store.created)
+		}
+		if loc := w.Header().Get("Location"); !strings.HasPrefix(loc, "/mock/my-form-mock#token=") {
+			t.Errorf("Location = %q", loc)
+		}
+	})
+
+	t.Run("input is normalized", func(t *testing.T) {
+		store := &fakeCreateStore{}
+		w := postCreateForm(creatingUI(t, store, 50), base("  My-Form-Mock "))
+		if w.Code != http.StatusSeeOther || len(store.created) != 1 || store.created[0].Slug != "my-form-mock" {
+			t.Fatalf("status = %d, persisted = %+v", w.Code, store.created)
+		}
+	})
+
+	t.Run("blank slug falls back to a generated one", func(t *testing.T) {
+		store := &fakeCreateStore{}
+		w := postCreateForm(creatingUI(t, store, 50), base("   "))
+		if w.Code != http.StatusSeeOther || len(store.created) != 1 || len(store.created[0].Slug) != 12 {
+			t.Fatalf("status = %d, persisted = %+v", w.Code, store.created)
+		}
+	})
+
+	t.Run("taken slug re-renders the form with the error", func(t *testing.T) {
+		store := &fakeCreateStore{created: []*model.Mock{{Slug: "my-form-mock"}}}
+		w := postCreateForm(creatingUI(t, store, 50), base("my-form-mock"))
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (form re-rendered)", w.Code)
+		}
+		if !strings.Contains(w.Body.String(), "This slug is already taken. Pick another one.") {
+			t.Errorf("body lacks the errors.slug_taken text")
+		}
+		if len(store.created) != 1 {
+			t.Errorf("mocks persisted = %d, want still 1", len(store.created))
+		}
+	})
+
+	t.Run("reserved slug is reported as taken", func(t *testing.T) {
+		store := &fakeCreateStore{}
+		w := postCreateForm(creatingUI(t, store, 50), base("by-slugs"))
+		if w.Code != http.StatusOK || len(store.created) != 0 ||
+			!strings.Contains(w.Body.String(), "This slug is already taken.") {
+			t.Fatalf("status = %d, persisted = %d", w.Code, len(store.created))
+		}
+	})
+
+	t.Run("malformed slug re-renders without persisting", func(t *testing.T) {
+		for _, slug := range []string{"abc", "-bad-slug", "bad_slug", "has space", strings.Repeat("a", 49)} {
+			store := &fakeCreateStore{}
+			w := postCreateForm(creatingUI(t, store, 50), base(slug))
+			if w.Code != http.StatusOK || len(store.created) != 0 {
+				t.Errorf("slug %q: status = %d, persisted = %d", slug, w.Code, len(store.created))
+			}
+		}
+	})
+}
+
 func TestCreateFormPerIPLimitRendersBanner(t *testing.T) {
 	store := &fakeCreateStore{perIPUsed: 50}
 	u := creatingUI(t, store, 50)
@@ -184,5 +261,23 @@ func TestTemplateCreateSuccessPersistsTemplateBody(t *testing.T) {
 	}
 	if !strings.HasPrefix(w.Header().Get("Location"), "/mock/"+m.Slug+"#token=") {
 		t.Errorf("Location = %q", w.Header().Get("Location"))
+	}
+}
+
+func TestHomeRendersCustomSlugField(t *testing.T) {
+	u := testUI(t)
+	w := httptest.NewRecorder()
+	u.Home(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := w.Body.String()
+	for _, want := range []string{
+		`name="slug"`, `maxlength="48"`, "Custom slug", "my-team-api",
+		"anyone can call the mock", "Slug must be 4-48",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("home page missing %q", want)
+		}
+	}
+	if strings.Contains(body, "mock.create.slug") {
+		t.Error("home page leaked a raw locale key")
 	}
 }

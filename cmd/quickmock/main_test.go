@@ -62,3 +62,42 @@ func TestParseHeaders(t *testing.T) {
 		}
 	})
 }
+
+func TestCreatePayload(t *testing.T) {
+	headers := map[string]string{"X-Custom": "1"}
+	tests := []struct {
+		name        string
+		ttl         int
+		slug        string
+		wantTTL     bool
+		wantSlug    string
+		wantSlugKey bool
+	}{
+		{name: "defaults omit ttl and slug"},
+		{name: "ttl set", ttl: 3600, wantTTL: true},
+		{name: "negative ttl omitted", ttl: -5},
+		{name: "slug set", slug: "my-team-api", wantSlug: "my-team-api", wantSlugKey: true},
+		{name: "slug and ttl", ttl: 60, slug: "abcd", wantTTL: true, wantSlug: "abcd", wantSlugKey: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := createPayload("POST", 201, `{"ok":true}`, "application/json", headers, tt.ttl, tt.slug)
+
+			if got["method"] != "POST" || got["response_status"] != 201 || got["response_body"] != `{"ok":true}` ||
+				got["content_type"] != "application/json" {
+				t.Errorf("base fields wrong: %v", got)
+			}
+			if h, _ := got["response_headers"].(map[string]string); h["X-Custom"] != "1" {
+				t.Errorf("response_headers = %v", got["response_headers"])
+			}
+			ttl, hasTTL := got["ttl_seconds"]
+			if hasTTL != tt.wantTTL || (hasTTL && ttl != tt.ttl) {
+				t.Errorf("ttl_seconds = %v (present=%v), want present=%v", ttl, hasTTL, tt.wantTTL)
+			}
+			slug, hasSlug := got["slug"]
+			if hasSlug != tt.wantSlugKey || (hasSlug && slug != tt.wantSlug) {
+				t.Errorf("slug = %v (present=%v), want %q present=%v", slug, hasSlug, tt.wantSlug, tt.wantSlugKey)
+			}
+		})
+	}
+}
