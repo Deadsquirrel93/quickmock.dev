@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -114,4 +115,93 @@ func assertNullConfig(t *testing.T, pool *pgxpool.Pool, slug string) {
 	if !allNull {
 		t.Error("optional config columns should be SQL NULL")
 	}
+}
+
+func TestMockRepoCreateCustomSlug(t *testing.T) {
+	pool := testPool(t)
+	repo := NewMockRepo(pool)
+	ctx := context.Background()
+	suffix := time.Now().Format("150405.000000")
+
+	newMock := func(slug string, exp time.Time) *model.Mock {
+		return &model.Mock{Slug: slug, Method: model.MethodGET, ContentType: "text/plain", ResponseStatus: 200, ExpiresAt: &exp}
+	}
+	cleanup := func(slug string) {
+		t.Cleanup(func() { _, _ = pool.Exec(context.Background(), `DELETE FROM mocks WHERE slug = $1`, slug) })
+	}
+	logCount := func(mockID string) int {
+		var n int
+		if err := pool.QueryRow(ctx, `SELECT count(*) FROM request_logs WHERE mock_id = $1`, mockID).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+
+	t.Run("live holder conflicts and is untouched", func(t *testing.T) {
+		slug := "live-" + suffix
+		cleanup(slug)
+		first := newMock(slug, time.Now().Add(time.Hour))
+		if err := repo.Create(ctx, first); err != nil {
+			t.Fatal(err)
+		}
+		if err := repo.Create(ctx, newMock(slug, time.Now().Add(time.Hour))); !errors.Is(err, ErrSlugConflict) {
+			t.Fatalf("err = %v, want ErrSlugConflict", err)
+		}
+		got, err := repo.BySlug(ctx, slug)
+		if err != nil || got.ID != first.ID {
+			t.Fatalf("live holder replaced: %v / %+v", err, got)
+		}
+	})
+
+	t.Run("non-expiring holder conflicts", func(t *testing.T) {
+		slug := "forever-" + suffix
+		cleanup(slug)
+		if _, err := pool.Exec(ctx, `INSERT INTO mocks (slug, method, expires_at) VALUES ($1, 'GET', NULL)`, slug); err != nil {
+			t.Fatal(err)
+		}
+		if err := repo.Create(ctx, newMock(slug, time.Now().Add(time.Hour))); !errors.Is(err, ErrSlugConflict) {
+			t.Fatalf("err = %v, want ErrSlugConflict", err)
+		}
+	})
+
+	t.Run("expired holder is replaced with its logs", func(t *testing.T) {
+		slug := "expired-" + suffix
+		cleanup(slug)
+		old := newMock(slug, time.Now().Add(-time.Minute))
+		if err := repo.Create(ctx, old); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := pool.Exec(ctx, `INSERT INTO request_logs (mock_id, request_method) VALUES ($1, 'GET')`, old.ID); err != nil {
+			t.Fatal(err)
+		}
+		fresh := newMock(slug, time.Now().Add(time.Hour))
+		if err := repo.Create(ctx, fresh); err != nil {
+			t.Fatalf("Create over expired slug: %v", err)
+		}
+		if fresh.ID == "" || fresh.ID == old.ID {
+			t.Fatalf("new mock reused old id: old=%q new=%q", old.ID, fresh.ID)
+		}
+		if n := logCount(old.ID); n != 0 {
+			t.Fatalf("old mock's logs = %d, want 0", n)
+		}
+		if n := logCount(fresh.ID); n != 0 {
+			t.Fatalf("new mock inherited %d logs", n)
+		}
+		got, err := repo.BySlug(ctx, slug)
+		if err != nil || got.ID != fresh.ID {
+			t.Fatalf("BySlug = %v / %+v, want the new mock", err, got)
+		}
+	})
+
+	t.Run("generated slug still works", func(t *testing.T) {
+		slug := "gen" + suffix
+		cleanup(slug)
+		m := newMock(slug, time.Now().Add(time.Hour))
+		if err := repo.Create(ctx, m); err != nil {
+			t.Fatal(err)
+		}
+		if m.ID == "" || m.CreatedAt.IsZero() {
+			t.Fatalf("id/created_at not populated: %+v", m)
+		}
+	})
 }

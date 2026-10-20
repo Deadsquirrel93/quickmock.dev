@@ -25,6 +25,11 @@ type fakeCreateStore struct {
 }
 
 func (f *fakeCreateStore) Create(_ context.Context, m *model.Mock) error {
+	for _, c := range f.created {
+		if c.Slug == m.Slug {
+			return repository.ErrSlugConflict
+		}
+	}
 	f.created = append(f.created, m)
 	return nil
 }
@@ -54,7 +59,7 @@ func (f *fakeCreateStore) CountActiveByCreatorIP(context.Context, string) (int, 
 func creatingUI(t *testing.T, store *fakeCreateStore, maxMocks int) *UI {
 	t.Helper()
 	u := testUI(t)
-	u.svc = service.NewMockService(store, nil, nil, 512*1024, maxMocks, 168*time.Hour, 720*time.Hour, nil)
+	u.svc = service.NewMockService(store, nil, nil, 512*1024, maxMocks, 168*time.Hour, 720*time.Hour, nil, nil)
 	u.maxBody = 512 * 1024
 	u.maxMocks = maxMocks
 	return u

@@ -26,6 +26,7 @@ var (
 	ErrTokenRequired    = errors.New("admin token required")
 	ErrTokenInvalid     = errors.New("admin token invalid")
 	ErrTTLCapReached    = errors.New("ttl cap reached")
+	ErrSlugTaken        = errors.New("slug is not available")
 )
 
 // ValidationError carries the offending field name. Handlers translate the
@@ -65,18 +66,25 @@ type MockService struct {
 	defaultTTL time.Duration
 	maxTTL     time.Duration
 	spam       *SpamFilter
+	// blockedSlugs are operator-blocked custom slugs (normalized).
+	blockedSlugs []string
 }
 
-func NewMockService(repo MockStore, logs *repository.LogRepo, stats *StatsCache, maxBody, maxMocks int, defaultTTL, maxTTL time.Duration, spam *SpamFilter) *MockService {
+func NewMockService(repo MockStore, logs *repository.LogRepo, stats *StatsCache, maxBody, maxMocks int, defaultTTL, maxTTL time.Duration, spam *SpamFilter, blockedSlugs []string) *MockService {
+	blocked := make([]string, len(blockedSlugs))
+	for i, b := range blockedSlugs {
+		blocked[i] = normalizeSlug(b)
+	}
 	return &MockService{
-		repo:       repo,
-		logs:       logs,
-		stats:      stats,
-		maxBody:    maxBody,
-		maxMocks:   maxMocks,
-		defaultTTL: defaultTTL,
-		maxTTL:     maxTTL,
-		spam:       spam,
+		repo:         repo,
+		logs:         logs,
+		stats:        stats,
+		maxBody:      maxBody,
+		maxMocks:     maxMocks,
+		defaultTTL:   defaultTTL,
+		maxTTL:       maxTTL,
+		spam:         spam,
+		blockedSlugs: blocked,
 	}
 }
 
@@ -137,6 +145,16 @@ var headerNameRegexp = regexp.MustCompile(`^[!#$%&'*+\-.^_` + "`" + `|~0-9A-Za-z
 // — those are normalized away by normalizePathSuffix.
 var pathSuffixRegexp = regexp.MustCompile(`^[A-Za-z0-9._~-]+(/[A-Za-z0-9._~-]+)*$`)
 
+// customSlugRegexp validates a caller-chosen slug (4-48 chars) after
+// normalizeSlug.
+var customSlugRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{2,46}[a-z0-9]$`)
+
+// reservedSlug collides with the static GET /api/mocks/by-slugs route, so a
+// mock under it could never be read through /api/mocks/{id}.
+const reservedSlug = "by-slugs"
+
+func normalizeSlug(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
+
 // PathSuffixMaxLen is the documented hard limit. 255 fits practical REST
 // paths with plenty of headroom (a real `/api/v2/orgs/.../users/...` is
 // usually < 100 chars).
@@ -190,9 +208,14 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 		}
 	}
 
-	slug, err := GenerateSlug(ctx, s.repo)
-	if err != nil {
-		return nil, err
+	slug := in.Slug // normalized by validate
+	if slug == "" {
+		var err error
+		if slug, err = GenerateSlug(ctx, s.repo); err != nil {
+			return nil, err
+		}
+	} else if slug == reservedSlug || slices.Contains(s.blockedSlugs, slug) {
+		return nil, ErrSlugTaken
 	}
 
 	ttl := in.TTL
@@ -232,6 +255,9 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 		AdminTokenHash:     tokenHash,
 	}
 	if err := s.repo.Create(ctx, m); err != nil {
+		if errors.Is(err, repository.ErrSlugConflict) {
+			return nil, ErrSlugTaken
+		}
 		return nil, fmt.Errorf("insert mock: %w", err)
 	}
 	m.AdminToken = tokenPlain
@@ -265,6 +291,7 @@ func authorize(m *model.Mock, adminToken string) error {
 
 // Update applies the input to an existing mock, replacing every field.
 func (s *MockService) Update(ctx context.Context, slug string, in model.MockInput, creatorIP, adminToken string) (*model.Mock, error) {
+	in.Slug = "" // create-only: never validated or stored on update
 	existing, err := s.Get(ctx, slug)
 	if err != nil {
 		return nil, err
@@ -401,6 +428,10 @@ func (s *MockService) AuthorizeSlug(ctx context.Context, slug, adminToken string
 }
 
 func (s *MockService) validate(in *model.MockInput) error {
+	in.Slug = normalizeSlug(in.Slug)
+	if in.Slug != "" && !customSlugRegexp.MatchString(in.Slug) {
+		return &ValidationError{Field: "slug", Message: "slug must be 4-48 characters: lowercase letters, digits and dashes, starting and ending with a letter or digit"}
+	}
 	if in.Method == "" {
 		return &ValidationError{Field: "method", Message: "method is required"}
 	}

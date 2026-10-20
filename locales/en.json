@@ -177,7 +177,7 @@
   "errors.not_found": "Mock not found",
   "errors.payment_blocked": "Quickmock doesn't host payment requests: x402 replies on a real network are blocked. Use a testnet (e.g. base-sepolia) to test an x402 client.",
   "errors.rate_limit": "Too many requests. Please try again later.",
-  "errors.slug_taken": "That slug is already taken.",
+  "errors.slug_taken": "This slug is already taken. Pick another one.",
   "errors.spam_blocked": "This content is blocked by the spam filter.",
   "errors.ttl_cap_reached": "This mock has already reached its maximum lifetime and can't be extended further.",
   "errors.unknown_lang": "Unsupported language.",

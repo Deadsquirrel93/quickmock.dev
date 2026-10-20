@@ -38,7 +38,7 @@ func callerRouter(t *testing.T, m *model.Mock, threshold int64) (*MockRouter, *b
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 	store := &fakeCreateStore{created: []*model.Mock{m}}
-	svc := service.NewMockService(store, nil, nil, 512*1024, 50, 168*time.Hour, 720*time.Hour, nil)
+	svc := service.NewMockService(store, nil, nil, 512*1024, 50, 168*time.Hour, 720*time.Hour, nil, nil)
 	logs := service.NewLogWriter(nil, nil, nil, 16, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	return NewMockRouter(svc, logs, nil, repository.NewCallerTracker(rdb, threshold), logger, ""), &buf
 }

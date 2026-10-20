@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
@@ -156,6 +157,7 @@ func TestServiceErrorMapping(t *testing.T) {
 		{service.ErrSpamBlocked, http.StatusUnprocessableEntity, "spam_blocked"},
 		{service.ErrPaymentBlocked, http.StatusUnprocessableEntity, "payment_blocked"},
 		{service.ErrTTLCapReached, http.StatusConflict, "ttl_cap_reached"},
+		{service.ErrSlugTaken, http.StatusConflict, "slug_taken"},
 		{&service.ValidationError{Field: "method", Message: "bad"}, http.StatusUnprocessableEntity, "validation_failed"},
 		{fmt.Errorf("wrapped: %w", service.ErrNotFound), http.StatusNotFound, "not_found"},
 		{errors.New("db down"), http.StatusInternalServerError, "internal"},
@@ -164,5 +166,68 @@ func TestServiceErrorMapping(t *testing.T) {
 		if status != c.wantStatus || code != c.wantCode {
 			t.Errorf("serviceError(%v) = %d %q, want %d %q", c.err, status, code, c.wantStatus, c.wantCode)
 		}
+	}
+}
+
+func TestCreateMockRequestCarriesSlug(t *testing.T) {
+	var req createMockRequest
+	if err := json.Unmarshal([]byte(`{"method":"get","slug":"My-Api"}`), &req); err != nil {
+		t.Fatal(err)
+	}
+	if got := req.toInput().Slug; got != "My-Api" {
+		t.Fatalf("toInput().Slug = %q, want raw My-Api (service normalizes)", got)
+	}
+}
+
+func TestAPICreateCustomSlug(t *testing.T) {
+	store := &fakeCreateStore{}
+	a := testAPI(t)
+	a.svc = service.NewMockService(store, nil, nil, 512*1024, 50, 168*time.Hour, 720*time.Hour, nil, []string{"blocked-one"})
+
+	post := func(body string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/mocks", strings.NewReader(body))
+		r.RemoteAddr = "203.0.113.5"
+		a.Create(w, r)
+		return w
+	}
+	errCode := func(t *testing.T, w *httptest.ResponseRecorder) string {
+		t.Helper()
+		var body struct {
+			Error struct {
+				Code string `json:"code"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode: %v (%s)", err, w.Body.String())
+		}
+		return body.Error.Code
+	}
+
+	w := post(`{"method":"GET","slug":"My-API"}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create status = %d: %s", w.Code, w.Body.String())
+	}
+	var created struct {
+		Slug string `json:"slug"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil || created.Slug != "my-api" {
+		t.Fatalf("slug in response = %q (err %v), want my-api: %s", created.Slug, err, w.Body.String())
+	}
+
+	if w := post(`{"method":"GET","slug":"my-api"}`); w.Code != http.StatusConflict || errCode(t, w) != "slug_taken" {
+		t.Fatalf("duplicate: status %d code %q, want 409 slug_taken", w.Code, errCode(t, w))
+	}
+	if w := post(`{"method":"GET","slug":"blocked-one"}`); w.Code != http.StatusConflict || errCode(t, w) != "slug_taken" {
+		t.Fatalf("blocked: status %d code %q, want 409 slug_taken", w.Code, errCode(t, w))
+	}
+	if w := post(`{"method":"GET","slug":"by-slugs"}`); w.Code != http.StatusConflict || errCode(t, w) != "slug_taken" {
+		t.Fatalf("reserved: status %d code %q, want 409 slug_taken", w.Code, errCode(t, w))
+	}
+	if w := post(`{"method":"GET","slug":"no_good"}`); w.Code != http.StatusUnprocessableEntity || errCode(t, w) != "validation_failed" {
+		t.Fatalf("bad format: status %d code %q, want 422 validation_failed", w.Code, errCode(t, w))
+	}
+	if w := post(`{"method":"GET"}`); w.Code != http.StatusCreated {
+		t.Fatalf("no slug: status = %d", w.Code)
 	}
 }

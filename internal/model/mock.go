@@ -136,6 +136,8 @@ type Mock struct {
 // JSON. It's intentionally separate from Mock so the handler layer never
 // touches storage-only fields like ID or CreatorIP.
 type MockInput struct {
+	// Slug is an optional caller-chosen slug; create-only, Update ignores it.
+	Slug               string
 	Name               string
 	Method             Method
 	ResponseBody       string

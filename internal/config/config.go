@@ -40,6 +40,7 @@ type Config struct {
 	SpamPatternsFile string
 	SpamAllowIPs     []netip.Prefix
 	BlockedIPs       []netip.Prefix
+	BlockedSlugs     []string
 }
 
 // Load reads configuration from the environment.
@@ -116,6 +117,7 @@ func Load() (Config, error) {
 	if c.BlockedIPs, err = getPrefixes("QUICKMOCK_BLOCK_IPS"); err != nil {
 		return c, err
 	}
+	c.BlockedSlugs = getSlugs("QUICKMOCK_BLOCK_SLUGS")
 
 	return c, nil
 }
@@ -188,6 +190,18 @@ func getPrefixes(k string) ([]netip.Prefix, error) {
 		out = append(out, p.Masked())
 	}
 	return out, nil
+}
+
+// getSlugs parses a comma-separated list of slugs: trimmed, lower-cased,
+// empties dropped.
+func getSlugs(k string) []string {
+	var out []string
+	for _, s := range strings.Split(os.Getenv(k), ",") {
+		if s = strings.ToLower(strings.TrimSpace(s)); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func getDuration(k string, def time.Duration) (time.Duration, error) {

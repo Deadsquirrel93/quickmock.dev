@@ -177,7 +177,7 @@
   "errors.not_found": "未找到 Mock",
   "errors.payment_blocked": "Quickmock 不托管付款请求：真实网络上的 x402 响应已被拦截。测试 x402 客户端请使用测试网（例如 base-sepolia）。",
   "errors.rate_limit": "请求过多。请稍后再试。",
-  "errors.slug_taken": "该 slug 已被占用。",
+  "errors.slug_taken": "该 slug 已被占用，请换一个。",
   "errors.spam_blocked": "此内容被垃圾邮件过滤器阻止。",
   "errors.ttl_cap_reached": "此 mock 已达到其最大生命周期，无法进一步延长。",
   "errors.unknown_lang": "不支持的语言。",

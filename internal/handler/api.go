@@ -30,6 +30,7 @@ func NewAPI(svc *service.MockService, logs *repository.LogRepo, mocks *repositor
 
 // CreateMockRequest is the JSON shape accepted by POST /api/mocks.
 type createMockRequest struct {
+	Slug               string               `json:"slug"`
 	Name               string               `json:"name"`
 	Method             string               `json:"method"`
 	ResponseBody       string               `json:"response_body"`
@@ -61,6 +62,7 @@ func (req createMockRequest) toInput() model.MockInput {
 		captureIP = *req.CaptureIP
 	}
 	return model.MockInput{
+		Slug:               req.Slug,
 		Name:               req.Name,
 		Method:             model.Method(strings.ToUpper(req.Method)),
 		ResponseBody:       req.ResponseBody,
@@ -305,6 +307,7 @@ var serviceErrors = []struct {
 	{service.ErrSpamBlocked, http.StatusUnprocessableEntity, "spam_blocked"},
 	{service.ErrPaymentBlocked, http.StatusUnprocessableEntity, "payment_blocked"},
 	{service.ErrTTLCapReached, http.StatusConflict, "ttl_cap_reached"},
+	{service.ErrSlugTaken, http.StatusConflict, "slug_taken"},
 }
 
 // serviceError resolves err to its HTTP status and error code.

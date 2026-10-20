@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,7 +16,7 @@ import (
 // testService returns a MockService good enough for validate(): only
 // maxBody is read there.
 func testService() *MockService {
-	return NewMockService(nil, nil, nil, 1024, 10, time.Hour, 720*time.Hour, nil)
+	return NewMockService(nil, nil, nil, 1024, 10, time.Hour, 720*time.Hour, nil, nil)
 }
 
 func baseInput() model.MockInput {
@@ -238,7 +239,7 @@ func TestAuthorizeAdminToken(t *testing.T) {
 // validate(). It is shared by Create and Update, so a single check here
 // covers both callers.
 func TestValidateTTLCap(t *testing.T) {
-	s := NewMockService(nil, nil, nil, 1024, 10, time.Hour, 24*time.Hour, nil)
+	s := NewMockService(nil, nil, nil, 1024, 10, time.Hour, 24*time.Hour, nil, nil)
 
 	t.Run("above cap rejected", func(t *testing.T) {
 		in := baseInput()
@@ -287,6 +288,9 @@ func newFakeMockStore(mocks ...*model.Mock) *fakeMockStore {
 }
 
 func (f *fakeMockStore) Create(_ context.Context, m *model.Mock) error {
+	if _, ok := f.mocks[m.Slug]; ok {
+		return repository.ErrSlugConflict
+	}
 	f.mocks[m.Slug] = m
 	return nil
 }
@@ -689,6 +693,180 @@ func TestValidateHeaderValueControlChars(t *testing.T) {
 					t.Fatalf("valid value %q rejected: %v", v, err)
 				}
 			})
+		}
+	}
+}
+
+func customSlugService(store MockStore, blocked ...string) *MockService {
+	return NewMockService(store, nil, nil, 1024, 10, time.Hour, 720*time.Hour, nil, blocked)
+}
+
+func TestCreateCustomSlug(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("used verbatim", func(t *testing.T) {
+		store := newFakeMockStore()
+		m, err := customSlugService(store).Create(ctx, model.MockInput{Method: model.MethodGET, Slug: "my-api"}, "")
+		if err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+		if m.Slug != "my-api" {
+			t.Fatalf("Slug = %q, want my-api", m.Slug)
+		}
+		if _, err := store.BySlug(ctx, "my-api"); err != nil {
+			t.Fatalf("mock not stored under custom slug: %v", err)
+		}
+	})
+
+	for _, c := range []struct{ name, in, want string }{
+		{"uppercase lowered", "My-API", "my-api"},
+		{"whitespace trimmed", "  my-api\t", "my-api"},
+		{"double dash inside is valid", "a--b", "a--b"},
+		{"min length 4", "ab12", "ab12"},
+		{"max length 48", strings.Repeat("a", 48), strings.Repeat("a", 48)},
+		{"digits only", "1234", "1234"},
+	} {
+		t.Run("normalized/"+c.name, func(t *testing.T) {
+			m, err := customSlugService(newFakeMockStore()).Create(ctx, model.MockInput{Method: model.MethodGET, Slug: c.in}, "")
+			if err != nil {
+				t.Fatalf("Create(%q) error = %v", c.in, err)
+			}
+			if m.Slug != c.want {
+				t.Fatalf("Slug = %q, want %q", m.Slug, c.want)
+			}
+		})
+	}
+
+	for _, c := range []struct{ name, in string }{
+		{"too short", "abc"},
+		{"too long", strings.Repeat("a", 49)},
+		{"leading dash", "-abcd"},
+		{"trailing dash", "abcd-"},
+		{"underscore", "my_api"},
+		{"dot", "my.api"},
+		{"slash", "my/api"},
+		{"non-ascii", "моки-api"},
+		{"space inside", "my api"},
+		{"dashes only", "----"},
+	} {
+		t.Run("invalid/"+c.name, func(t *testing.T) {
+			store := newFakeMockStore()
+			_, err := customSlugService(store).Create(ctx, model.MockInput{Method: model.MethodGET, Slug: c.in}, "")
+			var verr *ValidationError
+			if !errors.As(err, &verr) || verr.Field != "slug" {
+				t.Fatalf("Create(%q) error = %v, want *ValidationError on slug", c.in, err)
+			}
+			if len(store.mocks) != 0 {
+				t.Fatalf("invalid slug must not reach the store")
+			}
+		})
+	}
+
+	t.Run("reserved", func(t *testing.T) {
+		for _, in := range []string{"by-slugs", "BY-SLUGS"} {
+			store := newFakeMockStore()
+			if _, err := customSlugService(store).Create(ctx, model.MockInput{Method: model.MethodGET, Slug: in}, ""); !errors.Is(err, ErrSlugTaken) {
+				t.Fatalf("Create(%q) error = %v, want ErrSlugTaken", in, err)
+			}
+			if len(store.mocks) != 0 {
+				t.Fatalf("reserved slug must not reach the store")
+			}
+		}
+	})
+
+	t.Run("operator-blocked", func(t *testing.T) {
+		s := customSlugService(newFakeMockStore(), "bad-mock", "other-one")
+		for _, in := range []string{"bad-mock", "BAD-MOCK", " other-one "} {
+			if _, err := s.Create(ctx, model.MockInput{Method: model.MethodGET, Slug: in}, ""); !errors.Is(err, ErrSlugTaken) {
+				t.Fatalf("Create(%q) error = %v, want ErrSlugTaken", in, err)
+			}
+		}
+		if _, err := s.Create(ctx, model.MockInput{Method: model.MethodGET, Slug: "fine-slug"}, ""); err != nil {
+			t.Fatalf("unblocked slug rejected: %v", err)
+		}
+	})
+
+	t.Run("held by a live mock", func(t *testing.T) {
+		store := newFakeMockStore(&model.Mock{Slug: "taken-slug"})
+		_, err := customSlugService(store).Create(ctx, model.MockInput{Method: model.MethodGET, Slug: "taken-slug"}, "")
+		if !errors.Is(err, ErrSlugTaken) {
+			t.Fatalf("error = %v, want ErrSlugTaken", err)
+		}
+	})
+
+	t.Run("repo conflict wrapped still maps", func(t *testing.T) {
+		store := &conflictStore{fakeMockStore: newFakeMockStore(), err: fmt.Errorf("tx: %w", repository.ErrSlugConflict)}
+		_, err := customSlugService(store).Create(ctx, model.MockInput{Method: model.MethodGET, Slug: "racy-slug"}, "")
+		if !errors.Is(err, ErrSlugTaken) {
+			t.Fatalf("error = %v, want ErrSlugTaken", err)
+		}
+	})
+
+	t.Run("other repo errors are not slug_taken", func(t *testing.T) {
+		boom := errors.New("db down")
+		store := &conflictStore{fakeMockStore: newFakeMockStore(), err: boom}
+		_, err := customSlugService(store).Create(ctx, model.MockInput{Method: model.MethodGET, Slug: "some-slug"}, "")
+		if errors.Is(err, ErrSlugTaken) || !errors.Is(err, boom) {
+			t.Fatalf("error = %v, want wrapped db error", err)
+		}
+	})
+
+	t.Run("empty slug generates one", func(t *testing.T) {
+		for _, in := range []string{"", "   "} {
+			m, err := customSlugService(newFakeMockStore()).Create(ctx, model.MockInput{Method: model.MethodGET, Slug: in}, "")
+			if err != nil {
+				t.Fatalf("Create(%q) error = %v", in, err)
+			}
+			if len(m.Slug) != 12 {
+				t.Fatalf("generated slug %q, want 12 chars", m.Slug)
+			}
+		}
+	})
+}
+
+// conflictStore makes Create fail with err, as the repo would on a lost race.
+type conflictStore struct {
+	*fakeMockStore
+	err error
+}
+
+func (c *conflictStore) Create(context.Context, *model.Mock) error { return c.err }
+
+func TestUpdateIgnoresSlug(t *testing.T) {
+	plain, hash, err := GenerateAdminToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newFakeMockStore(&model.Mock{Slug: "orig-slug", AdminTokenHash: hash})
+	s := customSlugService(store)
+	m, err := s.Update(context.Background(), "orig-slug", model.MockInput{Method: model.MethodGET, Slug: "new-slug"}, "", plain)
+	if err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+	if m.Slug != "orig-slug" {
+		t.Fatalf("Slug = %q, want orig-slug", m.Slug)
+	}
+	if _, ok := store.mocks["new-slug"]; ok {
+		t.Fatal("Update must not create a mock under the new slug")
+	}
+}
+
+// The slug is create-only, so Update must not even validate it: a client
+// that echoes back whatever it holds in the slug field still updates.
+func TestUpdateIgnoresMalformedSlug(t *testing.T) {
+	plain, hash, err := GenerateAdminToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newFakeMockStore(&model.Mock{Slug: "orig-slug", AdminTokenHash: hash})
+	s := customSlugService(store)
+	for _, bad := range []string{"no_good", "x", "Has Spaces", "by-slugs"} {
+		m, err := s.Update(context.Background(), "orig-slug", model.MockInput{Method: model.MethodGET, Slug: bad}, "", plain)
+		if err != nil {
+			t.Fatalf("Update(slug=%q) error = %v, want nil", bad, err)
+		}
+		if m.Slug != "orig-slug" {
+			t.Fatalf("Update(slug=%q): Slug = %q, want orig-slug", bad, m.Slug)
 		}
 	}
 }

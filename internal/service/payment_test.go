@@ -177,7 +177,7 @@ func TestPaymentRequestBlockedNilSafe(t *testing.T) {
 }
 
 func TestCreateRejectsPaymentRequestWithoutSpamFilter(t *testing.T) {
-	s := NewMockService(nil, nil, nil, 1024, 10, time.Hour, 720*time.Hour, nil)
+	s := NewMockService(nil, nil, nil, 1024, 10, time.Hour, 720*time.Hour, nil, nil)
 	_, err := s.Create(context.Background(), model.MockInput{
 		Method:       model.MethodGET,
 		ResponseBody: `{"x402Version":1,"accepts":[{"network":"base","payTo":"0xabc"}]}`,

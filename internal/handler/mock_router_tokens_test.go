@@ -22,7 +22,7 @@ import (
 func servingRouter(t *testing.T, m *model.Mock, baseURL string) *MockRouter {
 	t.Helper()
 	store := &fakeCreateStore{created: []*model.Mock{m}}
-	svc := service.NewMockService(store, nil, nil, 512*1024, 50, 168*time.Hour, 720*time.Hour, nil)
+	svc := service.NewMockService(store, nil, nil, 512*1024, 50, 168*time.Hour, 720*time.Hour, nil, nil)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	logs := service.NewLogWriter(nil, nil, nil, 16, logger, nil)
 	return NewMockRouter(svc, logs, nil, nil, logger, baseURL)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
@@ -15,6 +16,10 @@ import (
 // ErrNotFound is returned when a row lookup matches nothing.
 var ErrNotFound = errors.New("not found")
 
+// ErrSlugConflict is returned by MockRepo.Create when the slug is held by a
+// live mock.
+var ErrSlugConflict = errors.New("slug already exists")
+
 // MockRepo is a thin Postgres adapter over the `mocks` table.
 type MockRepo struct {
 	pool *pgxpool.Pool
@@ -22,9 +27,10 @@ type MockRepo struct {
 
 func NewMockRepo(pool *pgxpool.Pool) *MockRepo { return &MockRepo{pool: pool} }
 
-// Create inserts a new mock. The caller is responsible for slug uniqueness
-// (the service layer retries on collision); a duplicate slug here returns
-// the raw pgx error so the caller can detect the constraint violation.
+// Create inserts a new mock. An expired mock holding the same slug is
+// deleted first (in the same transaction) so a custom slug can be reused
+// without handing the old request_logs to the new owner. A slug held by a
+// live mock yields ErrSlugConflict.
 func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 	headers, err := json.Marshal(m.ResponseHeaders)
 	if err != nil {
@@ -38,7 +44,15 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 	if m.AdminTokenHash != "" {
 		tokenHash = &m.AdminTokenHash
 	}
-	return r.pool.QueryRow(ctx, `
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }() // no-op after Commit
+	if _, err := tx.Exec(ctx, `DELETE FROM mocks WHERE slug = $1 AND expires_at IS NOT NULL AND expires_at <= now()`, m.Slug); err != nil {
+		return err
+	}
+	err = tx.QueryRow(ctx, `
 		INSERT INTO mocks (
 			slug, name, method, response_body, response_status,
 			response_headers, response_delay_ms, content_type,
@@ -57,6 +71,14 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 		m.CORSEnabled, tokenHash, m.Variants, m.Rules, m.Routes,
 		m.LogsPublic, m.CaptureBody, m.CaptureIP,
 	).Scan(&m.ID, &m.CreatedAt)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrSlugConflict
+		}
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // BySlug fetches a mock by its public slug. Returns ErrNotFound if missing

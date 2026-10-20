@@ -2,6 +2,7 @@ package config
 
 import (
 	"net/netip"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -80,5 +81,42 @@ func TestLoadRejectsInvalidIPEntry(t *testing.T) {
 				t.Fatal("want an error for an invalid entry")
 			}
 		})
+	}
+}
+
+func TestLoadParsesBlockedSlugs(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		env  string
+		want []string
+	}{
+		{"trimmed, lower-cased, empties dropped", " Foo ,bar,, ", []string{"foo", "bar"}},
+		{"single", "only-one", []string{"only-one"}},
+		{"empty", "", nil},
+		{"only separators", " , ,", nil},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("QUICKMOCK_PG_DSN", "postgres://x")
+			t.Setenv("QUICKMOCK_BLOCK_SLUGS", c.env)
+			cfg, err := Load()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(cfg.BlockedSlugs, c.want) {
+				t.Errorf("BlockedSlugs = %#v, want %#v", cfg.BlockedSlugs, c.want)
+			}
+		})
+	}
+}
+
+func TestLoadBlockedSlugsUnset(t *testing.T) {
+	t.Setenv("QUICKMOCK_PG_DSN", "postgres://x")
+	os.Unsetenv("QUICKMOCK_BLOCK_SLUGS")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.BlockedSlugs) != 0 {
+		t.Errorf("BlockedSlugs = %v, want empty", cfg.BlockedSlugs)
 	}
 }
