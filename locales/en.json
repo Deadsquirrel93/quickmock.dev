@@ -138,6 +138,8 @@
   "changelog.r1020.fixed1": "<strong>The create form keeps what you typed when the server rejects it.</strong> A taken slug, a validation error, the per-address mock limit or the rate limit used to bring the form back empty, losing the response body you had written. Every field now comes back as you left it — including the JSON for variants, rules and routes, verbatim, so a typo is easy to fix.",
   "changelog.r1020.security1": "<strong>Mocks that serve someone's production traffic are flagged for review.</strong> Quickmock now notices when one mock is called by an unusually large number of different machines in a day — a sign it is being used as a live backend rather than for testing — and flags it for the operator. Nothing about the response changes. Only a probabilistic count is kept, never the callers' addresses, and it expires after two days.",
   "changelog.r1020.title": "2026-10-20 — Custom slugs; production-use signal",
+  "changelog.r1023.security1": "<strong>Mocks can no longer pose as an OAuth client.</strong> A mock that serves an OAuth Client ID Metadata Document — a JSON whose <code>client_id</code> is its own URL — is rejected: it turned the mock address into a client identity that could be shown on consent screens under someone else’s name. Ordinary OAuth mocks with opaque client ids are not affected. One such mock, posing as ChatGPT, and a license-check bypass for a cracked app were removed.",
+  "changelog.r1023.title": "2026-10-23 — Blocking OAuth client impersonation",
   "changelog.repo_link": "Full git history on GitHub",
   "changelog.section.added": "Added",
   "changelog.section.changed": "Changed",

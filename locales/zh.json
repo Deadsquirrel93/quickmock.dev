@@ -138,6 +138,8 @@
   "changelog.r1020.fixed1": "<strong>服务器拒绝提交时，创建表单会保留你填写的内容。</strong>以前遇到 slug 已被占用、校验错误、单个地址的 mock 数量上限或请求频率限制时，表单会被清空，写好的响应体也随之丢失。现在每个字段都会原样恢复，包括变体、规则和路由的 JSON，一字不差，方便你修正拼写错误。",
   "changelog.r1020.security1": "<strong>为他人生产流量提供服务的 mock 会被标记以供审查。</strong>当某个 mock 在一天内被异常多的不同机器调用时（说明它被当作线上后端而非用于测试），Quickmock 现在会发现并向运营者标记。响应本身不受影响。只保留一个概率性计数，从不保存调用方地址，两天后自动过期。",
   "changelog.r1020.title": "2026-10-20 — 自定义 slug；生产使用信号",
+  "changelog.r1023.security1": "<strong>mock 不能再冒充 OAuth 客户端。</strong>返回 OAuth Client ID Metadata Document（<code>client_id</code> 等于自身 URL 的 JSON）的 mock 会被拒绝：这会让 mock 地址变成一个客户端身份，可以用别人的名义出现在授权同意页面上。使用不透明 client id 的普通 OAuth mock 不受影响。已删除一个冒充 ChatGPT 的此类 mock，以及一个为破解应用绕过许可证校验的 mock。",
+  "changelog.r1023.title": "2026-10-23 — 阻止冒充 OAuth 客户端",
   "changelog.repo_link": "GitHub 上的完整 git 历史记录",
   "changelog.section.added": "已添加",
   "changelog.section.changed": "已更改",
