@@ -69,3 +69,8 @@
 
 # Sandbox network recon (ARP table, local addresses, open sockets, routes).
 /proc/net/(?:arp|fib_trie|tcp6?|udp6?|route)\b
+
+# OAuth Client ID Metadata Documents: client_id is the document's own URL, so
+# serving one turns the mock URL into an OAuth client identity (found on prod
+# impersonating ChatGPT). Registration/token responses use opaque client ids.
+(?i)\\?"client_id\\?"\s*:\s*\\?"https?://

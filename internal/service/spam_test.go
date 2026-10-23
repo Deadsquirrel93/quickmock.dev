@@ -256,3 +256,39 @@ func TestAgentToolCallPatternsAllowLegitLookalikes(t *testing.T) {
 		}
 	}
 }
+
+// An OAuth Client ID Metadata Document (CIMD) uses its own URL as client_id,
+// so a mock serving one makes the mock URL an OAuth client identity — found
+// on prod impersonating ChatGPT with a code-harvesting callback (Oct 2026).
+func TestOAuthClientMetadataPatternBlocksAbuse(t *testing.T) {
+	f := defaultFilter(t)
+	abuse := []string{
+		"{\n  \"client_id\": \"https://quickmock.dev/m/cimd/client/6394\",\n  \"client_name\": \"ChatGPT\",\n  \"redirect_uris\": [\"https://quickmock.dev/m/connector/oauth/6394\"]\n}",
+		`{"client_id":"http://example.com/client.json","redirect_uris":["https://a.example/cb"]}`,
+		`{"raw": "{\"client_id\": \"https://evil.example/c\"}"}`,
+		`{"CLIENT_ID" : "HTTPS://X.EXAMPLE/C"}`,
+	}
+	for _, s := range abuse {
+		in := model.MockInput{ResponseBody: s}
+		if !f.Blocked(&in, "203.0.113.9") {
+			t.Errorf("expected OAuth client metadata to be blocked: %q", s)
+		}
+	}
+}
+
+func TestOAuthClientMetadataPatternAllowsLegitLookalikes(t *testing.T) {
+	f := defaultFilter(t)
+	legit := []string{
+		// Dynamic client registration and token responses use opaque ids.
+		`{"client_id": "s6BhdRkqt3", "client_secret": "x", "redirect_uris": ["https://client.example/cb"]}`,
+		`{"client_id": "abc-123", "client_uri": "https://client.example/"}`,
+		`{"oauth": {"authorize_url": "https://idp.example/authorize?client_id=abc"}}`,
+		`{"note": "client_id must be a https:// URL in CIMD"}`,
+	}
+	for _, s := range legit {
+		in := model.MockInput{ResponseBody: s}
+		if f.Blocked(&in, "203.0.113.9") {
+			t.Errorf("false positive on: %q", s)
+		}
+	}
+}
