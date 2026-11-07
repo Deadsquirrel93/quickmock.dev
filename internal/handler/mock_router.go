@@ -151,6 +151,37 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// bodyBytes is capped at maxLog+1, so {{request.body*}} tokens see at
+	// most the first 16 KB of the incoming body — same window as the
+	// inspector.
+	body := service.RenderResponseBodyForRequest(served.Body, &service.RequestData{
+		Method:  r.Method,
+		Path:    r.URL.Path,
+		Host:    r.Host,
+		IP:      r.RemoteAddr,
+		Query:   r.URL.Query(),
+		Header:  r.Header,
+		Body:    bodyBytes,
+		MockURL: h.baseURL + "/m/" + m.Slug,
+		// ":tpl" keeps the {{seq}} token's counter separate from the one
+		// nextPos above uses to step through m.SequenceSteps — sharing a
+		// key would make a {{seq}} token silently skip every other
+		// sequence step by consuming a position on top of it.
+		// +1 because SeqCounter.Next is 0-based — it exists to index into
+		// m.SequenceSteps. {{seq}} is a user-facing hit counter instead, and
+		// API.md documents it as starting at 1.
+		Seq: func() uint64 { return h.seq.Next(r.Context(), m.ID+":tpl") + 1 },
+	})
+	// Tokens such as {{random.pick:ENTITY}} or a query echo can assemble a
+	// payload the create-time spam check never saw in the stored template.
+	if body != served.Body && h.svc.SpamBlockedBody(body, m.CreatorIP) {
+		h.logger.Warn("spam filter blocked rendered response", slog.String("slug", m.Slug))
+		entry.ResponseStatus = http.StatusForbidden
+		h.logs.Submit(entry)
+		http.Error(w, `{"error":{"code":"spam_blocked","message":"This response is blocked by the spam filter."}}`, http.StatusForbidden)
+		return
+	}
+
 	// Submit log asynchronously. Drop on full queue, never block.
 	entry.ResponseStatus = status
 	h.logs.Submit(entry)
@@ -203,27 +234,7 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	setMockProtectiveHeaders(w)
 
 	w.WriteHeader(status)
-	// bodyBytes is capped at maxLog+1, so {{request.body*}} tokens see at
-	// most the first 16 KB of the incoming body — same window as the
-	// inspector.
-	_, _ = w.Write([]byte(service.RenderResponseBodyForRequest(served.Body, &service.RequestData{
-		Method:  r.Method,
-		Path:    r.URL.Path,
-		Host:    r.Host,
-		IP:      r.RemoteAddr,
-		Query:   r.URL.Query(),
-		Header:  r.Header,
-		Body:    bodyBytes,
-		MockURL: h.baseURL + "/m/" + m.Slug,
-		// ":tpl" keeps the {{seq}} token's counter separate from the one
-		// nextPos above uses to step through m.SequenceSteps — sharing a
-		// key would make a {{seq}} token silently skip every other
-		// sequence step by consuming a position on top of it.
-		// +1 because SeqCounter.Next is 0-based — it exists to index into
-		// m.SequenceSteps. {{seq}} is a user-facing hit counter instead, and
-		// API.md documents it as starting at 1.
-		Seq: func() uint64 { return h.seq.Next(r.Context(), m.ID+":tpl") + 1 },
-	})))
+	_, _ = w.Write([]byte(body))
 }
 
 // setMockProtectiveHeaders writes the headers that keep /m/:slug from being

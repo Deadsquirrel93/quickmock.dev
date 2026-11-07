@@ -268,6 +268,12 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 }
 
 // Get returns a mock by slug. ErrNotFound for unknown or expired.
+// SpamBlockedBody runs the spam filter over a rendered response body, which
+// template tokens can turn into content the stored template did not contain.
+func (s *MockService) SpamBlockedBody(body, creatorIP string) bool {
+	return s.spam.Blocked(&model.MockInput{ResponseBody: body}, creatorIP)
+}
+
 func (s *MockService) Get(ctx context.Context, slug string) (*model.Mock, error) {
 	m, err := s.repo.BySlug(ctx, slug)
 	if errors.Is(err, repository.ErrNotFound) {
