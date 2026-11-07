@@ -341,7 +341,7 @@ func (s *MockService) Update(ctx context.Context, slug string, in model.MockInpu
 	existing.CaptureBody = in.CaptureBody
 	existing.CaptureIP = in.CaptureIP
 	if in.TTL > 0 {
-		t := time.Now().Add(in.TTL)
+		t := s.capLifetime(existing, time.Now().Add(in.TTL))
 		existing.ExpiresAt = &t
 	}
 	if err := s.repo.Update(ctx, existing); err != nil {
@@ -351,6 +351,15 @@ func (s *MockService) Update(ctx context.Context, slug string, in model.MockInpu
 		return nil, err
 	}
 	return existing, nil
+}
+
+// capLifetime clamps a new expiry to created_at + maxTTL, the one lifetime
+// ceiling both Update and Extend enforce.
+func (s *MockService) capLifetime(m *model.Mock, expiry time.Time) time.Time {
+	if ceiling := m.CreatedAt.Add(s.maxTTL); s.maxTTL > 0 && expiry.After(ceiling) {
+		return ceiling
+	}
+	return expiry
 }
 
 // Extend pushes a mock's expiry one more defaultTTL into the future,
@@ -367,12 +376,7 @@ func (s *MockService) Extend(ctx context.Context, slug, adminToken string) (*mod
 	}
 
 	now := time.Now()
-	newExpiry := now.Add(s.defaultTTL)
-	if s.maxTTL > 0 {
-		if ceiling := existing.CreatedAt.Add(s.maxTTL); newExpiry.After(ceiling) {
-			newExpiry = ceiling
-		}
-	}
+	newExpiry := s.capLifetime(existing, now.Add(s.defaultTTL))
 
 	// A nil ExpiresAt (ancient row predating the expiry column) is treated
 	// as "expires now" rather than dereferenced.

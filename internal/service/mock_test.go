@@ -881,3 +881,38 @@ func (f *fakeMockStore) ListBySlugs(_ context.Context, slugs []string) ([]*model
 	}
 	return out, nil
 }
+
+// PUT with ttl_seconds must respect the same created_at + maxTTL ceiling
+// Extend does, or re-saving a mock every month keeps it alive forever.
+func TestUpdateTTLRespectsLifetimeCap(t *testing.T) {
+	const maxTTL = 30 * 24 * time.Hour
+	plain, hash, err := GenerateAdminToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name    string
+		age     time.Duration
+		ttl     time.Duration
+		wantExp func(created time.Time) time.Time
+	}{
+		{"within the cap uses now+ttl", time.Hour, 24 * time.Hour,
+			func(time.Time) time.Time { return time.Now().Add(24 * time.Hour) }},
+		{"past the cap is clamped", 20 * 24 * time.Hour, maxTTL,
+			func(created time.Time) time.Time { return created.Add(maxTTL) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			created := time.Now().Add(-tc.age)
+			expires := time.Now().Add(time.Hour)
+			store := newFakeMockStore(&model.Mock{Slug: "abc123", CreatedAt: created, ExpiresAt: &expires, AdminTokenHash: hash})
+			s := &MockService{repo: store, defaultTTL: time.Hour, maxTTL: maxTTL, maxBody: 1024}
+			m, err := s.Update(context.Background(), "abc123", model.MockInput{Method: model.MethodGET, TTL: tc.ttl}, "", plain)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := tc.wantExp(created); m.ExpiresAt == nil || m.ExpiresAt.Sub(want).Abs() > time.Minute {
+				t.Fatalf("ExpiresAt = %v, want ~%v", m.ExpiresAt, want)
+			}
+		})
+	}
+}
