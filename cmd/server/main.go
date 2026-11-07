@@ -275,6 +275,11 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		// JSON API
 		r.Route("/api", func(r chi.Router) {
 			r.Use(mockmw.RateLimit(apiLimiter, "api"))
+			// Same guard as the form routes: without it any page could make its
+			// visitors' browsers POST /api/mocks as a text/plain "simple" request
+			// (no preflight) and spread spam mocks across their IPs. curl and
+			// other non-browser clients send no Origin/Sec-Fetch-Site and pass.
+			r.Use(mockmw.RejectCrossSite())
 			r.Post("/mocks", api.Create)
 			r.Get("/mocks/by-slugs", ui.BySlugs)
 			r.Get("/mocks/{id}", api.Get)
