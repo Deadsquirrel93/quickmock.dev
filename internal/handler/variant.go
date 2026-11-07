@@ -6,13 +6,14 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
 )
 
 // servedResponse is the resolved response for one hit of a mock after the
@@ -52,8 +53,13 @@ func pickConfiguredVariant(src responseSource, requested string, r *http.Request
 	}
 	name := strings.TrimSpace(requested)
 	if name == "" {
+		// Parsed at most once per request, however many body conditions ask.
+		parsed := sync.OnceValues(func() (any, bool) {
+			var v any
+			return v, json.Unmarshal(body, &v) == nil
+		})
 		for _, rule := range src.Rules {
-			if ruleMatches(rule, r, body) {
+			if ruleMatches(rule, r, parsed) {
 				name = rule.Variant
 				break
 			}
@@ -71,7 +77,7 @@ func pickConfiguredVariant(src responseSource, requested string, r *http.Request
 		Headers: v.Headers, ContentType: contentType}, true
 }
 
-func ruleMatches(rule model.ResponseRule, r *http.Request, body []byte) bool {
+func ruleMatches(rule model.ResponseRule, r *http.Request, body func() (any, bool)) bool {
 	for _, condition := range rule.Conditions {
 		value, exists := conditionValue(condition, r, body)
 		switch condition.Operator {
@@ -98,7 +104,7 @@ func ruleMatches(rule model.ResponseRule, r *http.Request, body []byte) bool {
 	return true
 }
 
-func conditionValue(c model.MatchCondition, r *http.Request, body []byte) (string, bool) {
+func conditionValue(c model.MatchCondition, r *http.Request, body func() (any, bool)) (string, bool) {
 	switch c.Source {
 	case "method":
 		return r.Method, true
@@ -121,43 +127,22 @@ func conditionValue(c model.MatchCondition, r *http.Request, body []byte) (strin
 		}
 		return values[0], true
 	case "body":
-		return jsonPathValue(body, c.Key)
-	default:
-		return "", false
-	}
-}
-
-func jsonPathValue(body []byte, path string) (string, bool) {
-	var value any
-	if len(body) == 0 || json.Unmarshal(body, &value) != nil {
-		return "", false
-	}
-	for _, part := range strings.Split(path, ".") {
-		switch current := value.(type) {
-		case map[string]any:
-			var ok bool
-			value, ok = current[part]
-			if !ok {
-				return "", false
-			}
-		case []any:
-			i, err := strconv.Atoi(part)
-			if err != nil || i < 0 || i >= len(current) {
-				return "", false
-			}
-			value = current[i]
-		default:
+		root, ok := body()
+		if !ok {
 			return "", false
 		}
-	}
-	switch v := value.(type) {
-	case string:
-		return v, true
-	case nil:
-		return "", true
+		value, ok := service.JSONPath(root, strings.Split(c.Key, "."))
+		switch v := value.(type) {
+		case string:
+			return v, ok
+		case nil:
+			return "", ok
+		default:
+			b, err := json.Marshal(v)
+			return string(b), ok && err == nil
+		}
 	default:
-		b, err := json.Marshal(v)
-		return string(b), err == nil
+		return "", false
 	}
 }
 

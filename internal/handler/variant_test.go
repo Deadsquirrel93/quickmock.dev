@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -141,5 +142,40 @@ func TestEffectiveDelay(t *testing.T) {
 		if d < 100*time.Millisecond || d > 200*time.Millisecond {
 			t.Fatalf("jitter out of range: %v", d)
 		}
+	}
+}
+
+// Body conditions read a dot path from the JSON request body: strings bare,
+// other values JSON-encoded, null present but empty, bad JSON never matches.
+func TestBodyRuleConditions(t *testing.T) {
+	body := []byte(`{"user":{"name":"ada","age":36,"admin":true,"note":null},"items":[{"sku":"a1"},{"sku":"b2"}]}`)
+	for _, tc := range []struct {
+		name string
+		cond model.MatchCondition
+		body []byte
+		want bool
+	}{
+		{"nested string equals", model.MatchCondition{Source: "body", Key: "user.name", Operator: "equals", Value: "ada"}, body, true},
+		{"number is JSON-encoded", model.MatchCondition{Source: "body", Key: "user.age", Operator: "equals", Value: "36"}, body, true},
+		{"bool is JSON-encoded", model.MatchCondition{Source: "body", Key: "user.admin", Operator: "equals", Value: "true"}, body, true},
+		{"array index", model.MatchCondition{Source: "body", Key: "items.1.sku", Operator: "equals", Value: "b2"}, body, true},
+		{"object contains", model.MatchCondition{Source: "body", Key: "user", Operator: "contains", Value: `"name":"ada"`}, body, true},
+		{"null exists as empty", model.MatchCondition{Source: "body", Key: "user.note", Operator: "equals", Value: ""}, body, true},
+		{"missing key does not exist", model.MatchCondition{Source: "body", Key: "user.nope", Operator: "exists"}, body, false},
+		{"missing key is not_equals", model.MatchCondition{Source: "body", Key: "user.nope", Operator: "not_equals", Value: "x"}, body, true},
+		{"index out of range", model.MatchCondition{Source: "body", Key: "items.5.sku", Operator: "exists"}, body, false},
+		{"invalid JSON", model.MatchCondition{Source: "body", Key: "a", Operator: "exists"}, []byte(`{"a":`), false},
+		{"empty body", model.MatchCondition{Source: "body", Key: "a", Operator: "exists"}, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := responseSource{
+				Variants: []model.NamedVariant{{Name: "hit", Status: 201}},
+				Rules:    []model.ResponseRule{{Variant: "hit", Conditions: []model.MatchCondition{tc.cond}}},
+			}
+			r := httptest.NewRequest(http.MethodPost, "/m/demo", nil)
+			if _, got := pickConfiguredVariant(src, "", r, tc.body); got != tc.want {
+				t.Fatalf("matched = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

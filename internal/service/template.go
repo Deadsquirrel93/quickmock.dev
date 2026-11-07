@@ -263,45 +263,42 @@ func substituteRequestTokens(body string, req *RequestData) string {
 			if bodyUnparseable {
 				return match
 			}
-			if v, ok := lookupJSONPath(parsedBody, strings.Split(strings.TrimPrefix(path, "body."), ".")); ok {
-				return v
+			if v, ok := JSONPath(parsedBody, strings.Split(strings.TrimPrefix(path, "body."), ".")); ok {
+				if s, ok := v.(string); ok {
+					return s
+				}
+				b, _ := json.Marshal(v) // decoded JSON always re-encodes
+				return string(b)
 			}
 		}
 		return match
 	})
 }
 
-// lookupJSONPath walks dot-separated segments through decoded JSON: object
-// keys by name, array elements by zero-based index. Strings come back bare;
-// everything else (numbers, bools, null, nested objects/arrays) is
-// re-marshalled so it stays valid when dropped into a JSON template.
-func lookupJSONPath(node any, segs []string) (string, bool) {
+// JSONPath walks dot-separated segments through decoded JSON: object keys by
+// name, array elements by zero-based index. It returns the node found;
+// callers format it (the {{request.body.*}} tokens and body rule conditions
+// differ on null).
+func JSONPath(node any, segs []string) (any, bool) {
 	for _, seg := range segs {
 		switch cur := node.(type) {
 		case map[string]any:
 			v, ok := cur[seg]
 			if !ok {
-				return "", false
+				return nil, false
 			}
 			node = v
 		case []any:
 			idx, err := strconv.Atoi(seg)
 			if err != nil || idx < 0 || idx >= len(cur) {
-				return "", false
+				return nil, false
 			}
 			node = cur[idx]
 		default:
-			return "", false
+			return nil, false
 		}
 	}
-	if s, ok := node.(string); ok {
-		return s, true
-	}
-	b, err := json.Marshal(node)
-	if err != nil {
-		return "", false
-	}
-	return string(b), true
+	return node, true
 }
 
 func fakerToken(name string) (string, bool) {
