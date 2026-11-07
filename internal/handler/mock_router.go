@@ -27,7 +27,6 @@ type MockRouter struct {
 	seq     *repository.SeqCounter
 	callers *repository.CallerTracker
 	logger  *slog.Logger
-	maxLog  int
 	// baseURL is the site's configured public origin. It backs the
 	// {{mock.url}} token, which therefore names the same address the UI
 	// offers for copy-paste instead of whatever Host the caller sent.
@@ -35,7 +34,7 @@ type MockRouter struct {
 }
 
 func NewMockRouter(svc *service.MockService, logs *service.LogWriter, seq *repository.SeqCounter, callers *repository.CallerTracker, logger *slog.Logger, baseURL string) *MockRouter {
-	return &MockRouter{svc: svc, logs: logs, seq: seq, callers: callers, logger: logger, maxLog: 16 * 1024,
+	return &MockRouter{svc: svc, logs: logs, seq: seq, callers: callers, logger: logger,
 		baseURL: strings.TrimSuffix(baseURL, "/")}
 }
 
@@ -70,7 +69,7 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Read the body for logging up front — we drop it on the floor for
 	// the actual response, but the inspector wants to see it.
-	bodyBytes, _ := io.ReadAll(io.LimitReader(r.Body, int64(h.maxLog)+1))
+	bodyBytes, _ := io.ReadAll(io.LimitReader(r.Body, service.MaxLoggedBody+1))
 	_ = r.Body.Close()
 
 	requestPath := strings.TrimPrefix(r.URL.Path, "/m/"+slug)
@@ -151,7 +150,7 @@ func (h *MockRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// bodyBytes is capped at maxLog+1, so {{request.body*}} tokens see at
+	// bodyBytes is capped at MaxLoggedBody+1, so {{request.body*}} tokens see at
 	// most the first 16 KB of the incoming body — same window as the
 	// inspector.
 	body := service.RenderResponseBodyForRequest(served.Body, &service.RequestData{

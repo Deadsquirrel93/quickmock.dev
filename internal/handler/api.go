@@ -19,13 +19,12 @@ import (
 type API struct {
 	svc      *service.MockService
 	logs     *repository.LogRepo
-	mocks    *repository.MockRepo
 	renderer *Renderer
 	baseURL  string
 }
 
-func NewAPI(svc *service.MockService, logs *repository.LogRepo, mocks *repository.MockRepo, renderer *Renderer, baseURL string) *API {
-	return &API{svc: svc, logs: logs, mocks: mocks, renderer: renderer, baseURL: baseURL}
+func NewAPI(svc *service.MockService, logs *repository.LogRepo, renderer *Renderer, baseURL string) *API {
+	return &API{svc: svc, logs: logs, renderer: renderer, baseURL: baseURL}
 }
 
 // CreateMockRequest is the JSON shape accepted by POST /api/mocks.

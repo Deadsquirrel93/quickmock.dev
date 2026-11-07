@@ -191,7 +191,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	// usable without TLS; prod (https://quickmock.dev) flips both on.
 	secureSite := strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://")
 
-	api := handler.NewAPI(mockSvc, logRepo, mockRepo, renderer, cfg.BaseURL)
+	api := handler.NewAPI(mockSvc, logRepo, renderer, cfg.BaseURL)
 	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks, sseBroker, sseStreams, uiWriteLimiter, rootCtx.Done())
 	mockRouter := handler.NewMockRouter(mockSvc, logWriter, seqCounter, callerTracker, logger, cfg.BaseURL)
 	healthHandler := handler.Health(pool, mockLimiter)

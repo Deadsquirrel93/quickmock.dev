@@ -14,28 +14,30 @@ import (
 // LogWriter accepts request log rows on a buffered channel and writes them
 // to Postgres in the background. If the channel is full, the row is dropped
 // — the public mock router must never block on logging.
+// MaxLoggedBody caps the request body the inspector stores, which is also the
+// window {{request.body*}} tokens and body rules see (handler.MockRouter).
+const MaxLoggedBody = 16 * 1024
+
 type LogWriter struct {
-	repo    *repository.LogRepo
-	mocks   *repository.MockRepo
-	stats   *StatsCache
-	queue   chan model.RequestLog
-	wg      sync.WaitGroup
-	logger  *slog.Logger
-	maxBody int
-	broker  *sse.Broker
+	repo   *repository.LogRepo
+	mocks  *repository.MockRepo
+	stats  *StatsCache
+	queue  chan model.RequestLog
+	wg     sync.WaitGroup
+	logger *slog.Logger
+	broker *sse.Broker
 }
 
 // NewLogWriter creates a writer with `capacity` buffered slots. A capacity
 // of ~1024 absorbs reasonable bursts while remaining tiny in memory.
 func NewLogWriter(repo *repository.LogRepo, mocks *repository.MockRepo, stats *StatsCache, capacity int, logger *slog.Logger, broker *sse.Broker) *LogWriter {
 	return &LogWriter{
-		repo:    repo,
-		mocks:   mocks,
-		stats:   stats,
-		queue:   make(chan model.RequestLog, capacity),
-		logger:  logger,
-		maxBody: 16 * 1024, // request body truncation
-		broker:  broker,
+		repo:   repo,
+		mocks:  mocks,
+		stats:  stats,
+		queue:  make(chan model.RequestLog, capacity),
+		logger: logger,
+		broker: broker,
 	}
 }
 
@@ -72,8 +74,8 @@ func (w *LogWriter) Start(ctx context.Context) {
 
 // Submit enqueues a log row. Drops on full queue.
 func (w *LogWriter) Submit(l model.RequestLog) {
-	if len(l.RequestBody) > w.maxBody {
-		l.RequestBody = l.RequestBody[:w.maxBody]
+	if len(l.RequestBody) > MaxLoggedBody {
+		l.RequestBody = l.RequestBody[:MaxLoggedBody]
 	}
 	select {
 	case w.queue <- l:
