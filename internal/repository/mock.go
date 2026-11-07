@@ -27,11 +27,16 @@ type MockRepo struct {
 
 func NewMockRepo(pool *pgxpool.Pool) *MockRepo { return &MockRepo{pool: pool} }
 
+// ErrMockLimit is returned by MockRepo.Create when the creator IP already
+// holds maxPerIP live mocks.
+var ErrMockLimit = errors.New("mock limit reached")
+
 // Create inserts a new mock. An expired mock holding the same slug is
 // deleted first (in the same transaction) so a custom slug can be reused
 // without handing the old request_logs to the new owner. A slug held by a
-// live mock yields ErrSlugConflict.
-func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
+// live mock yields ErrSlugConflict. With maxPerIP > 0 and a CreatorIP set,
+// an IP already holding maxPerIP live mocks yields ErrMockLimit.
+func (r *MockRepo) Create(ctx context.Context, m *model.Mock, maxPerIP int) error {
 	headers, err := json.Marshal(m.ResponseHeaders)
 	if err != nil {
 		return fmt.Errorf("marshal headers: %w", err)
@@ -49,6 +54,23 @@ func (r *MockRepo) Create(ctx context.Context, m *model.Mock) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback(ctx) }() // no-op after Commit
+	if m.CreatorIP != "" && maxPerIP > 0 {
+		// Serialise creates per IP until commit: without it concurrent
+		// requests all count the same rows and all pass the quota.
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, m.CreatorIP); err != nil {
+			return err
+		}
+		var n int
+		if err := tx.QueryRow(ctx, `
+			SELECT count(*) FROM mocks
+			WHERE creator_ip = $1 AND (expires_at IS NULL OR expires_at > now())
+		`, m.CreatorIP).Scan(&n); err != nil {
+			return err
+		}
+		if n >= maxPerIP {
+			return ErrMockLimit
+		}
+	}
 	if _, err := tx.Exec(ctx, `DELETE FROM mocks WHERE slug = $1 AND expires_at IS NOT NULL AND expires_at <= now()`, m.Slug); err != nil {
 		return err
 	}
@@ -163,8 +185,6 @@ func (r *MockRepo) DeleteBySlug(ctx context.Context, slug string) error {
 	return nil
 }
 
-// CountActiveByCreatorIP returns how many non-expired mocks were created
-// from a given IP. Used to enforce QUICKMOCK_MAX_MOCKS.
 // ListBySlugs returns the live mocks among slugs, in no particular order, in
 // one query. Only the fields the /my cards show are loaded: response bodies
 // and routes can run to megabytes per mock.
@@ -194,16 +214,6 @@ func (r *MockRepo) ListBySlugs(ctx context.Context, slugs []string) ([]*model.Mo
 		}
 		return &m, err
 	})
-}
-
-func (r *MockRepo) CountActiveByCreatorIP(ctx context.Context, ip string) (int, error) {
-	var n int
-	err := r.pool.QueryRow(ctx, `
-		SELECT count(*) FROM mocks
-		WHERE creator_ip = $1
-		  AND (expires_at IS NULL OR expires_at > now())
-	`, ip).Scan(&n)
-	return n, err
 }
 
 // RecordHit atomically increments the request counter and updates the

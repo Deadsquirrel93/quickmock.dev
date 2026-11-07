@@ -48,11 +48,10 @@ func (e *ValidationError) Error() string { return e.Message }
 //
 // *repository.MockRepo satisfies it, so production wiring is unchanged.
 type MockStore interface {
-	Create(ctx context.Context, m *model.Mock) error
+	Create(ctx context.Context, m *model.Mock, maxPerIP int) error
 	BySlug(ctx context.Context, slug string) (*model.Mock, error)
 	Update(ctx context.Context, m *model.Mock) error
 	DeleteBySlug(ctx context.Context, slug string) error
-	CountActiveByCreatorIP(ctx context.Context, ip string) (int, error)
 	SlugExists(ctx context.Context, slug string) (bool, error)
 	ListBySlugs(ctx context.Context, slugs []string) ([]*model.Mock, error)
 }
@@ -199,16 +198,6 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 		return nil, ErrPaymentBlocked
 	}
 
-	if creatorIP != "" {
-		n, err := s.repo.CountActiveByCreatorIP(ctx, creatorIP)
-		if err != nil {
-			return nil, fmt.Errorf("count mocks per IP: %w", err)
-		}
-		if n >= s.maxMocks {
-			return nil, ErrMockLimitReached
-		}
-	}
-
 	slug := in.Slug // normalized by validate
 	if slug == "" {
 		var err error
@@ -255,9 +244,12 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 		CreatorIP:          creatorIP,
 		AdminTokenHash:     tokenHash,
 	}
-	if err := s.repo.Create(ctx, m); err != nil {
+	if err := s.repo.Create(ctx, m, s.maxMocks); err != nil {
 		if errors.Is(err, repository.ErrSlugConflict) {
 			return nil, ErrSlugTaken
+		}
+		if errors.Is(err, repository.ErrMockLimit) {
+			return nil, ErrMockLimitReached
 		}
 		return nil, fmt.Errorf("insert mock: %w", err)
 	}

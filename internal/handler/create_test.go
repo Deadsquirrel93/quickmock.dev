@@ -26,7 +26,10 @@ type fakeCreateStore struct {
 	err       error // when set, reads fail with it
 }
 
-func (f *fakeCreateStore) Create(_ context.Context, m *model.Mock) error {
+func (f *fakeCreateStore) Create(_ context.Context, m *model.Mock, maxPerIP int) error {
+	if m.CreatorIP != "" && maxPerIP > 0 && f.perIPUsed >= maxPerIP {
+		return repository.ErrMockLimit
+	}
 	for _, c := range f.created {
 		if c.Slug == m.Slug {
 			return repository.ErrSlugConflict
@@ -53,10 +56,6 @@ func (f *fakeCreateStore) Update(context.Context, *model.Mock) error  { return n
 func (f *fakeCreateStore) DeleteBySlug(context.Context, string) error { return nil }
 func (f *fakeCreateStore) SlugExists(context.Context, string) (bool, error) {
 	return false, nil
-}
-
-func (f *fakeCreateStore) CountActiveByCreatorIP(context.Context, string) (int, error) {
-	return f.perIPUsed, nil
 }
 
 // creatingUI is testUI plus a MockService over store, so CreateForm and

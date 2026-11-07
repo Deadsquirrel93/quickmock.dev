@@ -287,7 +287,7 @@ func newFakeMockStore(mocks ...*model.Mock) *fakeMockStore {
 	return &fakeMockStore{mocks: m}
 }
 
-func (f *fakeMockStore) Create(_ context.Context, m *model.Mock) error {
+func (f *fakeMockStore) Create(_ context.Context, m *model.Mock, _ int) error {
 	if _, ok := f.mocks[m.Slug]; ok {
 		return repository.ErrSlugConflict
 	}
@@ -320,10 +320,6 @@ func (f *fakeMockStore) DeleteBySlug(_ context.Context, slug string) error {
 	}
 	delete(f.mocks, slug)
 	return nil
-}
-
-func (f *fakeMockStore) CountActiveByCreatorIP(_ context.Context, _ string) (int, error) {
-	return 0, nil
 }
 
 func (f *fakeMockStore) SlugExists(_ context.Context, slug string) (bool, error) {
@@ -830,7 +826,7 @@ type conflictStore struct {
 	err error
 }
 
-func (c *conflictStore) Create(context.Context, *model.Mock) error { return c.err }
+func (c *conflictStore) Create(context.Context, *model.Mock, int) error { return c.err }
 
 func TestUpdateIgnoresSlug(t *testing.T) {
 	plain, hash, err := GenerateAdminToken()

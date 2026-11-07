@@ -55,7 +55,7 @@ func seedMock(ctx context.Context, t *testing.T, repo *MockRepo, slug string) *m
 		ResponseStatus: 200,
 		ContentType:    "text/plain",
 	}
-	if err := repo.Create(ctx, m); err != nil {
+	if err := repo.Create(ctx, m, 0); err != nil {
 		t.Fatalf("seed mock: %v", err)
 	}
 	t.Cleanup(func() {

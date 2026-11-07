@@ -3,7 +3,9 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,7 +32,7 @@ func TestMockRepoRoundTripsJSONColumns(t *testing.T) {
 		PathSuffix:    "a/b", ExpiresAt: &exp, CreatorIP: "203.0.113.1", AdminTokenHash: "abc",
 		CORSEnabled: true, LogsPublic: true, CaptureBody: true, CaptureIP: true,
 	}
-	if err := repo.Create(ctx, full); err != nil {
+	if err := repo.Create(ctx, full, 0); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = repo.DeleteBySlug(context.Background(), full.Slug) })
@@ -82,7 +84,7 @@ func TestMockRepoPlainMockKeepsNullColumns(t *testing.T) {
 		ResponseStatus: 200, ContentType: "text/plain", ResponseHeaders: map[string]string{},
 		ExpiresAt: &exp, CreatorIP: "203.0.113.2",
 	}
-	if err := repo.Create(ctx, plain); err != nil {
+	if err := repo.Create(ctx, plain, 0); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = repo.DeleteBySlug(context.Background(), plain.Slug) })
@@ -141,10 +143,10 @@ func TestMockRepoCreateCustomSlug(t *testing.T) {
 		slug := "live-" + suffix
 		cleanup(slug)
 		first := newMock(slug, time.Now().Add(time.Hour))
-		if err := repo.Create(ctx, first); err != nil {
+		if err := repo.Create(ctx, first, 0); err != nil {
 			t.Fatal(err)
 		}
-		if err := repo.Create(ctx, newMock(slug, time.Now().Add(time.Hour))); !errors.Is(err, ErrSlugConflict) {
+		if err := repo.Create(ctx, newMock(slug, time.Now().Add(time.Hour)), 0); !errors.Is(err, ErrSlugConflict) {
 			t.Fatalf("err = %v, want ErrSlugConflict", err)
 		}
 		got, err := repo.BySlug(ctx, slug)
@@ -159,7 +161,7 @@ func TestMockRepoCreateCustomSlug(t *testing.T) {
 		if _, err := pool.Exec(ctx, `INSERT INTO mocks (slug, method, expires_at) VALUES ($1, 'GET', NULL)`, slug); err != nil {
 			t.Fatal(err)
 		}
-		if err := repo.Create(ctx, newMock(slug, time.Now().Add(time.Hour))); !errors.Is(err, ErrSlugConflict) {
+		if err := repo.Create(ctx, newMock(slug, time.Now().Add(time.Hour)), 0); !errors.Is(err, ErrSlugConflict) {
 			t.Fatalf("err = %v, want ErrSlugConflict", err)
 		}
 	})
@@ -168,14 +170,14 @@ func TestMockRepoCreateCustomSlug(t *testing.T) {
 		slug := "expired-" + suffix
 		cleanup(slug)
 		old := newMock(slug, time.Now().Add(-time.Minute))
-		if err := repo.Create(ctx, old); err != nil {
+		if err := repo.Create(ctx, old, 0); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := pool.Exec(ctx, `INSERT INTO request_logs (mock_id, request_method) VALUES ($1, 'GET')`, old.ID); err != nil {
 			t.Fatal(err)
 		}
 		fresh := newMock(slug, time.Now().Add(time.Hour))
-		if err := repo.Create(ctx, fresh); err != nil {
+		if err := repo.Create(ctx, fresh, 0); err != nil {
 			t.Fatalf("Create over expired slug: %v", err)
 		}
 		if fresh.ID == "" || fresh.ID == old.ID {
@@ -197,7 +199,7 @@ func TestMockRepoCreateCustomSlug(t *testing.T) {
 		slug := "gen" + suffix
 		cleanup(slug)
 		m := newMock(slug, time.Now().Add(time.Hour))
-		if err := repo.Create(ctx, m); err != nil {
+		if err := repo.Create(ctx, m, 0); err != nil {
 			t.Fatal(err)
 		}
 		if m.ID == "" || m.CreatedAt.IsZero() {
@@ -222,5 +224,43 @@ func TestMockRepoListBySlugsSkipsMissingAndExpired(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].Slug != live.Slug || got[0].Method != model.MethodANY {
 		t.Fatalf("got %+v, want only %s", got, live.Slug)
+	}
+}
+
+// Concurrent creates from one IP must not all pass the quota check: the
+// count and the insert have to be one atomic step per IP.
+func TestMockRepoCreateEnforcesPerIPQuotaUnderConcurrency(t *testing.T) {
+	pool := testPool(t)
+	repo := NewMockRepo(pool)
+	ctx := context.Background()
+	ip := "198.51.100." + time.Now().Format("05")
+	stamp := time.Now().Format("150405.000000")
+	t.Cleanup(func() { _, _ = pool.Exec(context.Background(), `DELETE FROM mocks WHERE creator_ip = $1`, ip) })
+
+	const quota, attempts = 3, 20
+	errs := make(chan error, attempts)
+	var wg sync.WaitGroup
+	for i := range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			m := &model.Mock{Slug: fmt.Sprintf("pgquota%s-%d", stamp, i), Method: model.MethodGET,
+				ResponseStatus: 200, ContentType: "text/plain", CreatorIP: ip}
+			errs <- repo.Create(ctx, m, quota)
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	created := 0
+	for err := range errs {
+		switch {
+		case err == nil:
+			created++
+		case !errors.Is(err, ErrMockLimit):
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if created != quota {
+		t.Fatalf("created %d mocks for one IP, quota is %d", created, quota)
 	}
 }
