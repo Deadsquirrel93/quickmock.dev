@@ -204,7 +204,7 @@ func TestValidateDelayJitter(t *testing.T) {
 	}
 }
 
-// TestAuthorizeAdminToken exercises the private authorize() helper that
+// TestAuthorizeAdminToken exercises the private Authorize() helper that
 // Update/Delete/ClearLogs all delegate to right after fetching the mock.
 // It is the single place the token business rule lives, so this is the
 // load-bearing test for the mutation-guard behavior.
@@ -228,8 +228,8 @@ func TestAuthorizeAdminToken(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := authorize(c.mock, c.token); !errors.Is(got, c.want) {
-				t.Fatalf("authorize() = %v, want %v", got, c.want)
+			if got := Authorize(c.mock, c.token); !errors.Is(got, c.want) {
+				t.Fatalf("Authorize() = %v, want %v", got, c.want)
 			}
 		})
 	}

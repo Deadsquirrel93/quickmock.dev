@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Deadsquirrel93/quickmock.dev/internal/model"
+	"github.com/Deadsquirrel93/quickmock.dev/internal/service"
 	"github.com/Deadsquirrel93/quickmock.dev/internal/sse"
 )
 
@@ -54,5 +55,48 @@ func TestLogsStreamEndsOnStop(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("stream kept running after the stop signal")
+	}
+}
+
+// The private inspector authorizes against the mock it already loaded:
+// re-reading it from the store doubled the queries of every poll.
+func TestPrivateInspectorLoadsMockOnce(t *testing.T) {
+	plain, hash, err := service.GenerateAdminToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &fakeCreateStore{created: []*model.Mock{{ID: "m1", Slug: "priv", AdminTokenHash: hash}}}
+	u := creatingUI(t, store, 50)
+	u.broker = sse.NewBroker()
+	u.streams = sse.NewStreamLimiter(10, 10)
+	stop := make(chan struct{})
+	close(stop)
+	u.stop = stop
+
+	req := withSlug(httptest.NewRequest("GET", "/mock/priv/logs/stream", nil), "priv")
+	req.Header.Set("Authorization", "Bearer "+plain)
+	w := httptest.NewRecorder()
+	u.LogsStream(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200 for the right token", w.Code)
+	}
+	if store.reads != 1 {
+		t.Fatalf("mock read %d times, want 1", store.reads)
+	}
+}
+
+func TestPrivateInspectorRejectsWrongToken(t *testing.T) {
+	_, hash, err := service.GenerateAdminToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &fakeCreateStore{created: []*model.Mock{{ID: "m1", Slug: "priv", AdminTokenHash: hash}}}
+	u := creatingUI(t, store, 50)
+	req := withSlug(httptest.NewRequest("GET", "/mock/priv/logs/stream", nil), "priv")
+	req.Header.Set("Authorization", "Bearer qm_wrong")
+	w := httptest.NewRecorder()
+	u.LogsStream(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d, want 401", w.Code)
 	}
 }

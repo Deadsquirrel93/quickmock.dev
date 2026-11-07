@@ -268,8 +268,7 @@ func (u *UI) inspectorAuthorized(r *http.Request, m *model.Mock) bool {
 			token = cookie.Value
 		}
 	}
-	_, err := u.svc.AuthorizeSlug(r.Context(), m.Slug, token)
-	return err == nil
+	return service.Authorize(m, token) == nil
 }
 
 // logFilterMethods lists the concrete HTTP methods a captured request can

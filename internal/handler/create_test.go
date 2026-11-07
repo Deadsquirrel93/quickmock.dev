@@ -24,6 +24,7 @@ type fakeCreateStore struct {
 	created   []*model.Mock
 	perIPUsed int
 	err       error // when set, reads fail with it
+	reads     int   // BySlug calls
 }
 
 func (f *fakeCreateStore) Create(_ context.Context, m *model.Mock, maxPerIP int) error {
@@ -40,6 +41,7 @@ func (f *fakeCreateStore) Create(_ context.Context, m *model.Mock, maxPerIP int)
 }
 
 func (f *fakeCreateStore) BySlug(_ context.Context, slug string) (*model.Mock, error) {
+	f.reads++
 	if f.err != nil {
 		return nil, f.err
 	}

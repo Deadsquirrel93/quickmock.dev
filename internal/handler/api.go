@@ -161,8 +161,7 @@ func (a *API) Logs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !m.LogsPublic {
-		m, err = a.svc.AuthorizeSlug(r.Context(), slug, bearerToken(r))
-		if err != nil {
+		if err := service.Authorize(m, bearerToken(r)); err != nil {
 			a.writeServiceError(w, r, err)
 			return
 		}

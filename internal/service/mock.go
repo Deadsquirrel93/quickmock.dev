@@ -281,10 +281,10 @@ func (s *MockService) Get(ctx context.Context, slug string) (*model.Mock, error)
 	return m, err
 }
 
-// authorize checks adminToken against m's stored hash. Every mock has one:
+// Authorize checks adminToken against m's stored hash. Every mock has one:
 // the pre-token grandfather branch was dropped on 2026-09-05, after a prod
 // check confirmed the last token-less mock had expired.
-func authorize(m *model.Mock, adminToken string) error {
+func Authorize(m *model.Mock, adminToken string) error {
 	if adminToken == "" {
 		return ErrTokenRequired
 	}
@@ -301,7 +301,7 @@ func (s *MockService) Update(ctx context.Context, slug string, in model.MockInpu
 	if err != nil {
 		return nil, err
 	}
-	if err := authorize(existing, adminToken); err != nil {
+	if err := Authorize(existing, adminToken); err != nil {
 		return nil, err
 	}
 	if err := s.validate(&in); err != nil {
@@ -363,7 +363,7 @@ func (s *MockService) Extend(ctx context.Context, slug, adminToken string) (*mod
 	if err != nil {
 		return nil, err
 	}
-	if err := authorize(existing, adminToken); err != nil {
+	if err := Authorize(existing, adminToken); err != nil {
 		return nil, err
 	}
 
@@ -396,7 +396,7 @@ func (s *MockService) Delete(ctx context.Context, slug, adminToken string) error
 	if err != nil {
 		return err
 	}
-	if err := authorize(m, adminToken); err != nil {
+	if err := Authorize(m, adminToken); err != nil {
 		return err
 	}
 	if err := s.repo.DeleteBySlug(ctx, slug); err != nil {
@@ -414,7 +414,7 @@ func (s *MockService) ClearLogs(ctx context.Context, slug, adminToken string) er
 	if err != nil {
 		return err
 	}
-	if err := authorize(m, adminToken); err != nil {
+	if err := Authorize(m, adminToken); err != nil {
 		return err
 	}
 	return s.logs.Clear(ctx, m.ID)
@@ -430,7 +430,7 @@ func (s *MockService) AuthorizeSlug(ctx context.Context, slug, adminToken string
 	if err != nil {
 		return nil, err
 	}
-	if err := authorize(m, adminToken); err != nil {
+	if err := Authorize(m, adminToken); err != nil {
 		return nil, err
 	}
 	return m, nil
