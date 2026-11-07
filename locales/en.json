@@ -140,6 +140,8 @@
   "changelog.r1020.title": "2026-10-20 — Custom slugs; production-use signal",
   "changelog.r1023.security1": "<strong>Mocks can no longer pose as an OAuth client.</strong> A mock that serves an OAuth Client ID Metadata Document — a JSON whose <code>client_id</code> is its own URL — is rejected: it turned the mock address into a client identity that could be shown on consent screens under someone else’s name. Ordinary OAuth mocks with opaque client ids are not affected. One such mock, posing as ChatGPT, and a license-check bypass for a cracked app were removed.",
   "changelog.r1023.title": "2026-10-23 — Blocking OAuth client impersonation",
+  "changelog.r1107.security1": "<strong>Mocks can no longer host XXE payloads.</strong> A response that declares an XML external entity (<code>&lt;!ENTITY … SYSTEM …&gt;</code> or <code>PUBLIC</code>) is rejected: such a mock makes any XML parser that fetches it pull the creator's URL or file. Ordinary XML, internal entities and DOCTYPE references to public DTDs are not affected. About 70 mocks were removed, most of them XXE and redirect probes aimed at other services' link-preview fetchers.",
+  "changelog.r1107.title": "2026-11-07 — Blocking XXE payload hosting",
   "changelog.repo_link": "Full git history on GitHub",
   "changelog.section.added": "Added",
   "changelog.section.changed": "Changed",

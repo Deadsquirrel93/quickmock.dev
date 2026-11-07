@@ -140,6 +140,8 @@
   "changelog.r1020.title": "2026-10-20 — 自定义 slug；生产使用信号",
   "changelog.r1023.security1": "<strong>mock 不能再冒充 OAuth 客户端。</strong>返回 OAuth Client ID Metadata Document（<code>client_id</code> 等于自身 URL 的 JSON）的 mock 会被拒绝：这会让 mock 地址变成一个客户端身份，可以用别人的名义出现在授权同意页面上。使用不透明 client id 的普通 OAuth mock 不受影响。已删除一个冒充 ChatGPT 的此类 mock，以及一个为破解应用绕过许可证校验的 mock。",
   "changelog.r1023.title": "2026-10-23 — 阻止冒充 OAuth 客户端",
+  "changelog.r1107.security1": "<strong>mock 不能再托管 XXE 载荷。</strong>声明 XML 外部实体（<code>&lt;!ENTITY … SYSTEM …&gt;</code> 或 <code>PUBLIC</code>）的响应会被拒绝：这种 mock 会让任何获取它的 XML 解析器去访问创建者的 URL 或文件。普通 XML、内部实体以及引用公共 DTD 的 DOCTYPE 不受影响。已删除约 70 个 mock，其中大多是针对其他服务链接预览抓取器的 XXE 和重定向探测。",
+  "changelog.r1107.title": "2026-11-07 — 阻止托管 XXE 载荷",
   "changelog.repo_link": "GitHub 上的完整 git 历史记录",
   "changelog.section.added": "已添加",
   "changelog.section.changed": "已更改",

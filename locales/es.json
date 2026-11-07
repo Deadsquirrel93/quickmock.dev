@@ -140,6 +140,8 @@
   "changelog.r1020.title": "2026-10-20 — Slugs personalizados; señal de uso en producción",
   "changelog.r1023.security1": "<strong>Un mock ya no puede hacerse pasar por un cliente OAuth.</strong> Se rechaza el mock que sirve un OAuth Client ID Metadata Document — un JSON cuyo <code>client_id</code> es su propia URL —: convertía la dirección del mock en una identidad de cliente que podía mostrarse en pantallas de consentimiento con el nombre de otro. Los mocks OAuth normales con client id opacos no se ven afectados. Se eliminaron uno de esos mocks, que se hacía pasar por ChatGPT, y un mock que eludía la verificación de licencia de una app crackeada.",
   "changelog.r1023.title": "2026-10-23 — Bloqueo de suplantación de clientes OAuth",
+  "changelog.r1107.security1": "<strong>Los mocks ya no pueden alojar payloads XXE.</strong> Se rechaza la respuesta que declara una entidad externa XML (<code>&lt;!ENTITY … SYSTEM …&gt;</code> o <code>PUBLIC</code>): ese mock hace que cualquier parser XML que lo descargue acceda a la URL o al archivo de su autor. El XML normal, las entidades internas y los DOCTYPE con referencia a DTD públicos no se ven afectados. Se eliminaron unos 70 mocks, en su mayoría sondas XXE y de redirección contra los generadores de vistas previas de enlaces de otros servicios.",
+  "changelog.r1107.title": "2026-11-07 — Bloqueo de payloads XXE",
   "changelog.repo_link": "Historial de git completo en GitHub",
   "changelog.section.added": "Añadido",
   "changelog.section.changed": "Cambiado",
