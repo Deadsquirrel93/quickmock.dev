@@ -17,6 +17,11 @@ import (
 
 const MaxOpenAPISpecBytes = 1024 * 1024
 
+// maxExampleNodes caps the schema nodes one ParseOpenAPI call may expand into
+// examples. Depth alone is not enough: properties that $ref back to their own
+// schema fan out n^depth, so a 1 KB spec could otherwise build gigabytes.
+const maxExampleNodes = 10000
+
 // ParseOpenAPI converts an OpenAPI 3.x JSON or YAML document into the
 // multi-route shape accepted by POST /api/mocks. It intentionally focuses on
 // response examples/schemas: security and server definitions describe the
@@ -40,6 +45,7 @@ func ParseOpenAPI(raw string) ([]model.MockRoute, error) {
 	components, _ := doc["components"].(map[string]any)
 	schemas, _ := components["schemas"].(map[string]any)
 
+	budget := maxExampleNodes
 	pathNames := sortedKeys(paths)
 	routes := make([]model.MockRoute, 0, len(pathNames))
 	for _, path := range pathNames {
@@ -64,7 +70,7 @@ func ParseOpenAPI(raw string) ([]model.MockRoute, error) {
 					break
 				}
 			}
-			baseBody, baseType := openAPIResponse(responses[strconv.Itoa(baseStatus)], schemas)
+			baseBody, baseType := openAPIResponse(responses[strconv.Itoa(baseStatus)], schemas, &budget)
 			name, _ := op["operationId"].(string)
 			if name == "" {
 				name, _ = op["summary"].(string)
@@ -77,7 +83,7 @@ func ParseOpenAPI(raw string) ([]model.MockRoute, error) {
 				if status == baseStatus {
 					continue
 				}
-				body, contentType := openAPIResponse(responses[strconv.Itoa(status)], schemas)
+				body, contentType := openAPIResponse(responses[strconv.Itoa(status)], schemas, &budget)
 				route.Variants = append(route.Variants, model.NamedVariant{
 					Name: "status-" + strconv.Itoa(status), Status: status,
 					Body: body, ContentType: contentType,
@@ -95,7 +101,7 @@ func ParseOpenAPI(raw string) ([]model.MockRoute, error) {
 	return routes, nil
 }
 
-func openAPIResponse(value any, schemas map[string]any) (string, string) {
+func openAPIResponse(value any, schemas map[string]any, budget *int) (string, string) {
 	response, _ := value.(map[string]any)
 	content, _ := response["content"].(map[string]any)
 	contentType := "application/json"
@@ -123,7 +129,7 @@ func openAPIResponse(value any, schemas map[string]any) (string, string) {
 		}
 		if example == nil {
 			if schema, ok := media["schema"].(map[string]any); ok {
-				example = exampleFromSchema(schema, schemas, 0)
+				example = exampleFromSchema(schema, schemas, 0, budget)
 			}
 		}
 	}
@@ -137,17 +143,18 @@ func openAPIResponse(value any, schemas map[string]any) (string, string) {
 	return string(b), contentType
 }
 
-func exampleFromSchema(schema map[string]any, schemas map[string]any, depth int) any {
-	if depth > 8 {
+func exampleFromSchema(schema map[string]any, schemas map[string]any, depth int, budget *int) any {
+	if depth > 8 || *budget <= 0 {
 		return nil
 	}
+	*budget--
 	if example := schema["example"]; example != nil {
 		return example
 	}
 	if ref, _ := schema["$ref"].(string); strings.HasPrefix(ref, "#/components/schemas/") {
 		name := strings.TrimPrefix(ref, "#/components/schemas/")
 		if target, ok := schemas[name].(map[string]any); ok {
-			return exampleFromSchema(target, schemas, depth+1)
+			return exampleFromSchema(target, schemas, depth+1, budget)
 		}
 	}
 	typeName, _ := schema["type"].(string)
@@ -157,14 +164,14 @@ func exampleFromSchema(schema map[string]any, schemas map[string]any, depth int)
 		if properties, ok := schema["properties"].(map[string]any); ok {
 			for _, name := range sortedKeys(properties) {
 				if child, ok := properties[name].(map[string]any); ok {
-					out[name] = exampleFromSchema(child, schemas, depth+1)
+					out[name] = exampleFromSchema(child, schemas, depth+1, budget)
 				}
 			}
 		}
 		return out
 	case "array":
 		if items, ok := schema["items"].(map[string]any); ok {
-			return []any{exampleFromSchema(items, schemas, depth+1)}
+			return []any{exampleFromSchema(items, schemas, depth+1, budget)}
 		}
 		return []any{}
 	case "integer", "number":
