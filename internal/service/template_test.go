@@ -436,3 +436,17 @@ func TestRenderMock_URLIsNotRescanned(t *testing.T) {
 		t.Fatalf("expected the URL inserted verbatim, got %q", out)
 	}
 }
+
+// {{seq}} is the mock's hit counter: every occurrence in one response shows
+// the same hit number, and the counter advances once per response.
+func TestRenderResponseBody_SeqOncePerResponse(t *testing.T) {
+	calls := 0
+	next := func() uint64 { calls++; return uint64(calls) }
+	out := RenderResponseBodyForRequest(`{"id":{{seq}},"ref":"o-{{seq}}"}`, &RequestData{Seq: next})
+	if out != `{"id":1,"ref":"o-1"}` {
+		t.Fatalf("got %s", out)
+	}
+	if calls != 1 {
+		t.Fatalf("counter advanced %d times for one response", calls)
+	}
+}

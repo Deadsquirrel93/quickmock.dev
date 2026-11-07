@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"uuid"
 )
@@ -142,6 +143,13 @@ type RequestData struct {
 func RenderResponseBodyForRequest(body string, req *RequestData) string {
 	if !strings.Contains(body, "{{") {
 		return body
+	}
+	if req != nil && req.Seq != nil {
+		// {{seq}} is a hit counter: every occurrence in one response shows the
+		// same number, and the counter advances once per response.
+		r := *req
+		r.Seq = sync.OnceValue(req.Seq)
+		req = &r
 	}
 	body = tokenRe.ReplaceAllStringFunc(body, func(match string) string {
 		parts := tokenRe.FindStringSubmatch(match)
