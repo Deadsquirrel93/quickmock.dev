@@ -79,3 +79,7 @@
 # whatever parser fetches it (found on prod aimed at link-preview fetchers).
 # Internal entities and DOCTYPE PUBLIC DTD references stay allowed.
 (?i)<!ENTITY\s+(?:%\s*)?[^\s>]+\s+(?:SYSTEM|PUBLIC)\b
+# External DTD by absolute URL: the parser fetches it and the entities live
+# there. Relative DTD names and about:legacy-compat stay allowed; the PUBLIC
+# form stays allowed because XHTML doctypes point at w3.org with it.
+(?i)<!DOCTYPE\s+[^\s>\[]+\s+SYSTEM\s+["'](?:https?|ftp|file|jar)://
