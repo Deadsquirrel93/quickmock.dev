@@ -59,6 +59,9 @@ services:
   app:
     build: .
     restart: unless-stopped
+    # Shutdown waits up to 30s for in-flight requests (delays reach 30s);
+    # docker's default 10s would SIGKILL them first.
+    stop_grace_period: 35s
     logging: *default-logging
     depends_on:
       postgres:

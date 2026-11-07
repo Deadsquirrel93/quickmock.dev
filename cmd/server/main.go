@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -163,7 +162,9 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	sseBroker := sse.NewBroker()
 	sseStreams := sse.NewStreamLimiter(cfg.SSEMaxConns, cfg.SSEMaxPerIP)
 	logWriter := service.NewLogWriter(logRepo, mockRepo, statsCache, 1024, logger, sseBroker)
-	logWriter.Start(rootCtx)
+	// Not rootCtx: requests still in flight during Shutdown keep submitting
+	// logs, and logWriter.Shutdown drains the queue once they are done.
+	logWriter.Start(context.Background())
 
 	// i18n
 	localz := i18n.New(cfg.DefaultLang)
@@ -191,7 +192,7 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 	secureSite := strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://")
 
 	api := handler.NewAPI(mockSvc, logRepo, mockRepo, renderer, cfg.BaseURL)
-	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks, sseBroker, sseStreams, uiWriteLimiter)
+	ui := handler.NewUI(mockSvc, logRepo, statsCache, renderer, localz, cfg.BaseURL, cfg.MaxBody, cfg.MaxMocks, sseBroker, sseStreams, uiWriteLimiter, rootCtx.Done())
 	mockRouter := handler.NewMockRouter(mockSvc, logWriter, seqCounter, callerTracker, logger, cfg.BaseURL)
 	healthHandler := handler.Health(pool, mockLimiter)
 	langHandler := handler.Lang(renderer, secureSite)
@@ -300,7 +301,6 @@ func runServe(logger *slog.Logger, cfg config.Config) int {
 		ReadTimeout:       60 * time.Second,
 		WriteTimeout:      90 * time.Second,
 		IdleTimeout:       120 * time.Second,
-		BaseContext:       func(net.Listener) context.Context { return rootCtx },
 	}
 
 	go func() {

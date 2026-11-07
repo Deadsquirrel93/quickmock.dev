@@ -62,6 +62,8 @@ func (u *UI) LogsStream(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
+		case <-u.stop:
+			return
 		case <-lifetime.C:
 			return
 		case <-ping.C:

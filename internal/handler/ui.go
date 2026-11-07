@@ -41,10 +41,13 @@ type UI struct {
 	broker   *sse.Broker
 	streams  *sse.StreamLimiter
 	writes   writeLimiter
+	// stop closes on shutdown so live inspector streams end and let the
+	// server drain; nil (tests) never fires.
+	stop <-chan struct{}
 }
 
-func NewUI(svc *service.MockService, logs *repository.LogRepo, stats *service.StatsCache, renderer *Renderer, localz *i18n.Localizer, baseURL string, maxBody, maxMocks int, broker *sse.Broker, streams *sse.StreamLimiter, writes writeLimiter) *UI {
-	return &UI{svc: svc, logs: logs, stats: stats, renderer: renderer, localz: localz, baseURL: baseURL, maxBody: maxBody, maxMocks: maxMocks, broker: broker, streams: streams, writes: writes}
+func NewUI(svc *service.MockService, logs *repository.LogRepo, stats *service.StatsCache, renderer *Renderer, localz *i18n.Localizer, baseURL string, maxBody, maxMocks int, broker *sse.Broker, streams *sse.StreamLimiter, writes writeLimiter, stop <-chan struct{}) *UI {
+	return &UI{svc: svc, logs: logs, stats: stats, renderer: renderer, localz: localz, baseURL: baseURL, maxBody: maxBody, maxMocks: maxMocks, broker: broker, streams: streams, writes: writes, stop: stop}
 }
 
 // writeAllowed consumes one unit of the state-changing-UI quota for the
