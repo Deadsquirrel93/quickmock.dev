@@ -471,21 +471,33 @@ func (u *UI) MyMocks(w http.ResponseWriter, r *http.Request) {
 	u.renderer.Render(w, r, "list", http.StatusOK, nil)
 }
 
-// BySlugs returns metadata for many slugs at once. Slugs are passed as a
-// comma-separated query param. Missing/expired slugs are silently skipped
-// so the client can prune its localStorage.
+// BySlugs returns metadata for many slugs at once, in request order. Slugs
+// are passed as a comma-separated query param. Missing/expired slugs are
+// skipped so the client can prune its localStorage — which is why a store
+// failure answers 500 instead of an empty list the client would prune by.
 func (u *UI) BySlugs(w http.ResponseWriter, r *http.Request) {
-	out := make([]map[string]any, 0)
+	var slugs []string
 	for _, s := range strings.Split(r.URL.Query().Get("slugs"), ",") {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
+		if s = strings.TrimSpace(s); s != "" {
+			slugs = append(slugs, s)
 		}
-		m, err := u.svc.Get(r.Context(), s)
+	}
+	out := make([]map[string]any, 0, len(slugs))
+	if len(slugs) > 0 {
+		mocks, err := u.svc.List(r.Context(), slugs)
 		if err != nil {
-			continue
+			writeError(w, r, http.StatusInternalServerError, "internal", u.renderer)
+			return
 		}
-		out = append(out, u.bySlugView(m))
+		bySlug := make(map[string]*model.Mock, len(mocks))
+		for _, m := range mocks {
+			bySlug[m.Slug] = m
+		}
+		for _, s := range slugs {
+			if m, ok := bySlug[s]; ok {
+				out = append(out, u.bySlugView(m))
+			}
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"mocks": out})
 }

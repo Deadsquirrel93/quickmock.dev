@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ import (
 type fakeCreateStore struct {
 	created   []*model.Mock
 	perIPUsed int
+	err       error // when set, reads fail with it
 }
 
 func (f *fakeCreateStore) Create(_ context.Context, m *model.Mock) error {
@@ -35,6 +37,9 @@ func (f *fakeCreateStore) Create(_ context.Context, m *model.Mock) error {
 }
 
 func (f *fakeCreateStore) BySlug(_ context.Context, slug string) (*model.Mock, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
 	for _, m := range f.created {
 		if m.Slug == slug {
 			cp := *m
@@ -280,4 +285,18 @@ func TestHomeRendersCustomSlugField(t *testing.T) {
 	if strings.Contains(body, "mock.create.slug") {
 		t.Error("home page leaked a raw locale key")
 	}
+}
+
+func (f *fakeCreateStore) ListBySlugs(_ context.Context, slugs []string) ([]*model.Mock, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	var out []*model.Mock
+	for _, m := range f.created {
+		if slices.Contains(slugs, m.Slug) {
+			cp := *m
+			out = append(out, &cp)
+		}
+	}
+	return out, nil
 }

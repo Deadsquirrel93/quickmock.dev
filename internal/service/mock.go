@@ -54,6 +54,7 @@ type MockStore interface {
 	DeleteBySlug(ctx context.Context, slug string) error
 	CountActiveByCreatorIP(ctx context.Context, ip string) (int, error)
 	SlugExists(ctx context.Context, slug string) (bool, error)
+	ListBySlugs(ctx context.Context, slugs []string) ([]*model.Mock, error)
 }
 
 // MockService is the only object handlers should call to manipulate mocks.
@@ -265,6 +266,12 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 		s.stats.BumpAsync(StatMocksCreated, 1)
 	}
 	return m, nil
+}
+
+// List returns the live mocks among slugs (card fields only, see
+// repository.MockRepo.ListBySlugs) in one store round trip.
+func (s *MockService) List(ctx context.Context, slugs []string) ([]*model.Mock, error) {
+	return s.repo.ListBySlugs(ctx, slugs)
 }
 
 // Get returns a mock by slug. ErrNotFound for unknown or expired.

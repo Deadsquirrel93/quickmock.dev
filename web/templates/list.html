@@ -52,6 +52,8 @@
         if (slugs.length === 0) { this.loading = false; return; }
         try {
           const r = await fetch('/api/mocks/by-slugs?slugs=' + encodeURIComponent(slugs.join(',')));
+          // A failed lookup must not prune: an error body has no mocks list.
+          if (!r.ok) throw new Error('by-slugs ' + r.status);
           const data = await r.json();
           this.mocks = data.mocks || [];
           // Prune slugs that no longer exist server-side.

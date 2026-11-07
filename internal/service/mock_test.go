@@ -870,3 +870,14 @@ func TestUpdateIgnoresMalformedSlug(t *testing.T) {
 		}
 	}
 }
+
+func (f *fakeMockStore) ListBySlugs(_ context.Context, slugs []string) ([]*model.Mock, error) {
+	var out []*model.Mock
+	for _, s := range slugs {
+		if m, ok := f.mocks[s]; ok {
+			cp := *m
+			out = append(out, &cp)
+		}
+	}
+	return out, nil
+}

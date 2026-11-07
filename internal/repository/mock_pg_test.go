@@ -205,3 +205,22 @@ func TestMockRepoCreateCustomSlug(t *testing.T) {
 		}
 	})
 }
+
+func TestMockRepoListBySlugsSkipsMissingAndExpired(t *testing.T) {
+	pool := testPool(t)
+	repo := NewMockRepo(pool)
+	ctx := context.Background()
+	stamp := time.Now().Format("150405.000000")
+	live := seedMock(ctx, t, repo, "pglist-live"+stamp)
+	expired := seedMock(ctx, t, repo, "pglist-old"+stamp)
+	if _, err := pool.Exec(ctx, `UPDATE mocks SET expires_at = now() - interval '1 minute' WHERE slug = $1`, expired.Slug); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.ListBySlugs(ctx, []string{expired.Slug, "pglist-missing" + stamp, live.Slug})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Slug != live.Slug || got[0].Method != model.MethodANY {
+		t.Fatalf("got %+v, want only %s", got, live.Slug)
+	}
+}

@@ -165,6 +165,37 @@ func (r *MockRepo) DeleteBySlug(ctx context.Context, slug string) error {
 
 // CountActiveByCreatorIP returns how many non-expired mocks were created
 // from a given IP. Used to enforce QUICKMOCK_MAX_MOCKS.
+// ListBySlugs returns the live mocks among slugs, in no particular order, in
+// one query. Only the fields the /my cards show are loaded: response bodies
+// and routes can run to megabytes per mock.
+func (r *MockRepo) ListBySlugs(ctx context.Context, slugs []string) ([]*model.Mock, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT slug, name, method, response_status, request_count,
+		       created_at, expires_at, path_suffix
+		FROM mocks
+		WHERE slug = ANY($1)
+		  AND (expires_at IS NULL OR expires_at > now())
+	`, slugs)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (*model.Mock, error) {
+		var (
+			m            model.Mock
+			name, suffix *string
+		)
+		err := row.Scan(&m.Slug, &name, &m.Method, &m.ResponseStatus, &m.RequestCount,
+			&m.CreatedAt, &m.ExpiresAt, &suffix)
+		if name != nil {
+			m.Name = *name
+		}
+		if suffix != nil {
+			m.PathSuffix = *suffix
+		}
+		return &m, err
+	})
+}
+
 func (r *MockRepo) CountActiveByCreatorIP(ctx context.Context, ip string) (int, error) {
 	var n int
 	err := r.pool.QueryRow(ctx, `

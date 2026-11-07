@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -376,5 +378,31 @@ func TestBySlugsEmptyInputReturnsEmptyList(t *testing.T) {
 		if w.Code != http.StatusOK || strings.TrimSpace(w.Body.String()) != `{"mocks":[]}` {
 			t.Errorf("%q: %d %s, want 200 {\"mocks\":[]}", q, w.Code, w.Body.String())
 		}
+	}
+}
+
+func TestBySlugsReturnsLiveMocksInRequestOrder(t *testing.T) {
+	store := &fakeCreateStore{created: []*model.Mock{{Slug: "aaaa"}, {Slug: "bbbb"}}}
+	u := creatingUI(t, store, 50)
+	w := httptest.NewRecorder()
+	u.BySlugs(w, httptest.NewRequest("GET", "/api/mocks/by-slugs?slugs=bbbb,gone,aaaa", nil))
+	var got struct{ Mocks []struct{ Slug string } }
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || w.Code != http.StatusOK {
+		t.Fatalf("%d %s: %v", w.Code, w.Body.String(), err)
+	}
+	if len(got.Mocks) != 2 || got.Mocks[0].Slug != "bbbb" || got.Mocks[1].Slug != "aaaa" {
+		t.Fatalf("mocks = %+v, want bbbb, aaaa", got.Mocks)
+	}
+}
+
+// The /my page drops every slug missing from the answer, so a store failure
+// must not look like "none of your mocks exist any more".
+func TestBySlugsStoreFailureIsAnError(t *testing.T) {
+	store := &fakeCreateStore{created: []*model.Mock{{Slug: "aaaa"}}, err: errors.New("db down")}
+	u := creatingUI(t, store, 50)
+	w := httptest.NewRecorder()
+	u.BySlugs(w, httptest.NewRequest("GET", "/api/mocks/by-slugs?slugs=aaaa", nil))
+	if w.Code != http.StatusInternalServerError || strings.Contains(w.Body.String(), `"mocks"`) {
+		t.Fatalf("got %d %s, want 500 without a mocks list", w.Code, w.Body.String())
 	}
 }
