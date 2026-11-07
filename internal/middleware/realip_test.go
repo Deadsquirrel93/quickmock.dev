@@ -57,6 +57,26 @@ func TestRealIP(t *testing.T) {
 			want:       "127.0.0.1",
 		},
 		{
+			name:       "trusted peer, IPv6 header collapses to its /64",
+			header:     "CF-Connecting-IP",
+			remoteAddr: "127.0.0.1:1234",
+			headers:    map[string]string{"CF-Connecting-IP": "2001:db8:1:2:aaaa:bbbb:cccc:dddd"},
+			want:       "2001:db8:1:2::",
+		},
+		{
+			name:       "direct IPv6 peer collapses to its /64",
+			header:     "",
+			remoteAddr: "[2001:db8:1:2::99]:1234",
+			want:       "2001:db8:1:2::",
+		},
+		{
+			name:       "trusted peer, IPv4-mapped header unmapped",
+			header:     "CF-Connecting-IP",
+			remoteAddr: "127.0.0.1:1234",
+			headers:    map[string]string{"CF-Connecting-IP": "::ffff:203.0.113.5"},
+			want:       "203.0.113.5",
+		},
+		{
 			name:       "trusted peer, comma-list header value rejected",
 			header:     "CF-Connecting-IP",
 			remoteAddr: "127.0.0.1:1234",

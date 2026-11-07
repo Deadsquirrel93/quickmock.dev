@@ -59,6 +59,21 @@ func TestLoadParsesIPLists(t *testing.T) {
 	}
 }
 
+// Clients are keyed by their IPv6 /64 (see middleware.RealIP), so a single IPv6
+// address in a list must cover that whole /64 or it would never match.
+func TestLoadWidensSingleIPv6ToItsSlash64(t *testing.T) {
+	t.Setenv("QUICKMOCK_PG_DSN", "postgres://x")
+	t.Setenv("QUICKMOCK_BLOCK_IPS", "2001:db8:1:2::99, 2001:db8:9::/48")
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []netip.Prefix{netip.MustParsePrefix("2001:db8:1:2::/64"), netip.MustParsePrefix("2001:db8:9::/48")}
+	if !reflect.DeepEqual(c.BlockedIPs, want) {
+		t.Errorf("BlockedIPs = %v, want %v", c.BlockedIPs, want)
+	}
+}
+
 func TestLoadIPListsEmptyByDefault(t *testing.T) {
 	t.Setenv("QUICKMOCK_PG_DSN", "postgres://x")
 	t.Setenv("QUICKMOCK_BLOCK_IPS", "")

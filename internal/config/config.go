@@ -187,6 +187,11 @@ func getPrefixes(k string) ([]netip.Prefix, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid IP or CIDR %q in %s: %w", s, k, err)
 		}
+		// Clients are keyed by their IPv6 /64 (middleware.RealIP), so a
+		// narrower IPv6 entry is widened to the /64 it could ever match.
+		if p.Addr().Is6() && p.Bits() > 64 {
+			p = netip.PrefixFrom(p.Addr(), 64)
+		}
 		out = append(out, p.Masked())
 	}
 	return out, nil

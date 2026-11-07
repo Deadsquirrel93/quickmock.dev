@@ -46,19 +46,24 @@ func clientIP(r *http.Request, header string) string {
 	if err != nil {
 		host = r.RemoteAddr
 	}
-	if header == "" {
-		return host
+	if header != "" && isTrustedProxy(host) {
+		if addr, err := netip.ParseAddr(strings.TrimSpace(r.Header.Get(header))); err == nil {
+			return clientKey(addr)
+		}
 	}
-	if !isTrustedProxy(host) {
-		return host
+	if addr, err := netip.ParseAddr(host); err == nil {
+		return clientKey(addr)
 	}
-	v := strings.TrimSpace(r.Header.Get(header))
-	if v == "" {
-		return host
-	}
-	addr, err := netip.ParseAddr(v)
-	if err != nil {
-		return host
+	return host
+}
+
+// clientKey names a client by address, collapsing IPv6 to its /64: one
+// subscriber gets a whole /64, so a /128 key would let a single host rotate
+// past every per-IP limit (mock quota, rate limits, blocklist).
+func clientKey(addr netip.Addr) string {
+	addr = addr.Unmap().WithZone("")
+	if addr.Is6() {
+		addr = netip.PrefixFrom(addr, 64).Masked().Addr()
 	}
 	return addr.String()
 }
