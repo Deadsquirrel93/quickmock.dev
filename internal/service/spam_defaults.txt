@@ -74,3 +74,8 @@
 # serving one turns the mock URL into an OAuth client identity (found on prod
 # impersonating ChatGPT). Registration/token responses use opaque client ids.
 (?i)\\?"client_id\\?"\s*:\s*\\?"https?://
+
+# XML external entities (XXE): a mock serving one is an XXE payload host for
+# whatever parser fetches it (found on prod aimed at link-preview fetchers).
+# Internal entities and DOCTYPE PUBLIC DTD references stay allowed.
+(?i)<!ENTITY\s+(?:%\s*)?[^\s>]+\s+(?:SYSTEM|PUBLIC)\b

