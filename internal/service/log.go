@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"regexp"
 	"sync"
 	"time"
 
@@ -72,11 +73,25 @@ func (w *LogWriter) Start(ctx context.Context) {
 	}()
 }
 
+// Password values in captured bodies are masked before storage, so a mock
+// can't serve as a credential collector (found on prod: a third-party page
+// posting PASSWORD=… to an empty mock). Templates still see the raw body.
+var (
+	jsonPassword = regexp.MustCompile(`(?i)("(?:[\w-]*password|passwd|pwd|pass)"\s*:\s*)"(?:[^"\\]|\\.)+"`)
+	formPassword = regexp.MustCompile(`(?i)(^|&)([^&=]*password[^&=]*|passwd|pwd|pass)=[^&]+`)
+)
+
+func redactPasswords(body string) string {
+	body = jsonPassword.ReplaceAllString(body, `${1}"[redacted]"`)
+	return formPassword.ReplaceAllString(body, `${1}${2}=[redacted]`)
+}
+
 // Submit enqueues a log row. Drops on full queue.
 func (w *LogWriter) Submit(l model.RequestLog) {
 	if len(l.RequestBody) > MaxLoggedBody {
 		l.RequestBody = l.RequestBody[:MaxLoggedBody]
 	}
+	l.RequestBody = redactPasswords(l.RequestBody)
 	select {
 	case w.queue <- l:
 	default:

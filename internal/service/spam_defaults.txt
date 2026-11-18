@@ -83,3 +83,8 @@
 # there. Relative DTD names and about:legacy-compat stay allowed; the PUBLIC
 # form stays allowed because XHTML doctypes point at w3.org with it.
 (?i)<!DOCTYPE\s+[^\s>\[]+\s+SYSTEM\s+["'](?:https?|ftp|file|jar)://
+
+# Credentialed exfil page: fetch with the visitor's cookies, then ship the
+# result to another URL in a query string (found on prod, 2026-11-18). A
+# bare credentials:'include' or an encoded search query stays allowed.
+(?is)credentials\s*:\s*\\?["']include\\?["'].{0,600}?https?://[^\s"'<>]+\?[^\s"'<>]*=\\?["']\s*\+\s*(?:encodeURIComponent|btoa|escape)\s*\(
