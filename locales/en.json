@@ -370,7 +370,7 @@
   "home.hero.subtitle": "Paste a response. Pick a status code. Get a URL. No signup.",
   "home.hero.title": "Create a mock API in 30 seconds",
   "home.howto.intro": "Quickmock is an online mock API and REST endpoint generator: paste a JSON (or any) response body, pick an HTTP method and status code, and get a public URL you can call from anywhere — no signup, no install.",
-  "home.howto.step1": "Fill out the form below — method, response body, status code.",
+  "home.howto.step1": "Fill out the form above — method, response body, status code.",
   "home.howto.step2": "Click \"Create Mock\" and you'll get a public URL like /m/abc123def456.",
   "home.howto.step3": "Use the URL in your code. Open the mock page to watch requests live.",
   "home.howto.title": "How to create a mock API in 30 seconds",

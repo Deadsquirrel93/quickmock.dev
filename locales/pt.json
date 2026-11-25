@@ -370,7 +370,7 @@
   "home.hero.subtitle": "Cole uma resposta. Escolha um código de status. Obtenha uma URL. Sem cadastro.",
   "home.hero.title": "Crie uma API mock em 30 segundos",
   "home.howto.intro": "O Quickmock é um gerador online de mock API e endpoints REST: cole um JSON (ou qualquer) corpo de resposta, escolha um método HTTP e um código de status, e obtenha uma URL pública que você pode chamar de qualquer lugar — sem cadastro, sem instalação.",
-  "home.howto.step1": "Preencha o formulário abaixo — método, corpo da resposta, código de status.",
+  "home.howto.step1": "Preencha o formulário acima — método, corpo da resposta, código de status.",
   "home.howto.step2": "Clique em \"Criar Mock\" e você obterá uma URL pública como /m/abc123def456.",
   "home.howto.step3": "Use a URL no seu código. Abra a página do mock para acompanhar as requisições ao vivo.",
   "home.howto.title": "Como criar uma API mock em 30 segundos",

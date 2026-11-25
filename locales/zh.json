@@ -370,7 +370,7 @@
   "home.hero.subtitle": "粘贴响应。选择状态代码。获取 URL。无需注册。",
   "home.hero.title": "在 30 秒内创建一个 mock API",
   "home.howto.intro": "Quickmock 是一个在线 mock API 和 REST 端点生成器：粘贴 JSON（或任何）响应体，选择 HTTP 方法和状态代码，并获得一个您可以从任何地方调用的公共 URL — 无需注册，无需安装。",
-  "home.howto.step1": "填写以下表单 — 方法、响应体、状态码。",
+  "home.howto.step1": "填写上方表单 — 方法、响应体、状态码。",
   "home.howto.step2": "点击“创建 Mock”，您将获得一个类似 /m/abc123def456 的公共 URL。",
   "home.howto.step3": "在您的代码中使用该 URL。打开 mock 页面实时查看请求。",
   "home.howto.title": "如何在 30 秒内创建 mock API",
