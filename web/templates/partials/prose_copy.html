@@ -14,7 +14,7 @@
   (function () {
     var COPY = "{{ t "common.copy" }}";
     var COPIED = "{{ t "common.copied" }}";
-    var blocks = document.querySelectorAll(".guide-prose pre, .guide-faq dd pre");
+    var blocks = document.querySelectorAll(".guide-prose pre, .guide-faq dd pre, .docs pre.codeblock");
 
     Array.prototype.forEach.call(blocks, function (pre) {
       // Never double-wrap: the hand-written blocks already have both.
