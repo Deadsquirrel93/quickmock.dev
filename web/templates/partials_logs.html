@@ -6,7 +6,7 @@
      them. The box's own wiring (hx-include, which picks up these filters) is
      static on #qm-logs in mock.html. */}}
 {{ define "partials_logs" }}
-<div class="card-header">
+<div class="logs-toolbar">
   <select id="log-filter-method" class="log-filter" name="method" aria-label="{{ t "logs.filter.method" }}"
           hx-get="/mock/{{ .Mock.Slug }}/logs" hx-target="#qm-logs" hx-swap="innerHTML" hx-trigger="change">
     <option value=""{{ if eq .Method "" }} selected{{ end }}>{{ t "logs.filter.all_methods" }}</option>

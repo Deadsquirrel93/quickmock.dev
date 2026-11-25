@@ -3,406 +3,467 @@
 {{ end }}
 
 {{ define "content" }}
-<section class="hero container">
-  <h1>{{ t "home.hero.title" }}</h1>
-  <p class="hero-sub">{{ t "home.hero.subtitle" }}</p>
-  <p class="privacy-badge">🔒 {{ t "home.privacy.badge" }}</p>
-</section>
+<div class="hero-band">
+  <section class="hero container-wide">
+    <div class="hero-inner">
+      <p class="privacy-badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <span>{{ t "home.privacy.badge" }}</span>
+      </p>
+      <h1>{{ t "home.hero.title" }}</h1>
+      <p class="hero-sub">{{ t "home.hero.subtitle" }}</p>
+    </div>
+  </section>
+</div>
 
-<section class="banner banner-warning container" role="alert">
-  <span class="banner-icon" aria-hidden="true">⚠️</span>
-  <div>
-    <strong>{{ t "home.security.title" }}</strong>
-    <p>{{ t "home.security.body" }}</p>
-  </div>
-</section>
-
-<section class="howto container">
-  <h2>{{ t "home.howto.title" }}</h2>
-  <p class="howto-intro">{{ t "home.howto.intro" }}</p>
-  <ol class="howto-steps">
-    <li><span class="step-num">1</span>{{ t "home.howto.step1" }}</li>
-    <li><span class="step-num">2</span>{{ t "home.howto.step2" }}</li>
-    <li><span class="step-num">3</span>{{ t "home.howto.step3" }}</li>
-  </ol>
-
-  <details class="example-block">
-    <summary>{{ t "home.example.title" }}</summary>
-    <p class="example-caption">{{ t "home.example.create_caption" }}</p>
-<pre><code>curl -X POST {{ .BaseURL }}/api/mocks \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "method": "GET",
-    "response_status": 200,
-    "content_type": "application/json",
-    "response_body": "{\"hello\":\"world\"}",
-    "ttl_seconds": 604800
-  }'</code></pre>
-    <p class="example-caption">{{ t "home.example.call_caption" }}</p>
-<pre><code>curl {{ .BaseURL }}/m/abc123def456
-<span class="example-comment"># => {"hello":"world"}</span></code></pre>
-  </details>
-</section>
-
-<section class="cli-block container">
-  <h2>{{ t "home.cli.title" }}</h2>
-  <p class="howto-intro">{{ t "home.cli.body" }}</p>
-  <div class="example-block">
-    <p class="example-caption">{{ t "home.cli.caption" }}</p>
-<pre><code>$ go install github.com/Deadsquirrel93/quickmock.dev/cmd/quickmock@latest
-$ quickmock create -m POST -b '{"ok":true}'
-Public URL:  {{ .BaseURL }}/m/abc123def456
-Admin Token: qm_...</code></pre>
-  </div>
-  <p style="margin-top: 1rem;"><a href="/guide/api-cli" class="btn btn-secondary">{{ t "home.cli.link" }}</a></p>
-</section>
-
-<section class="container">
+<section class="container-wide builder-section" x-data="createForm()">
   {{ if .Error }}
     <div class="banner banner-error" role="alert">
       {{ errMsg .Error $.MaxBodyKB $.MaxMocks }}
     </div>
   {{ end }}
 
-  <form class="create-form card" id="create" method="post" action="/" x-data="createForm()"
-        @submit="if (!validateAdvanced()) $event.preventDefault()">
-    <h2>{{ t "mock.create.title" }}</h2>
+  <div class="builder-split">
+    <form class="create-form card" id="create" method="post" action="/"
+          @submit="if (!validateAdvanced()) $event.preventDefault()">
+      <div class="create-form-head">
+        <h2>{{ t "mock.create.title" }}</h2>
+        <span class="live-pill">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span>HTTP/<span x-text="status || 200">200</span></span>
+        </span>
+      </div>
 
-    <div class="form-row">
-      <label>
-        <span class="label-text">{{ t "mock.create.name" }}</span>
-        <input type="text" name="name" maxlength="100"
-               placeholder="{{ t "mock.create.name_placeholder" }}">
-      </label>
-    </div>
-
-    <div class="form-grid">
-      <label>
-        <span class="label-text">{{ t "mock.create.method" }}</span>
-        <select name="method">
+      <div class="endpoint-bar">
+        <select name="method" class="endpoint-method" x-model="method" aria-label="{{ t "mock.create.method" }}">
           {{ range .Methods }}<option value="{{ . }}">{{ . }}</option>{{ end }}
         </select>
-      </label>
-      <label>
-        <span class="label-text">{{ t "mock.create.status" }}</span>
-        <input type="number" name="response_status" value="200" min="100" max="599"
+
+        <div class="path-suffix-input">
+          <span class="path-prefix">/m/</span>
+          <input type="text" name="slug" maxlength="48" autocomplete="off" spellcheck="false"
+                 x-model="slug" @input="onSlugInput"
+                 aria-label="{{ t "mock.create.slug" }}"
+                 placeholder='{{ t "mock.create.slug_placeholder" }}'>
+        </div>
+
+        <input type="number" name="response_status" class="endpoint-status" x-model="status"
+               value="200" min="100" max="599"
+               aria-label="{{ t "mock.create.status" }}"
                placeholder="{{ t "mock.create.status_placeholder" }}">
-      </label>
-      <label>
-        <span class="label-text">{{ t "mock.create.content_type" }}</span>
-        <select name="content_type">
-          <option value="application/json">application/json</option>
-          <option value="application/xml">application/xml</option>
-          <option value="text/plain; charset=utf-8">text/plain</option>
-          <option value="text/html; charset=utf-8">text/html</option>
-        </select>
-      </label>
-    </div>
 
-    <label class="path-suffix-field">
-      <span class="label-text">{{ t "mock.create.slug" }}</span>
-      <div class="path-suffix-input">
-        <span class="path-prefix">/m/</span>
-        <input type="text" name="slug" maxlength="48" autocomplete="off" spellcheck="false"
-               x-model="slug" @input="onSlugInput"
-               placeholder='{{ t "mock.create.slug_placeholder" }}'>
-      </div>
-      <span class="form-hint" x-show="!slugError">{{ t "mock.create.slug_hint" }}</span>
-      <span class="form-hint form-error" x-show="slugError" x-text="slugError" x-cloak></span>
-    </label>
-
-    <label class="path-suffix-field">
-      <span class="label-text">{{ t "mock.create.path_suffix" }}</span>
-      <div class="path-suffix-input">
-        <span class="path-prefix">/m/&lt;slug&gt;/</span>
-        <input type="text" name="path_suffix" maxlength="255"
-               x-model="pathSuffix" @input="onPathInput"
-               placeholder='{{ t "mock.create.path_suffix_placeholder" }}'>
-      </div>
-      <span class="form-hint" x-show="!pathError">{{ t "mock.create.path_suffix_hint" }}</span>
-      <span class="form-hint form-error" x-show="pathError" x-text="pathError" x-cloak></span>
-    </label>
-
-    <label class="body-field">
-      <span class="label-text body-label">
-        <span>{{ t "mock.create.body" }}</span>
-        <span class="body-actions">
-          <button type="button" class="btn btn-ghost btn-tight" @click="beautify()">{{ t "mock.create.beautify" }}</button>
-          <button type="button" class="btn btn-ghost btn-tight" @click="minify()">{{ t "mock.create.minify" }}</button>
-          <span class="body-counter">
-            <span x-text="bodySize"></span> / {{ .MaxBodyKB }} KB
-          </span>
-        </span>
-      </span>
-      <textarea name="response_body" rows="10" spellcheck="false"
-                x-model="body" @input="onBodyInput"
-                placeholder='{{ t "mock.create.body_placeholder" }}'>{
-  "id": "{{`{{faker.uuid}}`}}",
-  "name": "{{`{{faker.name}}`}}",
-  "email": "{{`{{faker.email}}`}}",
-  "created_at": "{{`{{now.iso8601}}`}}"
-}</textarea>
-      <span class="form-hint form-error" x-show="jsonError" x-text="jsonError" x-cloak></span>
-      <details class="body-tokens">
-        <summary>{{ t "mock.create.tokens.summary" }}</summary>
-        <p class="form-hint">{{ t "mock.create.tokens.hint" }}</p>
-        <div class="body-tokens-grid">
-          <div>
-            <p class="body-tokens-group">{{ t "mock.create.tokens.group_person" }}</p>
-            <ul class="body-tokens-list">
-              <li><code>{{`{{faker.name}}`}}</code> — {{ t "mock.create.tokens.faker_name" }}</li>
-              <li><code>{{`{{faker.firstname}}`}}</code> — {{ t "mock.create.tokens.faker_firstname" }}</li>
-              <li><code>{{`{{faker.lastname}}`}}</code> — {{ t "mock.create.tokens.faker_lastname" }}</li>
-              <li><code>{{`{{faker.username}}`}}</code> — {{ t "mock.create.tokens.faker_username" }}</li>
-              <li><code>{{`{{faker.email}}`}}</code> — {{ t "mock.create.tokens.faker_email" }}</li>
-              <li><code>{{`{{faker.phone}}`}}</code> — {{ t "mock.create.tokens.faker_phone" }}</li>
-            </ul>
-          </div>
-          <div>
-            <p class="body-tokens-group">{{ t "mock.create.tokens.group_net" }}</p>
-            <ul class="body-tokens-list">
-              <li><code>{{`{{faker.url}}`}}</code> — {{ t "mock.create.tokens.faker_url" }}</li>
-              <li><code>{{`{{faker.ipv4}}`}}</code> — {{ t "mock.create.tokens.faker_ipv4" }}</li>
-              <li><code>{{`{{faker.uuid}}`}}</code> — {{ t "mock.create.tokens.faker_uuid" }}</li>
-              <li><code>{{`{{faker.int}}`}}</code> — {{ t "mock.create.tokens.faker_int" }}</li>
-              <li><code>{{`{{faker.bool}}`}}</code> — {{ t "mock.create.tokens.faker_bool" }}</li>
-              <li><code>{{`{{faker.color}}`}}</code> — {{ t "mock.create.tokens.faker_color" }}</li>
-            </ul>
-          </div>
-          <div>
-            <p class="body-tokens-group">{{ t "mock.create.tokens.group_text" }}</p>
-            <ul class="body-tokens-list">
-              <li><code>{{`{{faker.word}}`}}</code> — {{ t "mock.create.tokens.faker_word" }}</li>
-              <li><code>{{`{{faker.sentence}}`}}</code> — {{ t "mock.create.tokens.faker_sentence" }}</li>
-              <li><code>{{`{{faker.lorem}}`}}</code> — {{ t "mock.create.tokens.faker_lorem" }}</li>
-              <li><code>{{`{{faker.company}}`}}</code> — {{ t "mock.create.tokens.faker_company" }}</li>
-              <li><code>{{`{{faker.city}}`}}</code> — {{ t "mock.create.tokens.faker_city" }}</li>
-              <li><code>{{`{{faker.price}}`}}</code> — {{ t "mock.create.tokens.faker_price" }}</li>
-            </ul>
-          </div>
-          <div>
-            <p class="body-tokens-group">{{ t "mock.create.tokens.group_dynamic" }}</p>
-            <ul class="body-tokens-list">
-              <li><code>{{`{{random.pick:a|b|c}}`}}</code> — {{ t "mock.create.tokens.random_pick" }}</li>
-              <li><code>{{`{{seq}}`}}</code> — {{ t "mock.create.tokens.seq" }}</li>
-              <li><code>{{`{{mock.url}}`}}</code> — {{ t "mock.create.tokens.mock_url" }}</li>
-            </ul>
-          </div>
-          <div>
-            <p class="body-tokens-group">{{ t "mock.create.tokens.group_time" }}</p>
-            <ul class="body-tokens-list">
-              <li><code>{{`{{now.iso8601}}`}}</code> — {{ t "mock.create.tokens.now_iso8601" }}</li>
-              <li><code>{{`{{now.unix}}`}}</code> — {{ t "mock.create.tokens.now_unix" }}</li>
-              <li><code>{{`{{now.unix_ms}}`}}</code> — {{ t "mock.create.tokens.now_unix_ms" }}</li>
-              <li><code>{{`{{now.date}}`}}</code> — {{ t "mock.create.tokens.now_date" }}</li>
-              <li><code>{{`{{now.time}}`}}</code> — {{ t "mock.create.tokens.now_time" }}</li>
-              <li><code>{{`{{now.rfc1123}}`}}</code> — {{ t "mock.create.tokens.now_rfc1123" }}</li>
-            </ul>
-          </div>
-          <div>
-            <p class="body-tokens-group">{{ t "mock.create.tokens.group_request" }}</p>
-            <ul class="body-tokens-list">
-              <li><code>{{`{{request.method}}`}}</code> — {{ t "mock.create.tokens.request_method" }}</li>
-              <li><code>{{`{{request.path}}`}}</code> — {{ t "mock.create.tokens.request_path" }}</li>
-              <li><code>{{`{{request.host}}`}}</code> — {{ t "mock.create.tokens.request_host" }}</li>
-              <li><code>{{`{{request.ip}}`}}</code> — {{ t "mock.create.tokens.request_ip" }}</li>
-              <li><code>{{`{{request.query.id}}`}}</code> — {{ t "mock.create.tokens.request_query" }}</li>
-              <li><code>{{`{{request.header.x-request-id}}`}}</code> — {{ t "mock.create.tokens.request_header" }}</li>
-              <li><code>{{`{{request.body}}`}}</code> — {{ t "mock.create.tokens.request_body" }}</li>
-              <li><code>{{`{{request.body.user.name}}`}}</code> — {{ t "mock.create.tokens.request_body_path" }}</li>
-            </ul>
-          </div>
-        </div>
-      </details>
-    </label>
-
-    <div class="form-grid">
-      <label>
-        <span class="label-text">{{ t "mock.create.delay" }}</span>
-        <div class="kv-row">
-          <input type="number" name="response_delay_ms" value="0" min="0" max="30000">
-          <input type="number" name="response_delay_max_ms" min="0" max="30000"
-                 placeholder='{{ t "mock.create.delay_max_placeholder" }}'>
-        </div>
-        <span class="form-hint">{{ t "mock.create.delay_jitter_hint" }}</span>
-      </label>
-      <label>
-        <span class="label-text">{{ t "mock.create.ttl" }}</span>
-        <select name="ttl">
+        <select name="ttl" aria-label="{{ t "mock.create.ttl" }}">
           <option value="1h">{{ t "mock.create.ttl.1h" }}</option>
           <option value="24h">{{ t "mock.create.ttl.24h" }}</option>
           <option value="168h" selected>{{ t "mock.create.ttl.7d" }}</option>
           <option value="720h">{{ t "mock.create.ttl.30d" }}</option>
         </select>
-      </label>
-    </div>
-
-    <details class="advanced">
-      <summary>{{ t "mock.create.headers" }}</summary>
-      <template x-for="(h, i) in headers" :key="i">
-        <div class="kv-row">
-          <input type="text" name="header_name[]" :value="h.name"
-                 @input="h.name = $event.target.value"
-                 placeholder='{{ t "mock.create.headers_name" }}'>
-          <input type="text" name="header_value[]" :value="h.value"
-                 @input="h.value = $event.target.value"
-                 placeholder='{{ t "mock.create.headers_value" }}'>
-          <button type="button" class="btn btn-ghost" @click="headers.splice(i, 1)">−</button>
-        </div>
-      </template>
-      <button type="button" class="btn btn-ghost"
-              @click="headers.push({name:'', value:''})">+ {{ t "mock.create.headers_add" }}</button>
-    </details>
-
-    <label class="cors-toggle">
-      <input type="checkbox" name="cors_enabled" x-model="cors">
-      <span class="label-text">{{ t "mock.create.cors" }}</span>
-      <span class="form-hint">{{ t "mock.create.cors_hint" }}</span>
-    </label>
-
-    <details class="advanced">
-      <summary>{{ t "mock.create.flaky.title" }}</summary>
-      <p class="form-hint">{{ t "mock.create.flaky.hint" }}</p>
-
-      <div class="form-grid">
-        <label>
-          <span class="label-text">{{ t "mock.create.flaky.error_rate" }}</span>
-          <input type="number" name="error_rate_pct" x-model.number="errorRate" min="0" max="100" value="0">
-          <span class="form-hint">{{ t "mock.create.flaky.error_rate_hint" }}</span>
-        </label>
-        <label x-show="errorRate > 0" x-cloak>
-          <span class="label-text">{{ t "mock.create.flaky.error_status" }}</span>
-          <input type="number" name="error_status" value="500" min="100" max="599">
-        </label>
       </div>
-      <label x-show="errorRate > 0" x-cloak>
-        <span class="label-text">{{ t "mock.create.flaky.error_body" }}</span>
-        <textarea name="error_body" rows="3" spellcheck="false"
-                  placeholder='{{ t "mock.create.flaky.error_body_placeholder" }}'></textarea>
-      </label>
+      <span class="form-hint" x-show="!slugError">{{ t "mock.create.slug_hint" }}</span>
+      <span class="form-hint form-error" x-show="slugError" x-text="slugError" x-cloak></span>
 
-      <p class="label-text">{{ t "mock.create.flaky.seq_title" }}</p>
-      <p class="form-hint">{{ t "mock.create.flaky.seq_hint" }}</p>
-      <template x-for="(st, i) in steps" :key="st.key">
-        <div class="seq-step">
-          <div class="kv-row">
-            <span class="label-text" x-text="'{{ t "mock.create.flaky.step" }} ' + (i + 2)"></span>
-            <input type="number" name="seq_status[]" :value="st.status"
-                   @input="st.status = $event.target.value" min="100" max="599"
-                   placeholder='{{ t "mock.create.status" }}'>
-            <button type="button" class="btn btn-ghost" @click="moveStep(i, -1)"
-                    :disabled="i === 0">↑</button>
-            <button type="button" class="btn btn-ghost" @click="moveStep(i, 1)"
-                    :disabled="i === steps.length - 1">↓</button>
-            <button type="button" class="btn btn-ghost" @click="steps.splice(i, 1)">−</button>
+      <div class="endpoint-subgrid">
+        <label>
+          <span class="label-text">{{ t "mock.create.name" }}</span>
+          <input type="text" name="name" maxlength="100"
+                 placeholder="{{ t "mock.create.name_placeholder" }}">
+        </label>
+        <label>
+          <span class="label-text">{{ t "mock.create.content_type" }}</span>
+          <select name="content_type" x-model="contentType" @change="onBodyInput()">
+            <option value="application/json">application/json</option>
+            <option value="application/xml">application/xml</option>
+            <option value="text/plain; charset=utf-8">text/plain</option>
+            <option value="text/html; charset=utf-8">text/html</option>
+          </select>
+        </label>
+        <label class="path-suffix-field">
+          <span class="label-text">{{ t "mock.create.path_suffix" }}</span>
+          <div class="path-suffix-input">
+            <span class="path-prefix">/</span>
+            <input type="text" name="path_suffix" maxlength="255"
+                   x-model="pathSuffix" @input="onPathInput"
+                   placeholder='{{ t "mock.create.path_suffix_placeholder" }}'>
           </div>
-          <textarea name="seq_body[]" rows="3" spellcheck="false" :value="st.body"
-                    @input="st.body = $event.target.value"
-                    placeholder='{{ t "mock.create.flaky.step_body_placeholder" }}'></textarea>
-          <textarea name="seq_headers[]" rows="2" spellcheck="false" :value="st.headers"
-                    @input="st.headers = $event.target.value"
-                    placeholder='{{ t "mock.create.flaky.step_headers_placeholder" }}'></textarea>
-        </div>
-      </template>
-      <button type="button" class="btn btn-ghost" @click="addStep()"
-              x-show="steps.length < 10">+ {{ t "mock.create.flaky.step_add" }}</button>
-    </details>
-
-    <details class="advanced">
-      <summary>{{ t "mock.create.scenarios.title" }}</summary>
-      <p class="form-hint">{{ t "mock.create.scenarios.hint" }}</p>
-      <label>
-        <span class="label-text">{{ t "mock.create.scenarios.variants" }}</span>
-        <textarea name="response_variants_json" x-model="variantsJSON" rows="7" spellcheck="false"
-                  @blur="validateAdvanced()" placeholder='[{"name":"not-found","status":404,"body":"{\"error\":\"not found\"}"}]'></textarea>
-      </label>
-      <label>
-        <span class="label-text">{{ t "mock.create.scenarios.rules" }}</span>
-        <textarea name="response_rules_json" x-model="rulesJSON" rows="8" spellcheck="false"
-                  @blur="validateAdvanced()" placeholder='[{"name":"missing user","variant":"not-found","conditions":[{"source":"query","key":"id","operator":"equals","value":"missing"}]}]'></textarea>
-      </label>
-      <p class="form-hint">{{ t "mock.create.scenarios.selector_hint" }}</p>
-    </details>
-
-    <details class="advanced">
-      <summary>{{ t "mock.create.workspace.title" }}</summary>
-      <p class="form-hint">{{ t "mock.create.workspace.hint" }}</p>
-      <label>
-        <span class="label-text">{{ t "mock.create.workspace.routes" }}</span>
-        <textarea name="routes_json" x-model="routesJSON" rows="10" spellcheck="false"
-                  @blur="validateAdvanced()" placeholder='[{"method":"GET","path":"/users/{id}","response_status":200,"content_type":"application/json","response_body":"{\"id\":\"{{`{{request.path}}`}}\"}"}]'></textarea>
-      </label>
-      <div class="workspace-import">
-        <label>
-          <span class="label-text">{{ t "mock.create.workspace.openapi" }}</span>
-          <textarea x-model="openapiInput" rows="7" spellcheck="false"
-                    placeholder='{"openapi":"3.0.3","paths":{"/users":{"get":{"responses":{"200":{"content":{"application/json":{"example":{"users":[]}}}}}}}}}'></textarea>
+          <span class="form-hint form-error" x-show="pathError" x-text="pathError" x-cloak></span>
         </label>
-        <button type="button" class="btn btn-secondary" @click="parseOpenAPI()">
-          {{ t "mock.create.workspace.openapi_apply" }}
-        </button>
-        <span class="form-hint form-error" role="alert" x-show="openapiError" x-text="openapiError" x-cloak></span>
       </div>
-    </details>
 
-    <details class="advanced">
-      <summary>{{ t "mock.create.privacy.title" }}</summary>
-      <p class="form-hint">{{ t "mock.create.privacy.hint" }}</p>
-      <label class="cors-toggle">
-        <input type="checkbox" name="logs_public">
-        <span class="label-text">{{ t "mock.create.privacy.public_logs" }}</span>
+      <label class="body-field">
+        <span class="label-text body-label">
+          <span>{{ t "mock.create.body" }}</span>
+          <span class="body-actions">
+            <button type="button" class="btn btn-secondary btn-tight" @click="beautify()">{{ t "mock.create.beautify" }}</button>
+            <button type="button" class="btn btn-secondary btn-tight" @click="minify()">{{ t "mock.create.minify" }}</button>
+            <span class="body-counter">
+              <span x-text="bodySize"></span> / {{ .MaxBodyKB }} KB
+            </span>
+          </span>
+        </span>
+        <textarea name="response_body" rows="9" spellcheck="false"
+                  x-model="body" @input="onBodyInput"
+                  placeholder='{{ t "mock.create.body_placeholder" }}'>{
+  "id": "{{`{{faker.uuid}}`}}",
+  "name": "{{`{{faker.name}}`}}",
+  "email": "{{`{{faker.email}}`}}",
+  "created_at": "{{`{{now.iso8601}}`}}"
+}</textarea>
+        <span class="form-hint form-error" x-show="jsonError" x-text="jsonError" x-cloak></span>
+
+        <div class="token-chips">
+          <button type="button" class="token-chip" @click="insertToken('{{`{{faker.uuid}}`}}')">+ {{`{{faker.uuid}}`}}</button>
+          <button type="button" class="token-chip" @click="insertToken('{{`{{faker.email}}`}}')">+ {{`{{faker.email}}`}}</button>
+          <button type="button" class="token-chip" @click="insertToken('{{`{{faker.price}}`}}')">+ {{`{{faker.price}}`}}</button>
+          <button type="button" class="token-chip" @click="insertToken('{{`{{random.pick:ok|fail}}`}}')">+ {{`{{random.pick:ok|fail}}`}}</button>
+          <button type="button" class="token-chip" @click="insertToken('{{`{{seq}}`}}')">+ {{`{{seq}}`}}</button>
+          <button type="button" class="token-chip" @click="insertToken('{{`{{request.query.id}}`}}')">+ {{`{{request.query.id}}`}}</button>
+        </div>
+
+        <details class="body-tokens">
+          <summary>{{ t "mock.create.tokens.summary" }}</summary>
+          <p class="form-hint">{{ t "mock.create.tokens.hint" }}</p>
+          <div class="body-tokens-grid">
+            <div>
+              <p class="body-tokens-group">{{ t "mock.create.tokens.group_person" }}</p>
+              <ul class="body-tokens-list">
+                <li><code>{{`{{faker.name}}`}}</code> — {{ t "mock.create.tokens.faker_name" }}</li>
+                <li><code>{{`{{faker.firstname}}`}}</code> — {{ t "mock.create.tokens.faker_firstname" }}</li>
+                <li><code>{{`{{faker.lastname}}`}}</code> — {{ t "mock.create.tokens.faker_lastname" }}</li>
+                <li><code>{{`{{faker.username}}`}}</code> — {{ t "mock.create.tokens.faker_username" }}</li>
+                <li><code>{{`{{faker.email}}`}}</code> — {{ t "mock.create.tokens.faker_email" }}</li>
+                <li><code>{{`{{faker.phone}}`}}</code> — {{ t "mock.create.tokens.faker_phone" }}</li>
+              </ul>
+            </div>
+            <div>
+              <p class="body-tokens-group">{{ t "mock.create.tokens.group_net" }}</p>
+              <ul class="body-tokens-list">
+                <li><code>{{`{{faker.url}}`}}</code> — {{ t "mock.create.tokens.faker_url" }}</li>
+                <li><code>{{`{{faker.ipv4}}`}}</code> — {{ t "mock.create.tokens.faker_ipv4" }}</li>
+                <li><code>{{`{{faker.uuid}}`}}</code> — {{ t "mock.create.tokens.faker_uuid" }}</li>
+                <li><code>{{`{{faker.int}}`}}</code> — {{ t "mock.create.tokens.faker_int" }}</li>
+                <li><code>{{`{{faker.bool}}`}}</code> — {{ t "mock.create.tokens.faker_bool" }}</li>
+                <li><code>{{`{{faker.color}}`}}</code> — {{ t "mock.create.tokens.faker_color" }}</li>
+              </ul>
+            </div>
+            <div>
+              <p class="body-tokens-group">{{ t "mock.create.tokens.group_text" }}</p>
+              <ul class="body-tokens-list">
+                <li><code>{{`{{faker.word}}`}}</code> — {{ t "mock.create.tokens.faker_word" }}</li>
+                <li><code>{{`{{faker.sentence}}`}}</code> — {{ t "mock.create.tokens.faker_sentence" }}</li>
+                <li><code>{{`{{faker.lorem}}`}}</code> — {{ t "mock.create.tokens.faker_lorem" }}</li>
+                <li><code>{{`{{faker.company}}`}}</code> — {{ t "mock.create.tokens.faker_company" }}</li>
+                <li><code>{{`{{faker.city}}`}}</code> — {{ t "mock.create.tokens.faker_city" }}</li>
+                <li><code>{{`{{faker.price}}`}}</code> — {{ t "mock.create.tokens.faker_price" }}</li>
+              </ul>
+            </div>
+            <div>
+              <p class="body-tokens-group">{{ t "mock.create.tokens.group_dynamic" }}</p>
+              <ul class="body-tokens-list">
+                <li><code>{{`{{random.pick:a|b|c}}`}}</code> — {{ t "mock.create.tokens.random_pick" }}</li>
+                <li><code>{{`{{seq}}`}}</code> — {{ t "mock.create.tokens.seq" }}</li>
+                <li><code>{{`{{mock.url}}`}}</code> — {{ t "mock.create.tokens.mock_url" }}</li>
+              </ul>
+            </div>
+            <div>
+              <p class="body-tokens-group">{{ t "mock.create.tokens.group_time" }}</p>
+              <ul class="body-tokens-list">
+                <li><code>{{`{{now.iso8601}}`}}</code> — {{ t "mock.create.tokens.now_iso8601" }}</li>
+                <li><code>{{`{{now.unix}}`}}</code> — {{ t "mock.create.tokens.now_unix" }}</li>
+                <li><code>{{`{{now.unix_ms}}`}}</code> — {{ t "mock.create.tokens.now_unix_ms" }}</li>
+                <li><code>{{`{{now.date}}`}}</code> — {{ t "mock.create.tokens.now_date" }}</li>
+                <li><code>{{`{{now.time}}`}}</code> — {{ t "mock.create.tokens.now_time" }}</li>
+                <li><code>{{`{{now.rfc1123}}`}}</code> — {{ t "mock.create.tokens.now_rfc1123" }}</li>
+              </ul>
+            </div>
+            <div>
+              <p class="body-tokens-group">{{ t "mock.create.tokens.group_request" }}</p>
+              <ul class="body-tokens-list">
+                <li><code>{{`{{request.method}}`}}</code> — {{ t "mock.create.tokens.request_method" }}</li>
+                <li><code>{{`{{request.path}}`}}</code> — {{ t "mock.create.tokens.request_path" }}</li>
+                <li><code>{{`{{request.host}}`}}</code> — {{ t "mock.create.tokens.request_host" }}</li>
+                <li><code>{{`{{request.ip}}`}}</code> — {{ t "mock.create.tokens.request_ip" }}</li>
+                <li><code>{{`{{request.query.id}}`}}</code> — {{ t "mock.create.tokens.request_query" }}</li>
+                <li><code>{{`{{request.header.x-request-id}}`}}</code> — {{ t "mock.create.tokens.request_header" }}</li>
+                <li><code>{{`{{request.body}}`}}</code> — {{ t "mock.create.tokens.request_body" }}</li>
+                <li><code>{{`{{request.body.user.name}}`}}</code> — {{ t "mock.create.tokens.request_body_path" }}</li>
+              </ul>
+            </div>
+          </div>
+        </details>
       </label>
-      <label class="cors-toggle">
-        <input type="checkbox" name="capture_body" checked>
-        <span class="label-text">{{ t "mock.create.privacy.capture_body" }}</span>
-      </label>
-      <label class="cors-toggle">
-        <input type="checkbox" name="capture_ip" checked>
-        <span class="label-text">{{ t "mock.create.privacy.capture_ip" }}</span>
-      </label>
-    </details>
 
-    <p class="form-hint form-error" role="alert" x-show="advancedError" x-text="advancedError" x-cloak></p>
+      <!-- Segmented Optional Settings Drawer -->
+      <div class="builder-options">
+        <div class="builder-tabs" role="tablist">
+          <button type="button" role="tab" class="builder-tab"
+                  :class="optTab === 'headers' && 'is-active'"
+                  :aria-selected="optTab === 'headers'"
+                  @click="toggleOpt('headers')">
+            <span class="tab-dot" x-show="cors || headers.length > 0" x-cloak></span>
+            <span>{{ t "mock.create.headers" }} &amp; CORS</span>
+          </button>
 
-    <details class="advanced">
-      <summary>{{ t "mock.curl_import.title" }}</summary>
-      <p class="form-hint">{{ t "mock.curl_import.hint" }}</p>
-      <textarea x-model="curlInput" rows="3"
-                placeholder="curl -X POST https://api.example.com/users -d '{...}'"></textarea>
-      <button type="button" class="btn btn-secondary" @click="parseCurl()">
-        {{ t "mock.curl_import.button" }}
-      </button>
-      <span class="form-hint" x-show="curlError" x-text="curlError" x-cloak></span>
-    </details>
+          <button type="button" role="tab" class="builder-tab"
+                  :class="optTab === 'flaky' && 'is-active'"
+                  :aria-selected="optTab === 'flaky'"
+                  @click="toggleOpt('flaky')">
+            <span class="tab-dot" x-show="delayMs > 0 || errorRate > 0 || steps.length > 0" x-cloak></span>
+            <span>{{ t "mock.create.flaky.title" }}</span>
+          </button>
 
-    <details class="advanced">
-      <summary>{{ t "mock.create.import" }}</summary>
-      <p class="form-hint">{{ t "mock.create.import_hint" }}</p>
-      <input type="file" accept=".json,application/json" class="is-hidden"
-             x-ref="importFile" @change="importFile($event)">
-      <button type="button" class="btn btn-ghost" @click="$refs.importFile.click()">
-        {{ t "mock.create.import_file" }}
-      </button>
-      <button type="button" class="btn btn-ghost" @click="showImport = !showImport">
-        {{ t "mock.create.import_paste" }}
-      </button>
-      <template x-if="showImport">
-        <div>
-          <textarea x-model="importText" rows="4" spellcheck="false"
-                    placeholder='{"method":"GET","response_status":200}'></textarea>
-          <button type="button" class="btn btn-secondary" @click="applyImportText(importText)">
-            {{ t "mock.create.import_apply" }}
+          <button type="button" role="tab" class="builder-tab"
+                  :class="optTab === 'scenarios' && 'is-active'"
+                  :aria-selected="optTab === 'scenarios'"
+                  @click="toggleOpt('scenarios')">
+            <span class="tab-dot" x-show="variantsJSON.trim() || rulesJSON.trim() || routesJSON.trim()" x-cloak></span>
+            <span>{{ t "mock.create.scenarios.title" }}</span>
+          </button>
+
+          <button type="button" role="tab" class="builder-tab"
+                  :class="optTab === 'import' && 'is-active'"
+                  :aria-selected="optTab === 'import'"
+                  @click="toggleOpt('import')">
+            <span>{{ t "mock.create.import" }}</span>
+          </button>
+
+          <button type="button" role="tab" class="builder-tab"
+                  :class="optTab === 'privacy' && 'is-active'"
+                  :aria-selected="optTab === 'privacy'"
+                  @click="toggleOpt('privacy')">
+            <span>{{ t "mock.create.privacy.title" }}</span>
           </button>
         </div>
-      </template>
-      <span class="form-hint" x-show="importError" x-text="importError" x-cloak></span>
-    </details>
 
-    <button type="submit" class="btn btn-primary btn-large">{{ t "mock.create.submit" }}</button>
-  </form>
+        <!-- Tab 1: Headers & CORS -->
+        <div class="builder-tab-panel" x-show="optTab === 'headers'" x-cloak>
+          <label class="cors-toggle">
+            <input type="checkbox" name="cors_enabled" x-model="cors">
+            <span class="label-text">{{ t "mock.create.cors" }}</span>
+            <span class="form-hint">{{ t "mock.create.cors_hint" }}</span>
+          </label>
+          <hr class="sub-divider">
+          <template x-for="(h, i) in headers" :key="i">
+            <div class="kv-row">
+              <input type="text" name="header_name[]" :value="h.name"
+                     @input="h.name = $event.target.value"
+                     placeholder='{{ t "mock.create.headers_name" }}'>
+              <input type="text" name="header_value[]" :value="h.value"
+                     @input="h.value = $event.target.value"
+                     placeholder='{{ t "mock.create.headers_value" }}'>
+              <button type="button" class="btn btn-ghost" @click="headers.splice(i, 1)">−</button>
+            </div>
+          </template>
+          <button type="button" class="btn btn-secondary btn-tight"
+                  @click="headers.push({name:'', value:''})">+ {{ t "mock.create.headers_add" }}</button>
+        </div>
+
+        <!-- Tab 2: Delay, Error Rate & Sequence -->
+        <div class="builder-tab-panel" x-show="optTab === 'flaky'" x-cloak>
+          <label>
+            <span class="label-text">{{ t "mock.create.delay" }}</span>
+            <div class="kv-row">
+              <input type="number" name="response_delay_ms" x-model.number="delayMs" value="0" min="0" max="30000">
+              <input type="number" name="response_delay_max_ms" min="0" max="30000"
+                     placeholder='{{ t "mock.create.delay_max_placeholder" }}'>
+            </div>
+            <span class="form-hint">{{ t "mock.create.delay_jitter_hint" }}</span>
+          </label>
+
+          <hr class="sub-divider">
+          <p class="form-hint">{{ t "mock.create.flaky.hint" }}</p>
+          <div class="form-grid">
+            <label>
+              <span class="label-text">{{ t "mock.create.flaky.error_rate" }}</span>
+              <input type="number" name="error_rate_pct" x-model.number="errorRate" min="0" max="100" value="0">
+              <span class="form-hint">{{ t "mock.create.flaky.error_rate_hint" }}</span>
+            </label>
+            <label x-show="errorRate > 0" x-cloak>
+              <span class="label-text">{{ t "mock.create.flaky.error_status" }}</span>
+              <input type="number" name="error_status" value="500" min="100" max="599">
+            </label>
+          </div>
+          <label x-show="errorRate > 0" x-cloak>
+            <span class="label-text">{{ t "mock.create.flaky.error_body" }}</span>
+            <textarea name="error_body" rows="3" spellcheck="false"
+                      placeholder='{{ t "mock.create.flaky.error_body_placeholder" }}'></textarea>
+          </label>
+
+          <p class="label-text">{{ t "mock.create.flaky.seq_title" }}</p>
+          <p class="form-hint">{{ t "mock.create.flaky.seq_hint" }}</p>
+          <template x-for="(st, i) in steps" :key="st.key">
+            <div class="seq-step">
+              <div class="kv-row">
+                <span class="label-text" x-text="'{{ t "mock.create.flaky.step" }} ' + (i + 2)"></span>
+                <input type="number" name="seq_status[]" :value="st.status"
+                       @input="st.status = $event.target.value" min="100" max="599"
+                       placeholder='{{ t "mock.create.status" }}'>
+                <div class="body-actions">
+                  <button type="button" class="btn btn-ghost btn-tight" @click="moveStep(i, -1)" :disabled="i === 0">↑</button>
+                  <button type="button" class="btn btn-ghost btn-tight" @click="moveStep(i, 1)" :disabled="i === steps.length - 1">↓</button>
+                  <button type="button" class="btn btn-ghost btn-tight" @click="steps.splice(i, 1)">−</button>
+                </div>
+              </div>
+              <textarea name="seq_body[]" rows="3" spellcheck="false" :value="st.body"
+                        @input="st.body = $event.target.value"
+                        placeholder='{{ t "mock.create.flaky.step_body_placeholder" }}'></textarea>
+              <textarea name="seq_headers[]" rows="2" spellcheck="false" :value="st.headers"
+                        @input="st.headers = $event.target.value"
+                        placeholder='{{ t "mock.create.flaky.step_headers_placeholder" }}'></textarea>
+            </div>
+          </template>
+          <button type="button" class="btn btn-secondary btn-tight" @click="addStep()"
+                  x-show="steps.length < 10">+ {{ t "mock.create.flaky.step_add" }}</button>
+        </div>
+
+        <!-- Tab 3: Scenarios, Rules & Multi-Route Workspace -->
+        <div class="builder-tab-panel" x-show="optTab === 'scenarios'" x-cloak>
+          <p class="form-hint">{{ t "mock.create.scenarios.hint" }}</p>
+          <label>
+            <span class="label-text">{{ t "mock.create.scenarios.variants" }}</span>
+            <textarea name="response_variants_json" x-model="variantsJSON" rows="5" spellcheck="false"
+                      @blur="validateAdvanced()" placeholder='[{"name":"not-found","status":404,"body":"{\"error\":\"not found\"}"}]'></textarea>
+          </label>
+          <label>
+            <span class="label-text">{{ t "mock.create.scenarios.rules" }}</span>
+            <textarea name="response_rules_json" x-model="rulesJSON" rows="5" spellcheck="false"
+                      @blur="validateAdvanced()" placeholder='[{"name":"missing user","variant":"not-found","conditions":[{"source":"query","key":"id","operator":"equals","value":"missing"}]}]'></textarea>
+          </label>
+          <p class="form-hint">{{ t "mock.create.scenarios.selector_hint" }}</p>
+
+          <hr class="sub-divider">
+          <p class="label-text">{{ t "mock.create.workspace.title" }}</p>
+          <p class="form-hint">{{ t "mock.create.workspace.hint" }}</p>
+          <label>
+            <span class="label-text">{{ t "mock.create.workspace.routes" }}</span>
+            <textarea name="routes_json" x-model="routesJSON" rows="6" spellcheck="false"
+                      @blur="validateAdvanced()" placeholder='[{"method":"GET","path":"/users/{id}","response_status":200,"content_type":"application/json","response_body":"{\"id\":\"{{`{{request.path}}`}}\"}"}]'></textarea>
+          </label>
+          <div class="workspace-import">
+            <label>
+              <span class="label-text">{{ t "mock.create.workspace.openapi" }}</span>
+              <textarea x-model="openapiInput" rows="5" spellcheck="false"
+                        placeholder='{"openapi":"3.0.3","paths":{"/users":{"get":{"responses":{"200":{"content":{"application/json":{"example":{"users":[]}}}}}}}}}'></textarea>
+            </label>
+            <button type="button" class="btn btn-secondary btn-tight" @click="parseOpenAPI()">
+              {{ t "mock.create.workspace.openapi_apply" }}
+            </button>
+            <span class="form-hint form-error" role="alert" x-show="openapiError" x-text="openapiError" x-cloak></span>
+          </div>
+        </div>
+
+        <!-- Tab 4: Import (cURL & JSON) -->
+        <div class="builder-tab-panel" x-show="optTab === 'import'" x-cloak>
+          <p class="label-text">{{ t "mock.curl_import.title" }}</p>
+          <p class="form-hint">{{ t "mock.curl_import.hint" }}</p>
+          <textarea x-model="curlInput" rows="3"
+                    placeholder="curl -X POST https://api.example.com/users -d '{...}'"></textarea>
+          <button type="button" class="btn btn-secondary btn-tight" style="margin-top:.5rem" @click="parseCurl()">
+            {{ t "mock.curl_import.button" }}
+          </button>
+          <span class="form-hint form-error" x-show="curlError" x-text="curlError" x-cloak></span>
+
+          <hr class="sub-divider">
+          <p class="label-text">{{ t "mock.create.import" }}</p>
+          <p class="form-hint">{{ t "mock.create.import_hint" }}</p>
+          <input type="file" accept=".json,application/json" class="is-hidden"
+                 x-ref="importFile" @change="importFile($event)">
+          <div class="body-actions" style="margin-top:.5rem">
+            <button type="button" class="btn btn-secondary btn-tight" @click="$refs.importFile.click()">
+              {{ t "mock.create.import_file" }}
+            </button>
+            <button type="button" class="btn btn-secondary btn-tight" @click="showImport = !showImport">
+              {{ t "mock.create.import_paste" }}
+            </button>
+          </div>
+          <template x-if="showImport">
+            <div style="margin-top:.6rem">
+              <textarea x-model="importText" rows="4" spellcheck="false"
+                        placeholder='{"method":"GET","response_status":200}'></textarea>
+              <button type="button" class="btn btn-secondary btn-tight" style="margin-top:.4rem" @click="applyImportText(importText)">
+                {{ t "mock.create.import_apply" }}
+              </button>
+            </div>
+          </template>
+          <span class="form-hint form-error" x-show="importError" x-text="importError" x-cloak></span>
+        </div>
+
+        <!-- Tab 5: Privacy -->
+        <div class="builder-tab-panel" x-show="optTab === 'privacy'" x-cloak>
+          <p class="form-hint">{{ t "mock.create.privacy.hint" }}</p>
+          <label class="cors-toggle">
+            <input type="checkbox" name="logs_public">
+            <span class="label-text">{{ t "mock.create.privacy.public_logs" }}</span>
+          </label>
+          <label class="cors-toggle">
+            <input type="checkbox" name="capture_body" checked>
+            <span class="label-text">{{ t "mock.create.privacy.capture_body" }}</span>
+          </label>
+          <label class="cors-toggle">
+            <input type="checkbox" name="capture_ip" checked>
+            <span class="label-text">{{ t "mock.create.privacy.capture_ip" }}</span>
+          </label>
+        </div>
+      </div>
+
+      <p class="form-hint form-error" role="alert" x-show="advancedError" x-text="advancedError" x-cloak></p>
+
+      <div class="create-footer">
+        <div class="security-note" role="note">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span><strong>{{ t "home.security.title" }}:</strong> {{ t "home.security.body" }}</span>
+        </div>
+        <button type="submit" class="btn btn-primary btn-large">{{ t "mock.create.submit" }} →</button>
+      </div>
+    </form>
+
+    <!-- Live Terminal Preview Column -->
+    <aside class="live-preview-col" aria-label="Live preview">
+      <div class="card live-preview-card">
+        <div class="card-header">
+          <span class="live-pill">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span>{{ t "mock.detail.curl" }}</span>
+          </span>
+          <button type="button" class="btn btn-ghost btn-tight" @click="copyPreview()">
+            <span x-show="!previewCopied">{{ t "common.copy" }}</span>
+            <span x-show="previewCopied" x-cloak>{{ t "common.copied" }}</span>
+          </button>
+        </div>
+
+        <pre class="codeblock"><code x-text="previewCurl()"></code></pre>
+
+        <div class="preview-label-row">
+          <span>{{ t "mock.detail.response" }}</span>
+          <span class="preview-meta">
+            <span x-text="delayMs > 0 ? '~' + delayMs + 'ms' : '~12ms'"></span>
+            <span x-show="cors" x-cloak> · CORS *</span>
+            <span x-show="errorRate > 0" x-cloak x-text="' · ' + errorRate + '% err'"></span>
+          </span>
+        </div>
+
+        <pre class="codeblock"><code><span :class="(+status >= 400) ? 'preview-status-err' : 'preview-status-line'" x-text="'HTTP/1.1 ' + (status || 200)"></span>
+<span class="preview-hdr-line" x-text="'Content-Type: ' + contentType"></span><template x-if="cors"><span class="preview-hdr-line">
+Access-Control-Allow-Origin: *</span></template>
+
+<span x-text="previewBody()"></span></code></pre>
+      </div>
+
+      <div class="card cli-quick-card">
+        <div class="cli-quick-cmd">
+          $ <strong>quickmock create</strong> -m <span x-text="method"></span> -s <span x-text="status || 200"></span>
+        </div>
+        <a href="/guide/api-cli" class="cli-quick-link">CLI →</a>
+      </div>
+    </aside>
+  </div>
 </section>
 
-<section class="stats-line container" aria-label="{{ t "home.stats.aria" }}">
+<section class="stats-line container-wide" aria-label="{{ t "home.stats.aria" }}">
   <span class="stat-chip">
     <span class="stat-num">{{ humanCount (statValue .Stats "mocks_created") }}</span>
     <span class="stat-label-inline">{{ t "home.stats.mocks" }}</span>
@@ -414,25 +475,69 @@ Admin Token: qm_...</code></pre>
   </span>
 </section>
 
-<section class="usecases container" aria-labelledby="usecases-title">
-  <h2 id="usecases-title">{{ t "home.usecases.title" }}</h2>
-  <p>{{ t "home.usecases.body" }}</p>
-  <ul class="home-links">
-    {{ range .FeaturedGuides }}<li><a href="/guide/{{ .Slug }}">{{ t (printf "%s.title" .KeyPrefix) }}</a></li>{{ end }}
-  </ul>
-  <p><a href="/guide">{{ t "home.usecases.link" }}</a></p>
-</section>
+<div class="container-wide home-bento">
+  <section class="howto">
+    <h2>{{ t "home.howto.title" }}</h2>
+    <p class="howto-intro">{{ t "home.howto.intro" }}</p>
+    <ol class="howto-steps">
+      <li><span class="step-num">1</span>{{ t "home.howto.step1" }}</li>
+      <li><span class="step-num">2</span>{{ t "home.howto.step2" }}</li>
+      <li><span class="step-num">3</span>{{ t "home.howto.step3" }}</li>
+    </ol>
 
-<section class="usecases container" aria-labelledby="home-templates-title">
-  <h2 id="home-templates-title">{{ t "home.templates.title" }}</h2>
-  <p>{{ t "home.templates.body" }}</p>
-  <ul class="home-links">
-    {{ range .FeaturedTemplates }}<li><a href="/templates/{{ .Slug }}">{{ t (printf "%s.title" .KeyPrefix) }}</a></li>{{ end }}
-  </ul>
-  <p><a href="/templates">{{ t "home.templates.link" }}</a></p>
-</section>
+    <details class="example-block">
+      <summary>{{ t "home.example.title" }}</summary>
+      <p class="example-caption">{{ t "home.example.create_caption" }}</p>
+<pre><code>curl -X POST {{ .BaseURL }}/api/mocks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "method": "GET",
+    "response_status": 200,
+    "content_type": "application/json",
+    "response_body": "{\"hello\":\"world\"}",
+    "ttl_seconds": 604800
+  }'</code></pre>
+      <p class="example-caption">{{ t "home.example.call_caption" }}</p>
+<pre><code>curl {{ .BaseURL }}/m/abc123def456
+<span class="example-comment"># => {"hello":"world"}</span></code></pre>
+    </details>
+  </section>
 
-<section class="faq container" aria-labelledby="faq-title">
+  <section class="cli-block">
+    <h2>{{ t "home.cli.title" }}</h2>
+    <p class="howto-intro">{{ t "home.cli.body" }}</p>
+    <div class="example-block">
+      <p class="example-caption">{{ t "home.cli.caption" }}</p>
+<pre><code>$ go install github.com/Deadsquirrel93/quickmock.dev/cmd/quickmock@latest
+$ quickmock create -m POST -b '{"ok":true}'
+Public URL:  {{ .BaseURL }}/m/abc123def456
+Admin Token: qm_...</code></pre>
+    </div>
+    <p style="margin-top: 1rem;"><a href="/guide/api-cli" class="btn btn-secondary">{{ t "home.cli.link" }}</a></p>
+  </section>
+</div>
+
+<div class="container-wide home-bento">
+  <section class="usecases" aria-labelledby="usecases-title">
+    <h2 id="usecases-title">{{ t "home.usecases.title" }}</h2>
+    <p>{{ t "home.usecases.body" }}</p>
+    <ul class="home-links">
+      {{ range .FeaturedGuides }}<li><a href="/guide/{{ .Slug }}">{{ t (printf "%s.title" .KeyPrefix) }}</a></li>{{ end }}
+    </ul>
+    <p><a href="/guide">{{ t "home.usecases.link" }} →</a></p>
+  </section>
+
+  <section class="usecases" aria-labelledby="home-templates-title">
+    <h2 id="home-templates-title">{{ t "home.templates.title" }}</h2>
+    <p>{{ t "home.templates.body" }}</p>
+    <ul class="home-links">
+      {{ range .FeaturedTemplates }}<li><a href="/templates/{{ .Slug }}">{{ t (printf "%s.title" .KeyPrefix) }}</a></li>{{ end }}
+    </ul>
+    <p><a href="/templates">{{ t "home.templates.link" }} →</a></p>
+  </section>
+</div>
+
+<section class="faq container-wide" aria-labelledby="faq-title">
   <h2 id="faq-title">{{ t "seo.faq.title" }}</h2>
   <details class="faq-item">
     <summary>{{ t "seo.faq.q1" }}</summary>
@@ -456,59 +561,69 @@ Admin Token: qm_...</code></pre>
   </details>
 </section>
 
-<section class="glossary container" aria-labelledby="glossary-title">
-  <h2 id="glossary-title">{{ t "home.glossary.title" }}</h2>
-  <dl class="glossary-list">
-    <dt>{{ t "home.glossary.mock.term" }}</dt>
-    <dd>{{ t "home.glossary.mock.def" }}</dd>
-    <dt>{{ t "home.glossary.endpoint.term" }}</dt>
-    <dd>{{ t "home.glossary.endpoint.def" }}</dd>
-    <dt>{{ t "home.glossary.ttl.term" }}</dt>
-    <dd>{{ t "home.glossary.ttl.def" }}</dd>
-    <dt>{{ t "home.glossary.faker.term" }}</dt>
-    <dd>{{ t "home.glossary.faker.def" }}</dd>
-    <dt>{{ t "home.glossary.ct.term" }}</dt>
-    <dd>{{ t "home.glossary.ct.def" }}</dd>
-  </dl>
-</section>
+<div class="container-wide home-bento">
+  <section class="glossary" aria-labelledby="glossary-title">
+    <h2 id="glossary-title">{{ t "home.glossary.title" }}</h2>
+    <dl class="glossary-list">
+      <dt>{{ t "home.glossary.mock.term" }}</dt>
+      <dd>{{ t "home.glossary.mock.def" }}</dd>
+      <dt>{{ t "home.glossary.endpoint.term" }}</dt>
+      <dd>{{ t "home.glossary.endpoint.def" }}</dd>
+      <dt>{{ t "home.glossary.ttl.term" }}</dt>
+      <dd>{{ t "home.glossary.ttl.def" }}</dd>
+      <dt>{{ t "home.glossary.faker.term" }}</dt>
+      <dd>{{ t "home.glossary.faker.def" }}</dd>
+      <dt>{{ t "home.glossary.ct.term" }}</dt>
+      <dd>{{ t "home.glossary.ct.def" }}</dd>
+    </dl>
+  </section>
 
-<section class="story container" aria-labelledby="story-title">
-  <h2 id="story-title">{{ t "home.story.title" }}</h2>
-  <p>{{ t "home.story.body" }}</p>
-</section>
+  <section class="privacy-block">
+    <h2>{{ t "home.privacy.title" }}</h2>
+    <p>{{ t "home.privacy.body" }}</p>
+    <h3>{{ t "home.privacy.what_we_log.title" }}</h3>
+    <ul class="privacy-list">
+      <li>{{ t "home.privacy.what_we_log.item1" }}</li>
+      <li>{{ t "home.privacy.what_we_log.item2" }}</li>
+      <li>{{ t "home.privacy.what_we_log.item3" }}</li>
+      <li>{{ t "home.privacy.what_we_log.item4" }}</li>
+    </ul>
+  </section>
+</div>
 
-<section class="author-block container" aria-labelledby="author-title">
-  <h2 id="author-title">{{ t "home.author.title" }}</h2>
-  <p>{{ t "home.author.body" }}</p>
-  <p class="author-links">
-    <a href="{{ t "home.author.site_url" }}" target="_blank" rel="me noopener">{{ t "home.author.site_label" }}</a>
-    ·
-    <a href="https://github.com/Deadsquirrel93/quickmock.dev" target="_blank" rel="me noopener">GitHub</a>
-    ·
-    <a href="https://www.linkedin.com/in/chernykh-nikita/" target="_blank" rel="me noopener">LinkedIn</a>
-    ·
-    <a href="https://t.me/deadsquirrel93" target="_blank" rel="me noopener">Telegram</a>
-  </p>
-</section>
+<div class="container-wide home-bento">
+  <section class="story" aria-labelledby="story-title">
+    <h2 id="story-title">{{ t "home.story.title" }}</h2>
+    <p>{{ t "home.story.body" }}</p>
+  </section>
 
-<section class="privacy-block container">
-  <h2>{{ t "home.privacy.title" }}</h2>
-  <p>{{ t "home.privacy.body" }}</p>
-  <h3>{{ t "home.privacy.what_we_log.title" }}</h3>
-  <ul class="privacy-list">
-    <li>{{ t "home.privacy.what_we_log.item1" }}</li>
-    <li>{{ t "home.privacy.what_we_log.item2" }}</li>
-    <li>{{ t "home.privacy.what_we_log.item3" }}</li>
-    <li>{{ t "home.privacy.what_we_log.item4" }}</li>
-  </ul>
-</section>
+  <section class="author-block" aria-labelledby="author-title">
+    <h2 id="author-title">{{ t "home.author.title" }}</h2>
+    <p>{{ t "home.author.body" }}</p>
+    <p class="author-links">
+      <a href="{{ t "home.author.site_url" }}" target="_blank" rel="me noopener">{{ t "home.author.site_label" }}</a>
+      ·
+      <a href="https://github.com/Deadsquirrel93/quickmock.dev" target="_blank" rel="me noopener">GitHub</a>
+      ·
+      <a href="https://www.linkedin.com/in/chernykh-nikita/" target="_blank" rel="me noopener">LinkedIn</a>
+      ·
+      <a href="https://t.me/deadsquirrel93" target="_blank" rel="me noopener">Telegram</a>
+    </p>
+  </section>
+</div>
 
-<p class="last-updated container">{{ t "home.last_updated" .LastUpdated }}</p>
+<p class="last-updated container-wide">{{ t "home.last_updated" .LastUpdated }}</p>
 
 <script>
   {{ if .Prefill }}window.__qmPrefill = {{ .Prefill }};{{ end }}
   function createForm() {
     return {
+      method: 'GET',
+      status: 200,
+      contentType: 'application/json',
+      delayMs: 0,
+      optTab: '',
+      previewCopied: false,
       body: '{\n  "id": "{{`{{faker.uuid}}`}}",\n  "name": "{{`{{faker.name}}`}}",\n  "email": "{{`{{faker.email}}`}}",\n  "created_at": "{{`{{now.iso8601}}`}}"\n}',
       bodySize: 0,
       jsonError: '',
@@ -526,12 +641,75 @@ Admin Token: qm_...</code></pre>
       cors: false,
       steps: [],
       stepKey: 0,
-	  variantsJSON: '',
-	  rulesJSON: '',
-	  routesJSON: '',
-	  openapiInput: '',
-	  openapiError: '',
-	  advancedError: '',
+      variantsJSON: '',
+      rulesJSON: '',
+      routesJSON: '',
+      openapiInput: '',
+      openapiError: '',
+      advancedError: '',
+      toggleOpt(tab) {
+        this.optTab = this.optTab === tab ? '' : tab;
+      },
+      insertToken(tok) {
+        if (this.contentType === 'application/json' && /\n\}$/.test(this.body.trim())) {
+          const key = tok.replace(/[{}]/g, '').split(':')[0].split('.').pop();
+          this.body = this.body.trim().replace(/\n\}$/, ',\n  "' + key + '": "' + tok + '"\n}');
+        } else {
+          this.body = this.body ? (this.body + '\n' + tok) : tok;
+        }
+        this.onBodyInput();
+      },
+      previewCurl() {
+        const s = this.slug.trim() || 'abc123def456';
+        const p = this.pathSuffix.trim();
+        const url = '{{ .BaseURL }}/m/' + s + (p ? '/' + p : '');
+        const m = this.method === 'ANY' ? 'GET' : this.method;
+        const flag = m === 'GET' ? '' : ('-X ' + m + ' ');
+        return '$ curl ' + flag + url + " \\\n  -H 'Accept: " + this.contentType + "'";
+      },
+      previewBody() {
+        let out = this.body || '';
+        const samples = {
+          'faker.uuid': '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+          'faker.name': 'Alex Rivera',
+          'faker.firstname': 'Alex',
+          'faker.lastname': 'Rivera',
+          'faker.username': 'arivera',
+          'faker.email': 'alex@quickmock.dev',
+          'faker.phone': '+1-555-0142',
+          'faker.url': 'https://example.dev',
+          'faker.ipv4': '203.0.113.42',
+          'faker.int': '42',
+          'faker.bool': 'true',
+          'faker.color': '#22c55e',
+          'faker.word': 'emerald',
+          'faker.sentence': 'Instant HTTP mock response.',
+          'faker.lorem': 'Lorem ipsum dolor sit amet.',
+          'faker.company': 'Acme Labs',
+          'faker.city': 'Berlin',
+          'faker.price': '49.99',
+          'now.iso8601': new Date().toISOString().slice(0, 19) + 'Z',
+          'now.unix': String(Math.floor(Date.now() / 1000)),
+          'now.date': new Date().toISOString().slice(0, 10),
+          'seq': '1',
+          'request.method': this.method === 'ANY' ? 'GET' : this.method,
+          'request.query.id': '42',
+        };
+        out = out.replace(/\{\{\s*random\.pick:([^|}]+)[^}]*\}\}/g, '$1');
+        out = out.replace(/\{\{\s*([a-z0-9_.]+)\s*\}\}/g, (m, k) => samples[k] || m);
+        return out.length > 900 ? out.slice(0, 900) + '\n…' : out;
+      },
+      async copyPreview() {
+        const cmd = this.previewCurl().replace(/^\$\s*/, '');
+        try { await navigator.clipboard.writeText(cmd); }
+        catch (e) {
+          const ta = document.createElement('textarea');
+          ta.value = cmd; document.body.appendChild(ta);
+          ta.select(); document.execCommand('copy'); ta.remove();
+        }
+        this.previewCopied = true;
+        setTimeout(() => { this.previewCopied = false; }, 1500);
+      },
       addStep() {
         if (this.steps.length >= 10) return;
         this.steps.push({ key: this.stepKey++, status: 500, body: '', headers: '' });
@@ -542,38 +720,28 @@ Admin Token: qm_...</code></pre>
         [this.steps[i], this.steps[j]] = [this.steps[j], this.steps[i]];
       },
       init() { this.applyPrefill(); this.onBodyInput(); },
-      // Populate the form from a guide's config (window.__qmPrefill, set when
-      // arriving via a /guide/<slug> "Create this mock" CTA). Mirrors the
-      // mixed Alpine-state + plain-DOM approach parseCurl() uses.
       applyPrefill() {
         const p = window.__qmPrefill;
         if (!p) return;
         this.applyConfig(p);
       },
-      // Populate the form from a mock-config object in the POST /api/mocks
-      // JSON shape. Used by guide prefills, JSON import, and to restore the
-      // user's input after the server rejects a submission.
-      // Blank / 0 / false values in p are treated as "leave the field
-      // untouched" (setVal skips empty), so an empty string never clears a field.
       applyConfig(p) {
         const setVal = (sel, v) => {
           const el = document.querySelector(sel);
           if (el && v !== undefined && v !== null && v !== '') el.value = v;
         };
         setVal('input[name=name]', p.name);
-        setVal('select[name=method]', p.method);
-        setVal('input[name=response_status]', p.response_status);
-        // A template/import config may carry a content_type the select's
-        // fixed option list doesn't offer (e.g. application/problem+json).
-        // Add it on the fly so setVal doesn't silently no-op and leave the
-        // server to fall back to text/plain.
+        if (p.method) { this.method = p.method; setVal('select[name=method]', p.method); }
+        if (p.response_status) { this.status = p.response_status; setVal('input[name=response_status]', p.response_status); }
         if (p.content_type) {
           const ctSelect = document.querySelector('select[name=content_type]');
           if (ctSelect && !Array.from(ctSelect.options).some((o) => o.value === p.content_type)) {
             ctSelect.appendChild(new Option(p.content_type, p.content_type));
           }
+          this.contentType = p.content_type;
         }
         setVal('select[name=content_type]', p.content_type);
+        if (p.response_delay_ms) { this.delayMs = p.response_delay_ms; }
         setVal('input[name=response_delay_ms]', p.response_delay_ms);
         setVal('input[name=response_delay_max_ms]', p.response_delay_max_ms);
         setVal('select[name=ttl]', p.ttl);
@@ -598,19 +766,19 @@ Admin Token: qm_...</code></pre>
             headers: s.headers ? Object.entries(s.headers).map(([k, v]) => k + ': ' + v).join('\n') : '',
           }));
         }
-		if (Array.isArray(p.response_variants)) this.variantsJSON = JSON.stringify(p.response_variants, null, 2);
-		if (Array.isArray(p.response_rules)) this.rulesJSON = JSON.stringify(p.response_rules, null, 2);
-		if (Array.isArray(p.routes)) this.routesJSON = JSON.stringify(p.routes, null, 2);
-		if (typeof p.response_variants_json === 'string') this.variantsJSON = p.response_variants_json;
-		if (typeof p.response_rules_json === 'string') this.rulesJSON = p.response_rules_json;
-		if (typeof p.routes_json === 'string') this.routesJSON = p.routes_json;
-		const setChecked = (name, value) => {
-		  const el = document.querySelector('input[name=' + name + ']');
-		  if (el && typeof value === 'boolean') el.checked = value;
-		};
-		setChecked('logs_public', p.logs_public);
-		setChecked('capture_body', p.capture_body);
-		setChecked('capture_ip', p.capture_ip);
+        if (Array.isArray(p.response_variants)) this.variantsJSON = JSON.stringify(p.response_variants, null, 2);
+        if (Array.isArray(p.response_rules)) this.rulesJSON = JSON.stringify(p.response_rules, null, 2);
+        if (Array.isArray(p.routes)) this.routesJSON = JSON.stringify(p.routes, null, 2);
+        if (typeof p.response_variants_json === 'string') this.variantsJSON = p.response_variants_json;
+        if (typeof p.response_rules_json === 'string') this.rulesJSON = p.response_rules_json;
+        if (typeof p.routes_json === 'string') this.routesJSON = p.routes_json;
+        const setChecked = (name, value) => {
+          const el = document.querySelector('input[name=' + name + ']');
+          if (el && typeof value === 'boolean') el.checked = value;
+        };
+        setChecked('logs_public', p.logs_public);
+        setChecked('capture_body', p.capture_body);
+        setChecked('capture_ip', p.capture_ip);
         if (typeof p.slug === 'string' && p.slug) {
           this.slug = p.slug;
           this.onSlugInput();
@@ -623,7 +791,6 @@ Admin Token: qm_...</code></pre>
       },
       onSlugInput() {
         const v = this.slug.trim().toLowerCase();
-        // Same rule as the server (service.customSlugRegexp).
         this.slugError = v === '' || /^[a-z0-9][a-z0-9-]{2,46}[a-z0-9]$/.test(v)
           ? '' : '{{ t "mock.create.slug_invalid" }}';
       },
@@ -634,8 +801,6 @@ Admin Token: qm_...</code></pre>
           this.pathError = 'Max 255 characters.';
           return;
         }
-        // Same rule as the server: RFC 3986 unreserved + '/', no leading/
-        // trailing slash, no empty segments.
         if (!/^[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*$/.test(v)) {
           this.pathError = '{{ t "mock.create.path_suffix_invalid" }}';
           return;
@@ -658,8 +823,7 @@ Admin Token: qm_...</code></pre>
       onBodyInput() {
         this.bodySize = Math.ceil(new Blob([this.body]).size / 1024);
         this.jsonError = '';
-        const ct = document.querySelector('select[name=content_type]');
-        if (ct && ct.value === 'application/json' && this.body.trim() !== '') {
+        if (this.contentType === 'application/json' && this.body.trim() !== '') {
           const { stripped } = this.stripTokens(this.body);
           try { JSON.parse(stripped); } catch (e) {
             this.jsonError = '{{ t "errors.invalid_json" }}: ' + e.message;
@@ -698,8 +862,8 @@ Admin Token: qm_...</code></pre>
           });
           if (!r.ok) throw new Error('parse failed');
           const data = await r.json();
-          if (data.method) document.querySelector('select[name=method]').value = data.method;
-          if (data.content_type) document.querySelector('select[name=content_type]').value = data.content_type;
+          if (data.method) { this.method = data.method; document.querySelector('select[name=method]').value = data.method; }
+          if (data.content_type) { this.contentType = data.content_type; document.querySelector('select[name=content_type]').value = data.content_type; }
           if (data.response_body) { this.body = data.response_body; }
           if (data.response_headers) {
             this.headers = Object.entries(data.response_headers).map(([name, value]) => ({name, value}));
@@ -709,35 +873,35 @@ Admin Token: qm_...</code></pre>
           this.curlError = '{{ t "mock.curl_import.error" }}';
         }
       },
-	  validateAdvanced() {
-		this.advancedError = '';
-		for (const value of [this.variantsJSON, this.rulesJSON, this.routesJSON]) {
-		  if (!value.trim()) continue;
-		  try {
-			const parsed = JSON.parse(value);
-			if (!Array.isArray(parsed)) throw new Error('array expected');
-		  } catch (e) {
-			this.advancedError = '{{ t "mock.create.scenarios.invalid" }}';
-			return false;
-		  }
-		}
-		return true;
-	  },
-	  async parseOpenAPI() {
-		this.openapiError = '';
-		try {
-		  const r = await fetch('/api/parse-openapi', {
-			method: 'POST', headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ spec: this.openapiInput })
-		  });
-		  if (!r.ok) throw new Error('parse failed');
-		  const data = await r.json();
-		  this.routesJSON = JSON.stringify(data.routes || [], null, 2);
-		  this.validateAdvanced();
-		} catch (e) {
-		  this.openapiError = '{{ t "mock.create.workspace.openapi_error" }}';
-		}
-	  },
+      validateAdvanced() {
+        this.advancedError = '';
+        for (const value of [this.variantsJSON, this.rulesJSON, this.routesJSON]) {
+          if (!value.trim()) continue;
+          try {
+            const parsed = JSON.parse(value);
+            if (!Array.isArray(parsed)) throw new Error('array expected');
+          } catch (e) {
+            this.advancedError = '{{ t "mock.create.scenarios.invalid" }}';
+            return false;
+          }
+        }
+        return true;
+      },
+      async parseOpenAPI() {
+        this.openapiError = '';
+        try {
+          const r = await fetch('/api/parse-openapi', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ spec: this.openapiInput })
+          });
+          if (!r.ok) throw new Error('parse failed');
+          const data = await r.json();
+          this.routesJSON = JSON.stringify(data.routes || [], null, 2);
+          this.validateAdvanced();
+        } catch (e) {
+          this.openapiError = '{{ t "mock.create.workspace.openapi_error" }}';
+        }
+      },
       importFile(ev) {
         const f = ev.target.files[0];
         ev.target.value = '';

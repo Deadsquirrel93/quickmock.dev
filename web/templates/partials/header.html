@@ -2,50 +2,66 @@
 <header class="site-header">
   <div class="container header-row">
     <a class="brand" href="/">
-      <span class="brand-logo">⚡</span>
+      <svg class="brand-logo" width="28" height="28" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <rect width="64" height="64" rx="15" class="brand-logo-bg"/>
+        <path d="M22 16C17.5 16 16 18 16 22V26.5C16 29.5 14 31.5 11.5 32C14 32.5 16 34.5 16 37.5V42C16 46 17.5 48 22 48" class="brand-logo-stroke" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M42 16C46.5 16 48 18 48 22V26.5C48 29.5 50 31.5 52.5 32C50 32.5 48 34.5 48 37.5V42C48 46 46.5 48 42 48" class="brand-logo-stroke" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M35 19L26 33H33L29 45L38 31H31L35 19Z" class="brand-logo-fill"/>
+      </svg>
       <span class="brand-name">{{ t "app.name" }}</span>
     </a>
 
     <nav class="nav" aria-label="Primary">
       <a href="/" {{ if eq .Path "/" }}aria-current="page"{{ end }}>{{ t "nav.home" }}</a>
       <a href="/my" {{ if eq .Path "/my" }}aria-current="page"{{ end }}>{{ t "nav.my_mocks" }}</a>
-      <a href="/changelog" {{ if eq .Path "/changelog" }}aria-current="page"{{ end }}>{{ t "changelog.title" }}</a>
-      <a href="/docs" {{ if eq .Path "/docs" }}aria-current="page"{{ end }}>{{ t "nav.docs" }}</a>
-      <a href="/guide" {{ if eq .Path "/guide" }}aria-current="page"{{ end }}>{{ t "nav.guide" }}</a>
       <a href="/templates" {{ if eq .Path "/templates" }}aria-current="page"{{ end }}>{{ t "nav.templates" }}</a>
+      <a href="/guide" {{ if eq .Path "/guide" }}aria-current="page"{{ end }}>{{ t "nav.guide" }}</a>
+      <a href="/docs" {{ if eq .Path "/docs" }}aria-current="page"{{ end }}>{{ t "nav.docs" }}</a>
+      <a href="/changelog" {{ if eq .Path "/changelog" }}aria-current="page"{{ end }}>{{ t "changelog.title" }}</a>
     </nav>
 
-    <button type="button"
-            class="theme-toggle"
-            x-data="themeToggle()"
-            x-init="init()"
-            @click="toggle()"
-            :title="theme === 'dark' ? '{{ t "nav.theme.light" }}' : '{{ t "nav.theme.dark" }}'"
-            :aria-label="theme === 'dark' ? '{{ t "nav.theme.light" }}' : '{{ t "nav.theme.dark" }}'">
-      <span x-text="theme === 'dark' ? '☀️' : '🌙'">🌙</span>
-    </button>
-
-    <div class="lang-switcher" x-data="{ open: false }">
-      <button type="button" class="lang-button" @click="open = !open"
-              :aria-expanded="open" aria-haspopup="listbox">
-        <span aria-hidden="true">🌐</span>
-        <span>{{ langName currentLang }}</span>
-        <span class="caret" aria-hidden="true">▾</span>
+    <div class="header-actions">
+      <button type="button"
+              class="theme-toggle"
+              x-data="themeToggle()"
+              x-init="init()"
+              @click="toggle()"
+              :title="theme === 'dark' ? '{{ t "nav.theme.light" }}' : '{{ t "nav.theme.dark" }}'"
+              :aria-label="theme === 'dark' ? '{{ t "nav.theme.light" }}' : '{{ t "nav.theme.dark" }}'">
+        <svg x-show="theme === 'dark'" x-cloak width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+        <svg x-show="theme !== 'dark'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
       </button>
-      <ul class="lang-menu" role="listbox" x-show="open" @click.away="open = false" x-cloak>
-        {{ range .Languages }}
-          <li>
-            <form method="post" action="/language" hx-post="/language">
-              <input type="hidden" name="lang" value="{{ . }}">
-              <button type="submit"
-                      class="lang-option {{ if eq . currentLang }}is-current{{ end }}"
-                      role="option">
-                {{ langName . }}
-              </button>
-            </form>
-          </li>
-        {{ end }}
-      </ul>
+
+      <div class="lang-switcher" x-data="{ open: false }">
+        <button type="button" class="lang-button" @click="open = !open"
+                :aria-expanded="open" aria-haspopup="listbox">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <span>{{ langName currentLang }}</span>
+          <span class="caret" aria-hidden="true">▾</span>
+        </button>
+        <ul class="lang-menu" role="listbox" x-show="open" @click.away="open = false" x-cloak>
+          {{ range .Languages }}
+            <li>
+              <form method="post" action="/language" hx-post="/language">
+                <input type="hidden" name="lang" value="{{ . }}">
+                <button type="submit"
+                        class="lang-option {{ if eq . currentLang }}is-current{{ end }}"
+                        role="option">
+                  {{ langName . }}
+                </button>
+              </form>
+            </li>
+          {{ end }}
+        </ul>
+      </div>
     </div>
   </div>
 </header>

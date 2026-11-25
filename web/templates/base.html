@@ -7,7 +7,8 @@
   <meta name="description" content="{{ if .MetaDescription }}{{ .MetaDescription }}{{ else }}{{ t "seo.description" }}{{ end }}">
   <meta name="author" content="Nikita Chernykh">
   <meta name="robots" content="index,follow,max-image-preview:large">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#08090c" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f6f8fa" media="(prefers-color-scheme: light)">
 
   <link rel="icon" href="/static/favicon.svg?v={{ .AssetVersion }}" type="image/svg+xml">
   <link rel="canonical" href="{{ .BaseURL }}{{ .Path }}{{ if ne .Lang .DefaultLang }}?lang={{ .Lang }}{{ end }}">
