@@ -161,6 +161,7 @@
   "changelog.r1126.fixed1": "Se añadió el <code>aria-label</code> localizado que faltaba en el filtro de estado del inspector y se fijó el pie de página al fondo en las páginas cortas.",
   "changelog.r1126.title": "2026-11-26 — Rediseño Midnight Terminal y nuevo logotipo",
   "changelog.r1128.security1": "<strong>Ahora se pueden bloquear familias enteras de URLs de mocks abusivos.</strong> Una campaña automatizada creó unos 180 mocks de corta duración que alojaban scripts y manifiestos de toma de cuentas para plataformas de terceros, con slugs personalizados que compartían un prefijo. Los operadores ya pueden bloquear un prefijo de slug, para que la campaña no vuelva con otro sufijo, y sus direcciones de origen están bloqueadas.",
+  "changelog.r1128.security2": "<strong>Los mocks ya no se pueden cargar como scripts.</strong> Un mock con tipo de contenido JavaScript (<code>application/javascript</code>, <code>text/javascript</code> y sus alias) ahora se sirve como <code>text/plain</code>, así que los navegadores se niegan a ejecutarlo, incluso como script de módulo desde un mock con CORS. <code>fetch</code>, curl y los clientes backend reciben el cuerpo sin cambios.",
   "changelog.r1128.title": "2026-11-28 — Bloqueo de scripts de toma de cuentas alojados",
   "changelog.repo_link": "Historial de git completo en GitHub",
   "changelog.section.added": "Añadido",

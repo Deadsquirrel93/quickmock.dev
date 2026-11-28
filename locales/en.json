@@ -161,6 +161,7 @@
   "changelog.r1126.fixed1": "Added the missing localized <code>aria-label</code> on the request-log status filter and pinned the site footer to the bottom on short pages.",
   "changelog.r1126.title": "2026-11-26 — Midnight Terminal redesign & new logo",
   "changelog.r1128.security1": "<strong>Whole families of abusive mock URLs can be blocked.</strong> An automated campaign created about 180 short-lived mocks that hosted account-takeover scripts and manifests for third-party platforms under custom slugs sharing one prefix. Operators can now block a slug prefix, so the campaign cannot simply come back under a new suffix, and its source addresses are blocked.",
+  "changelog.r1128.security2": "<strong>Mocks can no longer be loaded as scripts.</strong> A mock whose content type is JavaScript (<code>application/javascript</code>, <code>text/javascript</code> and their aliases) is now served as <code>text/plain</code>, so browsers refuse to run it even as a module script from a CORS-enabled mock. <code>fetch</code>, curl and backend clients receive the body unchanged.",
   "changelog.r1128.title": "2026-11-28 — Blocking hosted takeover scripts",
   "changelog.repo_link": "Full git history on GitHub",
   "changelog.section.added": "Added",

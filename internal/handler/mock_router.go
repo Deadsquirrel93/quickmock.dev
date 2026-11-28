@@ -262,6 +262,22 @@ func setMockProtectiveHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+	// CORP does not cover cors-mode loads, so a CORS-enabled mock with a JS
+	// type could still run as <script type=module>; text/plain + nosniff makes
+	// the browser refuse to execute it (observed abuse, 2026-11).
+	essence, _, _ := strings.Cut(w.Header().Get("Content-Type"), ";")
+	if _, ok := javaScriptMIME[strings.ToLower(strings.TrimSpace(essence))]; ok {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	}
+}
+
+// javaScriptMIME is the WHATWG MIME Sniffing "JavaScript MIME type" list.
+var javaScriptMIME = map[string]struct{}{
+	"application/ecmascript": {}, "application/javascript": {}, "application/x-ecmascript": {},
+	"application/x-javascript": {}, "text/ecmascript": {}, "text/javascript": {},
+	"text/javascript1.0": {}, "text/javascript1.1": {}, "text/javascript1.2": {},
+	"text/javascript1.3": {}, "text/javascript1.4": {}, "text/javascript1.5": {},
+	"text/jscript": {}, "text/livescript": {}, "text/x-ecmascript": {}, "text/x-javascript": {},
 }
 
 // allowResponseHeader re-validates a Location header against
