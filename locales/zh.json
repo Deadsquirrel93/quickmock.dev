@@ -160,6 +160,8 @@
   "changelog.r1126.changed3": "<strong>全新 Bracket Bolt 标志、Favicon 与 Open Graph 卡片。</strong>页头、<code>favicon.svg</code> 和 <code>og.png</code> 均换上定制 SVG 图标 <code>{⚡}</code> 替代默认闪电表情，其余界面表情也统一改为内联 SVG 图标。",
   "changelog.r1126.fixed1": "补全了请求日志状态筛选器缺失的多语言 <code>aria-label</code>，并让页脚在较短页面上保持贴底显示。",
   "changelog.r1126.title": "2026-11-26 — Midnight Terminal 界面重塑与全新标志",
+  "changelog.r1128.security1": "<strong>现在可以整组屏蔽滥用的 Mock 地址。</strong>一次自动化攻击创建了约 180 个短期 Mock，以共享同一前缀的自定义 slug 托管针对第三方平台的账户接管脚本和清单文件。运营方现在可以按 slug 前缀屏蔽，攻击无法换个后缀卷土重来；其来源地址也已被屏蔽。",
+  "changelog.r1128.title": "2026-11-28 — 阻止托管账户接管脚本",
   "changelog.repo_link": "GitHub 上的完整 git 历史记录",
   "changelog.section.added": "已添加",
   "changelog.section.changed": "已更改",

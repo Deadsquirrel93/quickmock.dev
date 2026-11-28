@@ -160,6 +160,8 @@
   "changelog.r1126.changed3": "<strong>Novo logotipo Bracket Bolt, favicon e imagem Open Graph.</strong> O emoji de raio padrão foi substituído por um símbolo SVG próprio <code>{⚡}</code> no cabeçalho, em <code>favicon.svg</code> e em <code>og.png</code>, e os demais emojis da interface viraram ícones SVG inline.",
   "changelog.r1126.fixed1": "Adicionado o <code>aria-label</code> traduzido que faltava no filtro de status do inspetor e rodapé fixado na base em páginas curtas.",
   "changelog.r1126.title": "2026-11-26 — Redesign Midnight Terminal e novo logotipo",
+  "changelog.r1128.security1": "<strong>Agora é possível bloquear famílias inteiras de URLs de mocks abusivos.</strong> Uma campanha automatizada criou cerca de 180 mocks de curta duração que hospedavam scripts e manifestos de sequestro de contas para plataformas de terceiros, com slugs personalizados que compartilhavam um prefixo. Os operadores agora podem bloquear um prefixo de slug, para que a campanha não volte com outro sufixo, e seus endereços de origem foram bloqueados.",
+  "changelog.r1128.title": "2026-11-28 — Bloqueio de scripts de sequestro de contas hospedados",
   "changelog.repo_link": "Histórico completo do git no GitHub",
   "changelog.section.added": "Adicionado",
   "changelog.section.changed": "Alterado",

@@ -204,7 +204,12 @@ func (s *MockService) Create(ctx context.Context, in model.MockInput, creatorIP 
 		if slug, err = GenerateSlug(ctx, s.repo); err != nil {
 			return nil, err
 		}
-	} else if slug == reservedSlug || slices.Contains(s.blockedSlugs, slug) {
+	} else if slug == reservedSlug || slices.ContainsFunc(s.blockedSlugs, func(b string) bool {
+		if p, ok := strings.CutSuffix(b, "*"); ok { // "prefix-*" blocks a whole slug family
+			return strings.HasPrefix(slug, p)
+		}
+		return slug == b
+	}) {
 		return nil, ErrSlugTaken
 	}
 

@@ -782,6 +782,20 @@ func TestCreateCustomSlug(t *testing.T) {
 		}
 	})
 
+	t.Run("operator-blocked prefix", func(t *testing.T) {
+		s := customSlugService(newFakeMockStore(), "Recessive-*")
+		for _, in := range []string{"recessive-kura-js-d256f1a0", "RECESSIVE-pipo-cors"} {
+			if _, err := s.Create(ctx, model.MockInput{Method: model.MethodGET, Slug: in}, ""); !errors.Is(err, ErrSlugTaken) {
+				t.Fatalf("Create(%q) error = %v, want ErrSlugTaken", in, err)
+			}
+		}
+		for _, in := range []string{"recessive", "my-recessive-mock", "recessivex"} {
+			if _, err := s.Create(ctx, model.MockInput{Method: model.MethodGET, Slug: in}, ""); err != nil {
+				t.Fatalf("Create(%q) rejected: %v", in, err)
+			}
+		}
+	})
+
 	t.Run("held by a live mock", func(t *testing.T) {
 		store := newFakeMockStore(&model.Mock{Slug: "taken-slug"})
 		_, err := customSlugService(store).Create(ctx, model.MockInput{Method: model.MethodGET, Slug: "taken-slug"}, "")
