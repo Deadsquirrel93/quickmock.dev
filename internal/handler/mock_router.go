@@ -266,13 +266,15 @@ func setMockProtectiveHeaders(w http.ResponseWriter) {
 	// type could still run as <script type=module>; text/plain + nosniff makes
 	// the browser refuse to execute it (observed abuse, 2026-11).
 	essence, _, _ := strings.Cut(w.Header().Get("Content-Type"), ";")
-	if _, ok := javaScriptMIME[strings.ToLower(strings.TrimSpace(essence))]; ok {
+	if _, ok := executableMIME[strings.ToLower(strings.TrimSpace(essence))]; ok {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	}
 }
 
-// javaScriptMIME is the WHATWG MIME Sniffing "JavaScript MIME type" list.
-var javaScriptMIME = map[string]struct{}{
+// executableMIME is the WHATWG "JavaScript MIME type" list plus
+// application/wasm, which WebAssembly.instantiateStreaming requires.
+var executableMIME = map[string]struct{}{
+	"application/wasm":       {},
 	"application/ecmascript": {}, "application/javascript": {}, "application/x-ecmascript": {},
 	"application/x-javascript": {}, "text/ecmascript": {}, "text/javascript": {},
 	"text/javascript1.0": {}, "text/javascript1.1": {}, "text/javascript1.2": {},

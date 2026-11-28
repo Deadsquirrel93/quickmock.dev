@@ -26,6 +26,7 @@ func TestServeDowngradesJavaScriptMIME(t *testing.T) {
 		{"mixed case", "Text/JavaScript", nil, "text/plain; charset=utf-8"},
 		{"legacy alias", "application/x-javascript", nil, "text/plain; charset=utf-8"},
 		{"via response header", "", map[string]string{"Content-Type": "application/ecmascript"}, "text/plain; charset=utf-8"},
+		{"wasm", "application/wasm", nil, "text/plain; charset=utf-8"},
 		{"json untouched", "application/json", nil, "application/json"},
 		{"html untouched", "text/html", nil, "text/html"},
 	}
